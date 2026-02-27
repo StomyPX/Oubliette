@@ -1,0 +1,20 @@
+# Ignore everything in parent folder not explicitly permitted
+/*
+!/ext
+!/src
+!/data/text
+!/data/typedefs
+!Makefile
+!LICENSE.md
+!.gitignore
+!.gitmodules
+
+# Directories
+
+# Backup Files
+*.bak
+*.*~
+*.blend?
+*.zip
+*.pk3
+

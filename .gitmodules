@@ -1,0 +1,6 @@
+[submodule "ext/cimgui"]
+	path = ext/cimgui
+	url = git@github.com:cimgui/cimgui.git
+[submodule "ext/raylib"]
+	path = ext/raylib
+	url = git@github.com:raysan5/raylib.git
