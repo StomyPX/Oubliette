@@ -176,7 +176,7 @@ util_drawLog(void)
 {
     float deltaTime = GetFrameTime();
     Color color;
-    Vector2 position = (Vector2){10.f, 10.f};
+    Vector2 position = (Vector2){20.f, 20.f};
     Font font = GetFontDefault();
 
     for (int i = 0; i < UTIL_LOGLINE_COUNT; i++) {

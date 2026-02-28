@@ -1,15 +1,8 @@
-static void
-ui_text(Font font, const char* text, Vector2 position, Color tint, int spacing)
-{
-    Vector2 pos = position;
-    Vector4 backColor = ColorNormalize(tint);
-    backColor.x = 0.5f / 255.f;
-    backColor.y = 0.5f / 255.f;
-    backColor.z = 0.5f / 255.f;
-    pos.x += 1.f;
-    pos.y += 1.f;
-    DrawTextEx(font, text, pos, font.baseSize, spacing, ColorFromNormalized(backColor));
-    pos.x -= 1.f;
-    pos.y -= 1.f;
-    DrawTextEx(font, text, pos, font.baseSize, spacing, tint);
-}
+#define UI_SIDE_PANEL_FRACTION (3.f / 8.f)
+#define UI_SIDE_PANEL_HEADER 104.f
+#define UI_SIDE_PANEL_FOOTER 128.f
+#define UI_PORTRAIT_FRACTION (1.f / 4.f)
+#define UI_PADDING 10.f
+
+static void ui_text(Font font, const char* text, Vector2 position, Color tint, int spacing);
+static void ui_border(Texture border, Rectangle rec, Color color);

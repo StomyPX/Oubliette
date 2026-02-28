@@ -64,6 +64,7 @@
 #include "ext.c"
 #include "map.c"
 #include "platform.c"
+#include "ui.c"
 #include "util.c"
 
 int
@@ -102,6 +103,17 @@ main(int argc, char* argv[])
     m->fonts.title = LoadFontEx("data/fonts/Coelacanth.otf", 64, 0, 0);
     m->fonts.titleB = LoadFontEx("data/fonts/CoelacanthBold.otf", 64, 0, 0);
     m->fonts.titleI = LoadFontEx("data/fonts/CoelacanthItalic.otf", 64, 0, 0);
+
+    m->border = LoadTexture("data/textures/panel-border.png");
+    m->marble = LoadTexture("data/textures/Marble023B.png");
+    m->vellum = LoadTexture("data/textures/parchment_2.png");
+
+    m->portraits[0] = LoadTexture("data/portraits/edmund.jpg");
+    m->portraits[1] = LoadTexture("data/portraits/breydel.jpg");
+    m->portraits[2] = LoadTexture("data/portraits/gala.jpg");
+    m->portraits[3] = LoadTexture("data/portraits/faustine.jpg");
+    for (int i = 0; i < 4; i++)
+        GenTextureMipmaps(m->portraits + i);
 
     Vector2 dragStart;
 
@@ -299,14 +311,29 @@ main(int argc, char* argv[])
             m->area.right = m->area.left + m->area.width;
         }
 
-        BeginDrawing();
-        {
+        Rectangle viewport;
+        viewport.x = m->area.left + UI_PADDING;
+        viewport.y = m->area.top + UI_PADDING;
+        viewport.width = m->area.width * (1.f - UI_SIDE_PANEL_FRACTION) - UI_PADDING * 2;
+        viewport.height = m->area.height * (1.f - UI_PORTRAIT_FRACTION) - UI_PADDING * 2;
+
+        { /* Draw map to a render texture. Incredibly, raylib doesn't do viewports */
+            if (m->rtexW != viewport.width || m->rtexH != viewport.height) {
+                if (IsRenderTextureValid(m->rtex))
+                    UnloadRenderTexture(m->rtex);
+                m->rtex = LoadRenderTexture(viewport.width, viewport.height);
+                m->rtexW = viewport.width;
+                m->rtexH = viewport.height;
+            }
+
+            BeginTextureMode(m->rtex);
+            BeginMode3D(m->camera);
             ClearBackground(CLEAR_COLOR);
 
-            BeginMode3D(m->camera);
-
-            if (m->map.name[0])
-                map_draw(&m->map, GLOOM_COLOR, 4.f * TILE_SIDE_LENGTH);
+            if (m->map.name[0]) {
+                // TODO Redo lighting to allow multiple sources
+                map_draw(&m->map, BEIGE /*GLOOM_COLOR*/, 4.f * TILE_SIDE_LENGTH);
+            }
 
             rlDisableDepthMask();
             if (m->flags & GlobalFlags_EditorMode)
@@ -361,6 +388,19 @@ main(int argc, char* argv[])
             rlEnableDepthMask();
 
             EndMode3D();
+            EndTextureMode();
+        }
+
+        BeginDrawing();
+        {
+            DrawTextureRec(m->marble, (Rectangle){0, 0, GetRenderWidth(), GetRenderHeight()}, (Vector2){0, 0}, DARKBROWN);
+
+            /* Because OpenGL's origin is in the bottom left, this has to be inverted */
+            DrawTextureRec(m->rtex.texture,
+                (Rectangle){0, 0, m->rtex.texture.width, -m->rtex.texture.height},
+                (Vector2){viewport.x, viewport.y}, WHITE);
+
+            ui_border(m->border, viewport, TEXT_COLOR);
 
             /*
             char* message = "7DRL 2026. Let's Rock!";
@@ -371,16 +411,95 @@ main(int argc, char* argv[])
             */
 
             if (m->map.name[0]) {
-                Vector2 position = MeasureTextEx(m->fonts.title, m->map.name, m->fonts.title.baseSize, 0);
-                position.x = m->area.left + m->area.width - position.x - 30;
-                position.y = m->area.top + 20;
+                Vector2 position;
+                Vector2 dimensions = MeasureTextEx(m->fonts.title, m->map.name, m->fonts.title.baseSize, 0);
+                position.x = m->area.left + m->area.width;
+                position.x -= m->area.width * UI_SIDE_PANEL_FRACTION / 2.f;
+                position.x -= dimensions.x / 2.f;
+                position.y = m->area.top + UI_SIDE_PANEL_HEADER / 2.f - dimensions.y / 2.f;
                 ui_text(m->fonts.title, m->map.name, position, TEXT_COLOR, 0);
+            }
+
+            { /* Side Panel */
+                Rectangle panel;
+                panel.x = m->area.left + m->area.width * (1.f - UI_SIDE_PANEL_FRACTION) + UI_PADDING;
+                panel.y = m->area.top + UI_SIDE_PANEL_HEADER + UI_PADDING;
+                panel.width = m->area.width * UI_SIDE_PANEL_FRACTION - UI_PADDING * 2;
+                panel.height = m->area.height - UI_PADDING * 2 - UI_SIDE_PANEL_HEADER - UI_SIDE_PANEL_FOOTER;
+
+                DrawTextureRec(m->vellum, panel, (Vector2){panel.x, panel.y}, WHITE);
+                ui_border(m->border, panel, TEXT_COLOR);
+            }
+
+            { /* Portraits */
+                Rectangle card, portrait;
+                Texture ptex;
+                Vector2 zero = {};
+                Vector2 position;
+
+                card.x = m->area.left + UI_PADDING;
+                card.y = m->area.top + m->area.height * (1.f - UI_PORTRAIT_FRACTION) + UI_PADDING;
+                card.width = m->area.width * (1.f - UI_SIDE_PANEL_FRACTION) / 4.f - UI_PADDING * 2;
+                card.height = m->area.height * UI_PORTRAIT_FRACTION - UI_PADDING * 2;
+                portrait.x = card.x + UI_PADDING;
+                portrait.y = card.y + UI_PADDING;
+                portrait.width = card.width / 2.f;
+                portrait.height = portrait.width;
+                ptex = m->portraits[0];
+                position.x = portrait.x + portrait.width + UI_PADDING;
+                position.y = portrait.y;
+                DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
+                BeginScissorMode(card.x, card.y, card.width, card.height);
+                DrawTextEx(m->fonts.textB, "Edmund", position, m->fonts.textB.baseSize, 0, BLACK);
+                EndScissorMode();
+                ui_border(m->border, card, TEXT_COLOR);
+                DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, WHITE);
+                ui_border(m->border, portrait, TEXT_COLOR);
+
+                card.x += card.width + UI_PADDING * 2;
+                portrait.x += card.width + UI_PADDING * 2;
+                ptex = m->portraits[1];
+                position.x = portrait.x + portrait.width + UI_PADDING;
+                position.y = portrait.y;
+                DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
+                BeginScissorMode(card.x, card.y, card.width, card.height);
+                DrawTextEx(m->fonts.textB, "Breydel", position, m->fonts.textB.baseSize, 0, BLACK);
+                EndScissorMode();
+                ui_border(m->border, card, TEXT_COLOR);
+                DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, WHITE);
+                ui_border(m->border, portrait, TEXT_COLOR);
+
+                card.x += card.width + UI_PADDING * 2;
+                portrait.x += card.width + UI_PADDING * 2;
+                ptex = m->portraits[2];
+                position.x = portrait.x + portrait.width + UI_PADDING;
+                position.y = portrait.y;
+                DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
+                BeginScissorMode(card.x, card.y, card.width, card.height);
+                DrawTextEx(m->fonts.textB, "Gala", position, m->fonts.textB.baseSize, 0, BLACK);
+                EndScissorMode();
+                ui_border(m->border, card, TEXT_COLOR);
+                DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, WHITE);
+                ui_border(m->border, portrait, TEXT_COLOR);
+
+                card.x += card.width + UI_PADDING * 2;
+                portrait.x += card.width + UI_PADDING * 2;
+                ptex = m->portraits[3];
+                position.x = portrait.x + portrait.width + UI_PADDING;
+                position.y = portrait.y;
+                DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
+                BeginScissorMode(card.x, card.y, card.width, card.height);
+                DrawTextEx(m->fonts.textB, "Faustine", position, m->fonts.textB.baseSize, 0, BLACK);
+                EndScissorMode();
+                ui_border(m->border, card, TEXT_COLOR);
+                DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, WHITE);
+                ui_border(m->border, portrait, TEXT_COLOR);
             }
 
             if (m->flags & GlobalFlags_PartyStats) {
                 char buf[128] = {0};
                 char* facing = 0;
-                Vector2 position = (Vector2){GetRenderWidth() - 120, GetRenderHeight() / 3};
+                Vector2 position = (Vector2){GetRenderWidth() - 120, 20};
                 switch (m->partyFacing) {
                     case 0: facing = "North"; break;
                     case 1: facing = "East"; break;
@@ -459,6 +578,12 @@ main(int argc, char* argv[])
     UnloadFont(m->fonts.title);
     UnloadFont(m->fonts.titleB);
     UnloadFont(m->fonts.titleI);
+    UnloadTexture(m->border);
+    UnloadTexture(m->marble);
+    UnloadTexture(m->vellum);
+    for (int i = 0; i < 4; i++)
+        UnloadTexture(m->portraits[i]);
+    UnloadRenderTexture(m->rtex);
     ext_deinit(&m->ext);
     RL_FREE(m);
     CloseWindow();

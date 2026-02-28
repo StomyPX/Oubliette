@@ -31,11 +31,11 @@ typedef struct {
     char        name    [32];
     TileFlags   tiles   [TILE_COUNT * TILE_COUNT];
     Model       wall;
-    Texture2D   wallTex;
+    Texture     wallTex;
     Model       flor;
-    Texture2D   florTex;
+    Texture     florTex;
     Model       ceiling;
-    Texture2D   ceilingTex;
+    Texture     ceilingTex;
     // TODO decorations (models/sprites)
 
     // Build Info

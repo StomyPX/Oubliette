@@ -373,8 +373,12 @@ map_generateChamberRandomPassage(Map* map, MapChamber chamber, Facing facing)
 static void
 map_unload(Map* map)
 {
-    if (map->wall.meshes)
-        UnloadModel(map->wall);
+    UnloadModel(map->wall);
+    UnloadModel(map->flor);
+    UnloadModel(map->ceiling);
+    UnloadTexture(map->wallTex);
+    UnloadTexture(map->florTex);
+    UnloadTexture(map->ceilingTex);
     memset(map, 0, sizeof(*map));
 }
 
