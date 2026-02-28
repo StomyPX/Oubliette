@@ -61,6 +61,7 @@
 #include "ext.c"
 #include "map.c"
 #include "platform.c"
+#include "util.c"
 
 int
 main(int argc, char* argv[])
@@ -80,20 +81,22 @@ main(int argc, char* argv[])
     InitWindow(1280, 720, GAME_NAME);
     SetExitKey(KEY_NULL);
 
-    Memory* m = RL_MALLOC(sizeof(Memory));
+    m = RL_MALLOC(sizeof(Memory));
     memset(m, 0, sizeof(Memory));
 
     /* TODO Always on in debug mode, requires cmdline switch "--editor" in release mode */
     #if DEBUG_MODE
         m->flags |= GlobalFlags_PartyStats;
         m->flags |= GlobalFlags_EditorModePermitted;
-        m->flags |= GlobalFlags_ShowCollision;
+        //m->flags |= GlobalFlags_ShowCollision;
     #endif
 
     ext_init(&m->ext);
 
     m->font = LoadFontEx("data/fonts/Caudex-Regular.ttf", 32, 0, 0);
     GenTextureMipmaps(&m->font.texture);
+    m->textColor = ColorFromNormalized((Vector4){218.f / 255.f, 209.f / 255.f, 200.f / 255.f, 1.f});
+    m->errorColor = ColorFromNormalized((Vector4){255.f / 255.f,  15.f / 255.f,  21.f / 255.f, 1.f});
 
     Vector2 dragStart;
 
@@ -322,15 +325,16 @@ main(int argc, char* argv[])
 
             EndMode3D();
 
-            char* message = "You've finally arrived, but our records don't show from where.";
+            char* message = "7DRL 2026. Let's Rock!";
             Vector2 position = MeasureTextEx(m->font, message, m->font.baseSize, 0);
             position.x = GetScreenWidth() / 2 - position.x / 2;
             position.y = GetScreenHeight() * 3 / 4 - position.y / 2;
-            ui_text(m->font, message, position, GOLD);
+            ui_text(m->font, message, position, m->textColor, 0);
 
             if (m->flags & GlobalFlags_PartyStats) {
                 char buf[128] = {0};
                 char* facing = 0;
+                Vector2 position = (Vector2){GetScreenWidth() - 100, 10};
                 switch (m->partyFacing) {
                     case 0: facing = "North"; break;
                     case 1: facing = "East"; break;
@@ -342,11 +346,11 @@ main(int argc, char* argv[])
                         "Camera: %4.1f, %4.1f\n"
                         "Tile: %2i, %2i\n"
                         "Facing: %s",
-                        m->flags & GlobalFlags_EditorMode ? "Enabled" : "Disabled",
+                        m->flags & GlobalFlags_EditorMode ? "ON" : "off",
                         m->camera.position.x, m->camera.position.z,
                         m->partyX, m->partyY,
                         facing);
-                DrawText(buf, 10, 10, 10, LIGHTGRAY);
+                ui_text(GetFontDefault(), buf, position, m->textColor, 1);
             }
 
             if (m->ext.cimgui.handle && (m->flags & GlobalFlags_EditorModePermitted)) {
@@ -359,6 +363,8 @@ main(int argc, char* argv[])
                 }
                 ext_CImguiRender(&m->ext.cimgui);
             }
+
+            util_drawLog();
         }
         EndDrawing();
     }

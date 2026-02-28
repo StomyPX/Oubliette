@@ -165,7 +165,7 @@ map_load(Map* map, char* path)
                 TraceLog(LOG_WARNING, "MAP: [%s] Face data must be specified as an array of strings", path);
             }
         } else {
-            printf("[%s] Name: %s\n", json_type_toString(element->value->type), element->name->string);
+            util_log(0, "[%s] Name: %s\n", json_type_toString(element->value->type), element->name->string);
         }
     }
 
@@ -214,7 +214,7 @@ map_load_faces(Face* faces, struct json_array_s* array)
             const char* c = line->string;
             for (int x = 0; c < line->string + line->string_size && x < TILE_COUNT; x++, c+=2) {
                 int index = y * TILE_COUNT + x;
-                int face = pseudohex(*c);
+                int face = util_pseudohex(*c);
                 if (face >= 0) {
                     faces[index] = face;
                 } else if (face < 0) {
@@ -260,7 +260,7 @@ map_load_info(Map* map, struct json_object_s* root)
 
             Image image = LoadImageFromMemory(ext, file, size);
             if (!image.data) {
-                printf("\t[Path: %s, Ext: %s]\n", str->string, ext);
+                util_log(0, "\t[Path: %s, Ext: %s]\n", str->string, ext);
             }
 
             Texture texture = LoadTextureFromImage(image);

@@ -10,7 +10,7 @@ util_stricmp(char* a, char* b)
 }
 
 static int
-pseudohex(char c)
+util_pseudohex(char c)
 {
     switch (toupper(c)) {
         case '.':
@@ -35,4 +35,10 @@ pseudohex(char c)
     }
     return -1;
 }
+
+/* Messages are shown for 3 seconds + 0.1 per character */
+static int util_log(unsigned short channel, char* fmt, ...);
+static int util_err(unsigned short channel, char* fmt, ...);
+static void util_drawLog(void);
+
 

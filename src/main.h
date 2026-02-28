@@ -4,6 +4,8 @@ typedef struct Memory_ {
     Camera3D camera;
     Map map;
     Font font;
+    Color textColor;
+    Color errorColor;
 
     float deltaTime;
     int partyX;
@@ -12,3 +14,5 @@ typedef struct Memory_ {
     float partyMoveTimer;
     float partyMoveFreq; /* Number of seconds between repeat moves when holding the buttons down */
 } Memory;
+
+static Memory* m = 0;
