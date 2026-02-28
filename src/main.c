@@ -132,6 +132,8 @@ main(int argc, char* argv[])
                 m->flags ^= GlobalFlags_PartyStats;
             if (IsKeyPressed(KEY_F3))
                 m->flags ^= GlobalFlags_ShowCollision;
+            if (IsKeyPressed(KEY_F4))
+                m->flags ^= GlobalFlags_ShowMap;
         }
 
         if (m->flags & GlobalFlags_EditorMode) {
@@ -327,15 +329,15 @@ main(int argc, char* argv[])
                         if (!(m->map.tiles[index] & TileFlags_AllowEast)) {
                             Vector3 position = map_tileCenter(x, y);
                             position.x += (float)TILE_SIDE_LENGTH / 2.f;
-                            DrawCube(position, 0.1f, size, size, CLIP_COLOR);
-                            DrawCubeWires(position, 0.1f, size, size, LIGHTGRAY);
+                            DrawCube(position, 0.1f, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, CLIP_COLOR);
+                            DrawCubeWires(position, 0.1f, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, LIGHTGRAY);
                         }
 
                         if (!(m->map.tiles[index] & TileFlags_AllowSouth)) {
                             Vector3 position = map_tileCenter(x, y);
                             position.z += (float)TILE_SIDE_LENGTH / 2.f;
-                            DrawCube(position, size, size, 0.1f, CLIP_COLOR);
-                            DrawCubeWires(position, size, size, 0.1f, LIGHTGRAY);
+                            DrawCube(position, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, 0.1f, CLIP_COLOR);
+                            DrawCubeWires(position, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, 0.1f, LIGHTGRAY);
                         }
                     }
                 }
@@ -368,7 +370,7 @@ main(int argc, char* argv[])
                     case 3: facing = "West"; break;
                 }
                 snprintf(buf, sizeof(buf),
-                        "Editor Mode: %s\n"
+                        "Debug View: %s\n"
                         "Camera: %4.1f, %4.1f\n"
                         "Tile: %2i, %2i\n"
                         "Facing: %s",
@@ -381,34 +383,39 @@ main(int argc, char* argv[])
 
             if (m->ext.cimgui.handle && (m->flags & GlobalFlags_EditorModePermitted)) {
                 ext_CImguiNewFrame(m);
-                if (m->flags & GlobalFlags_EditorMode) {
+                if (m->flags & GlobalFlags_ShowMap) {
                     bool show = 1;
                     char buffer[TILE_COUNT * 2 + 1] = {};
 
-                    m->ext.cimgui.ShowDemoWindow(&show);
                     m->ext.cimgui.Begin("Map Overview", &show, ImGuiWindowFlags_AlwaysAutoResize);
-
-                    //ImU32 allow = m->ext.cimgui.GetColorU32_Vec4((ImVec4){0.15f, 0.1f, 0.1f, 0.65f});
-                    //ImU32 party = m->ext.cimgui.GetColorU32_Vec4((ImVec4){0.4f, 0.4f, 0.2f, 1.f});
 
                     for (int y = 0; y < TILE_COUNT; y++) {
                         for (int x = 0; x < TILE_COUNT; x++) {
                             TileFlags t = m->map.tiles[x + y * TILE_COUNT];
 
                             if (m->partyX == x && m->partyY == y) {
-                                buffer[x * 2] = 'P';
+                                switch (m->partyFacing) {
+                                    default: buffer[x * 2] = '^'; break;
+                                    case Facing_East: buffer[x * 2] = '>'; break;
+                                    case Facing_South: buffer[x * 2] = 'v'; break;
+                                    case Facing_West: buffer[x * 2] = '<'; break;
+                                }
                             } else if (t & TileFlags_Feature) {
                                 buffer[x * 2] = '?';
+                            } else if (t & TileFlags_Filled) {
+                                buffer[x * 2] = 'E';
+                            } else if ((t & TileFlags_AllowEntry) && !(t & TileFlags_AllowSouth)) {
+                                buffer[x * 2] = '_';
+                            } else if (!(t & TileFlags_AllowEntry)) {
+                                buffer[x * 2] = '#';
                             } else {
                                 buffer[x * 2] = ' ';
                             }
 
-                            if (t & TileFlags_Filled) {
-                                buffer[x * 2 + 1] = 'f';
-                            } else if (t & TileFlags_Chamber) {
-                                buffer[x * 2 + 1] = 'c';
-                            } else if (t & TileFlags_AllowEntry) {
-                                buffer[x * 2 + 1] = '.';
+                            if ((t & TileFlags_AllowEntry) && !(t & TileFlags_AllowEast)) {
+                                buffer[x * 2 + 1] = '|';
+                            } else if (!(t & TileFlags_AllowEntry)) {
+                                buffer[x * 2 + 1] = '#';
                             } else {
                                 buffer[x * 2 + 1] = ' ';
                             }
@@ -418,7 +425,7 @@ main(int argc, char* argv[])
                     }
                     m->ext.cimgui.End();
                     if (!show)
-                        m->flags &= ~(GlobalFlags_EditorMode);
+                        m->flags &= ~(GlobalFlags_ShowMap);
                 }
                 ext_CImguiRender(&m->ext.cimgui);
             }

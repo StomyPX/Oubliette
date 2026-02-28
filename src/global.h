@@ -7,5 +7,6 @@ typedef enum {
     GlobalFlags_EditorMode          = 1 << 2,
     GlobalFlags_PartyStats          = 1 << 3,
     GlobalFlags_ShowCollision       = 1 << 4,
+    GlobalFlags_ShowMap             = 1 << 5,
 } GlobalFlags_t; /* Need to append Type to avoid clash with symbols on windows */
 

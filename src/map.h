@@ -1,5 +1,5 @@
 #define TILE_COUNT 48
-#define TILE_SIDE_LENGTH 4.f
+#define TILE_SIDE_LENGTH 3.f
 #define MAP_ATLAS_SUBIMAGE_COUNT 16
 
 /* A face is two 4-bit values ORed together. The lower bits indicate atlas index plus one, while the lower
@@ -67,7 +67,7 @@ static void map_generate(Map* map, char* atlas, uint64_t seed);
 static void map_generatePassage(Map* map, MapPassage u);
 static bool map_generateStepForward(Map* map, int* x, int* y, Facing facing);
 static void map_generateChamber(Map* map, int x, int y, Facing facing);
-static void map_generateChamberRandomPassage(Map* map, MapChamber* chamber, Facing facing);
+static void map_generateChamberRandomPassage(Map* map, MapChamber chamber, Facing facing);
 
 static void map_upload(Map* map);
 static void map_unload(Map* map);

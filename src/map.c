@@ -41,7 +41,7 @@ map_cameraForTile(int x, int y, Facing facing)
     Camera c = {0};
 
     c.position = map_tileCenter(x, y);
-    c.position.y = 1.8f;
+    c.position.y = 1.7f;
     c.target = c.position;
     c.target.y = 0.f;
     switch (facing % 4) {
@@ -114,7 +114,7 @@ map_generate(Map* map, char* atlas, uint64_t seed)
 
     // Starting location
     map->entryX = PcgRandom_randomu(&map->rng) % (TILE_COUNT - 6) + 3;
-    map->entryY = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 2) + TILE_COUNT / 4;
+    map->entryY = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 4);
     map->tiles[map->entryX + map->entryY * TILE_COUNT] = TileFlags_Filled;
 
     map_generateChamber(map, map->entryX, map->entryY, Facing_South);
@@ -141,44 +141,42 @@ map_generate(Map* map, char* atlas, uint64_t seed)
 static void
 map_generatePassage(Map* map, MapPassage u)
 {
-    // Table of possibilities
-    uint32_t roll;
-    roll = PcgRandom_roll(&map->rng, 1, 6);
-    switch (roll) {
-        default: {
-            // Advance D4+2 and then place another passage
-            bool success = true;
-            unsigned steps = PcgRandom_roll(&map->rng, 1, 4) + 2;
-            int i;
-            for (i = 0; i < steps && success; i++) {
-                map_generateStepForward(map, &u.x, &u.y, u.facing);
-            }
-            if (success) {
-                uint32_t turn = PcgRandom_roll(&map->rng, 1, 6);
-                switch (turn) {
-                    case 1:
-                    case 2: {
-                        u.facing += 1;
-                        u.facing %= 4;
-                    } break;
+    // Advance D4+2
+    bool success = true;
+    unsigned steps = PcgRandom_roll(&map->rng, 1, 4) + 2;
+    int i;
 
-                    default: {
-                    } break;
+    for (i = 0; i < steps && success; i++) {
+        map_generateStepForward(map, &u.x, &u.y, u.facing);
+    }
 
-                    case 5:
-                    case 6: {
-                        u.facing += 3;
-                        u.facing %= 4;
-                    } break;
-                }
-                map->passages[map->passageCount++] = u;
-            }
-        } break;
+    // Either place a chamber or leave marked for another passage
+    if (success) {
+        uint32_t result;
+        result = PcgRandom_roll(&map->rng, 1, 3);
 
-        case 5:
-        case 6: {
+        if (result <= 1) {
             map_generateChamber(map, u.x, u.y, u.facing);
-        } break;
+        } else {
+            uint32_t turn = PcgRandom_roll(&map->rng, 1, 6);
+            switch (turn) {
+                case 1:
+                case 2: {
+                    u.facing += 1;
+                    u.facing %= 4;
+                } break;
+
+                default: {
+                } break;
+
+                case 5:
+                case 6: {
+                    u.facing += 3;
+                    u.facing %= 4;
+                } break;
+            }
+            map->passages[map->passageCount++] = u;
+        }
     }
 }
 
@@ -187,6 +185,12 @@ map_generateStepForward(Map* map, int* x, int* y, Facing facing)
 {
     unsigned target; // Tile directly in front
     unsigned wall; // Tile that controls passage between current and target
+
+    target = util_traverse(facing, *x, *y, 1, 0, 0, 0);
+    if (target > TILE_COUNT * TILE_COUNT)
+        return false;
+    if (map->tiles[target] & TileFlags_Filled)
+        return false;
 
     switch (facing) {
         default: {
@@ -223,9 +227,6 @@ map_generateStepForward(Map* map, int* x, int* y, Facing facing)
         } break;
     }
 
-    target = util_traverse(facing, *x, *y, 0, 0, 0, 0);
-    if (target > TILE_COUNT * TILE_COUNT)
-        return false;
     map->tiles[target] |= TileFlags_AllowEntry;
     if (map->tiles[target] & TileFlags_Chamber)
         return false;
@@ -236,63 +237,95 @@ map_generateStepForward(Map* map, int* x, int* y, Facing facing)
 static void
 map_generateChamber(Map* map, int x, int y, Facing facing)
 {
-    MapChamber* c;
-    uint32_t roll;
+    MapChamber c = {};
+    uint32_t exitD6;
+    uint32_t rectD6;
 
     if (map->chamberCount >= MAP_CHAMBERS_MAX) {
         util_err(0, "MAP: Exceeded maximum chambers!\n");
     }
 
     /* Register new chamber and determine dimensions */
-    c = map->chambers + map->chamberCount++;
-    c->w = PcgRandom_roll(&map->rng, 1, 3) * 2 + 1;
-    c->h = PcgRandom_roll(&map->rng, 1, 3) * 2 + 1;
+    rectD6 = PcgRandom_roll(&map->rng, 1, 6);
+    switch (rectD6) {
+        default: {
+            c.w = 3;
+            c.h = 3;
+        } break;
+
+        case 4: {
+            c.w = 3;
+            c.h = 5;
+        } break;
+
+        case 5: {
+            c.w = 5;
+            c.h = 3;
+        } break;
+
+        case 6: {
+            c.w = 5;
+            c.h = 5;
+        } break;
+    }
 
     /* Place chamber in front of the cursor */
     switch (facing) {
         default: {
-            c->x = x - (PcgRandom_roll(&map->rng, 1, c->w) - 1);
-            c->y = y + c->h;
+            c.x = x - (PcgRandom_roll(&map->rng, 1, c.w) - 1);
+            c.y = y + c.h;
         } break;
         case Facing_East: {
-            c->x = x + 1;
-            c->y = y - (PcgRandom_roll(&map->rng, 1, c->h) - 1);
+            c.x = x + 1;
+            c.y = y - (PcgRandom_roll(&map->rng, 1, c.h) - 1);
         } break;
         case Facing_South: {
-            c->x = x - (PcgRandom_roll(&map->rng, 1, c->w) - 1);
-            c->y = y + 1;
+            c.x = x - (PcgRandom_roll(&map->rng, 1, c.w) - 1);
+            c.y = y + 1;
         } break;
         case Facing_West: {
-            c->x = x + c->w;
-            c->y = y - (PcgRandom_roll(&map->rng, 1, c->h) - 1);
+            c.x = x + c.w;
+            c.y = y - (PcgRandom_roll(&map->rng, 1, c.h) - 1);
         } break;
     }
 
+    /* Ensure passage into new chamber */
+    if (!map_generateStepForward(map, &x, &y, facing)) {
+        return;
+    }
+
+    /* Write chamber into list */
+    map->chambers[map->chamberCount++] = c;
+
     /* Bore out collision area */
-    for (int i = 0; i < c->w; i++) {
-        for (int j = 0; j < c->h; j++) {
-            int index = c->x + i + (c->y + j) * TILE_COUNT;
-            if (c->x + i < 0 || c->x + i >= TILE_COUNT || c->y + j < 0 || c->y + j >= TILE_COUNT)
+    for (int i = 0; i < c.w; i++) {
+        for (int j = 0; j < c.h; j++) {
+            int index = c.x + i + (c.y + j) * TILE_COUNT;
+            if (c.x + i < 0 || c.x + i >= TILE_COUNT || c.y + j < 0 || c.y + j >= TILE_COUNT)
+                continue;
+
+            /* Skip manually filled tiles */
+            if (map->tiles[index] & TileFlags_Filled)
                 continue;
 
             map->tiles[index] |= TileFlags_AllowEntry | TileFlags_Chamber;
-            if (i < c->w - 1)
+            if (i < c.w - 1)
                 map->tiles[index] |= TileFlags_AllowEast;
-            if (j < c->h - 1)
+            if (j < c.h - 1)
                 map->tiles[index] |= TileFlags_AllowSouth;
         }
     }
 
     /* Generate exits */
-    roll = PcgRandom_roll(&map->rng, 1, 6);
+    exitD6 = PcgRandom_roll(&map->rng, 1, 6);
     if (map->chamberCount > MAP_CHAMBERS_MAX / 4)
-        roll -= 1;
+        exitD6 -= 1;
     if (map->chamberCount > MAP_CHAMBERS_MAX / 2)
-        roll -= 1;
+        exitD6 -= 1;
     if (map->chamberCount > MAP_CHAMBERS_MAX * 3 / 4)
-        roll -= 1;
-    roll = Clamp(roll, 0, 6);
-    switch (roll) {
+        exitD6 -= 1;
+    exitD6 = Clamp(exitD6, 0, 6);
+    switch (exitD6) {
         default: {
             // No new exits!
         } break;
@@ -329,7 +362,7 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
 }
 
 static void
-map_generateChamberRandomPassage(Map* map, MapChamber* chamber, Facing facing)
+map_generateChamberRandomPassage(Map* map, MapChamber chamber, Facing facing)
 {
     MapPassage passage = {};
 
@@ -341,24 +374,25 @@ map_generateChamberRandomPassage(Map* map, MapChamber* chamber, Facing facing)
     passage.facing = facing;
     switch (passage.facing) {
         default: {
-            passage.x = PcgRandom_randomu(&map->rng) % chamber->w + chamber->x;
-            passage.y = chamber->y;
+            passage.x = PcgRandom_randomu(&map->rng) % chamber.w + chamber.x;
+            passage.y = chamber.y;
         } break;
         case Facing_East: {
-            passage.x = chamber->x + chamber->w - 1;
-            passage.y = PcgRandom_randomu(&map->rng) % chamber->h + chamber->y;
+            passage.x = chamber.x + chamber.w - 1;
+            passage.y = PcgRandom_randomu(&map->rng) % chamber.h + chamber.y;
         } break;
         case Facing_South: {
-            passage.x = PcgRandom_randomu(&map->rng) % chamber->w + chamber->x;
-            passage.y = chamber->y + chamber->h - 1;
+            passage.x = PcgRandom_randomu(&map->rng) % chamber.w + chamber.x;
+            passage.y = chamber.y + chamber.h - 1;
         } break;
         case Facing_West: {
-            passage.x = chamber->x;
-            passage.y = PcgRandom_randomu(&map->rng) % chamber->h + chamber->y;
+            passage.x = chamber.x;
+            passage.y = PcgRandom_randomu(&map->rng) % chamber.h + chamber.y;
         } break;
     }
 
-    map->passages[map->passageCount++] = passage;
+    if (passage.x >= 0 && passage.x < TILE_COUNT && passage.y >= 0 && passage.y < TILE_COUNT)
+        map->passages[map->passageCount++] = passage;
 }
 
 static void
