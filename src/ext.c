@@ -4,18 +4,32 @@ ext_init(External* ext)
     ext->cimgui.handle = platform_dlopen("cimgui");
     if (ext->cimgui.handle) {
         /* API */
-        ext->cimgui.CreateContext   = platform_dlsym(ext->cimgui.handle, "igCreateContext");
-        ext->cimgui.DestroyContext  = platform_dlsym(ext->cimgui.handle, "igDestroyContext");
+        ext->cimgui.CreateContext    = platform_dlsym(ext->cimgui.handle, "igCreateContext");
+        ext->cimgui.DestroyContext   = platform_dlsym(ext->cimgui.handle, "igDestroyContext");
 
-        ext->cimgui.GetIO           = platform_dlsym(ext->cimgui.handle, "igGetIO");
-        ext->cimgui.NewFrame        = platform_dlsym(ext->cimgui.handle, "igNewFrame");
-        ext->cimgui.EndFrame        = platform_dlsym(ext->cimgui.handle, "igEndFrame");
-        ext->cimgui.Render          = platform_dlsym(ext->cimgui.handle, "igRender");
-        ext->cimgui.GetDrawData     = platform_dlsym(ext->cimgui.handle, "igGetDrawData");
+        ext->cimgui.GetIO            = platform_dlsym(ext->cimgui.handle, "igGetIO");
+        ext->cimgui.NewFrame         = platform_dlsym(ext->cimgui.handle, "igNewFrame");
+        ext->cimgui.EndFrame         = platform_dlsym(ext->cimgui.handle, "igEndFrame");
+        ext->cimgui.Render           = platform_dlsym(ext->cimgui.handle, "igRender");
+        ext->cimgui.GetDrawData      = platform_dlsym(ext->cimgui.handle, "igGetDrawData");
 
-        ext->cimgui.ShowDemoWindow  = platform_dlsym(ext->cimgui.handle, "igShowDemoWindow");
+        ext->cimgui.ShowDemoWindow   = platform_dlsym(ext->cimgui.handle, "igShowDemoWindow");
 
-        ext->cimgui.GetMouseCursor  = platform_dlsym(ext->cimgui.handle, "igGetMouseCursor");
+        ext->cimgui.Begin            = platform_dlsym(ext->cimgui.handle, "igBegin");
+        ext->cimgui.End              = platform_dlsym(ext->cimgui.handle, "igEnd");
+
+        ext->cimgui.GetColorU32_Vec4 = platform_dlsym(ext->cimgui.handle, "igGetColorU32_Vec4");
+        ext->cimgui.SameLine         = platform_dlsym(ext->cimgui.handle, "igSameLine");
+        ext->cimgui.NewLine          = platform_dlsym(ext->cimgui.handle, "igNewLine");
+        ext->cimgui.Text             = platform_dlsym(ext->cimgui.handle, "igText");
+
+        ext->cimgui.BeginTable       = platform_dlsym(ext->cimgui.handle, "igBeginTable");
+        ext->cimgui.EndTable         = platform_dlsym(ext->cimgui.handle, "igEndTable");
+        ext->cimgui.TableNextRow     = platform_dlsym(ext->cimgui.handle, "igTableNextRow");
+        ext->cimgui.TableNextColumn  = platform_dlsym(ext->cimgui.handle, "igTableNextColumn");
+        ext->cimgui.TableSetBgColor  = platform_dlsym(ext->cimgui.handle, "igTableSetBgColor");
+
+        ext->cimgui.GetMouseCursor   = platform_dlsym(ext->cimgui.handle, "igGetMouseCursor");
 
         /* Classes */
         ext->cimgui.ImFontAtlas_AddFontDefault      = platform_dlsym(ext->cimgui.handle, "ImFontAtlas_AddFontDefault");

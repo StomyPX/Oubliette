@@ -1,40 +1,25 @@
-static int
-util_stricmp(char* a, char* b)
-{
-    int ca, cb;
-    do {
-        ca = tolower(*a++);
-        cb = tolower(*b++);
-    } while (ca == cb && ca != 0);
-    return ca - cb;
-}
+#define CLIP_COLOR (Color){250, 255, 30, 64}
+#define CLEAR_COLOR (Color){6, 0, 3, 255}
+#define TEXT_COLOR (Color){218, 209, 200, 255}
+#define ERROR_COLOR (Color){255, 15, 21, 255}
 
-static int
-util_pseudohex(char c)
-{
-    switch (toupper(c)) {
-        case '.':
-        case ' ':
-        case '0': return 0;
-        case '1': return 1;
-        case '2': return 2;
-        case '3': return 3;
-        case '4': return 4;
-        case '5': return 5;
-        case '6': return 6;
-        case '7': return 7;
-        case '8': return 8;
-        case '9': return 9;
-        case 'A': return 10;
-        case 'B': return 11;
-        case 'C': return 12;
-        case 'D': return 13;
-        case 'E': return 14;
-        case 'F': return 15;
-        case 'G': return 16;
-    }
-    return -1;
-}
+static int util_stricmp(char* a, char* b);
+static int util_pseudohex(char c);
+
+typedef enum {
+    Facing_North = 0,
+    Facing_East,
+    Facing_South,
+    Facing_West,
+} Facing;
+
+static const char* Facing_toString(Facing facing);
+static unsigned util_traverse(Facing facing, int inx, int iny, int forward, int right, int* outX, int* outY);
+static bool util_facingNorthSouth(Facing facing);
+
+typedef enum: unsigned short {
+    LogChannel_None = 0,
+} LogChannel;
 
 /* Messages are shown for 3 seconds + 0.1 per character */
 static int util_log(unsigned short channel, char* fmt, ...);

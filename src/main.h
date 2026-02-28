@@ -3,9 +3,16 @@ typedef struct Memory_ {
     External ext;
     Camera3D camera;
     Map map;
-    Font font;
-    Color textColor;
-    Color errorColor;
+
+    struct {
+        int top, left, bottom, right;
+        int width, height;
+    } area;
+
+    struct {
+        Font text, textB, textI;
+        Font title, titleB, titleI;
+    } fonts;
 
     float deltaTime;
     int partyX;

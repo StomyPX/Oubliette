@@ -16,6 +16,23 @@ typedef struct CImgui_ {
 
     void            (*ShowDemoWindow)(bool* p_open);
 
+    // 2676
+    bool            (*Begin)(const char* name, bool* p_open, ImGuiWindowFlags flags);
+    void            (*End)(void);
+
+    // 2741
+    ImU32           (*GetColorU32_Vec4)(const ImVec4 col);
+    void            (*SameLine)(float offset_from_start_x,float spacing);
+    void            (*NewLine)(void);
+    void            (*Text)(const char* fmt,...);
+
+    // 2907
+    bool            (*BeginTable)(const char* id, int column, ImGuiTableFlags flags, const ImVec2 outer_size, float inner_width);
+    void            (*EndTable)(void);
+    void            (*TableNextRow)(ImGuiTableRowFlags row_flags,float min_row_height);
+    bool            (*TableNextColumn)(void);
+    void            (*TableSetBgColor)(ImGuiTableBgTarget target,ImU32 color,int column_n);
+
     ImGuiMouseCursor(*GetMouseCursor)(void);
 
     /* Classes */

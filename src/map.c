@@ -36,7 +36,7 @@ map_subImageUV(int num)
 }
 
 static Camera3D
-map_cameraForTile(int x, int y, int facing)
+map_cameraForTile(int x, int y, Facing facing)
 {
     Camera c = {0};
 
@@ -70,230 +70,299 @@ map_cameraForTile(int x, int y, int facing)
     return c;
 }
 
-static void map_load_collision(Map* map, struct json_array_s* array);
-static void map_load_faces(Face* faces, struct json_array_s* array);
-static void map_load_info(Map* map, struct json_object_s* object);
-
-static int
-map_load(Map* map, char* path)
+static void
+map_generate(Map* map, char* atlas, uint64_t seed)
 {
-    char* file;
-    size_t size;
-    struct json_value_s *json;
-    struct json_object_s *object;
-    struct json_parse_result_s result = {0};
-
-    TraceLog(LOG_INFO, "MAP: [%s] Loading", path);
-    memset(map, 0, sizeof(*map));
-    map->material = LoadMaterialDefault();
+    util_log(0, "MAP: Loading, atlas: \"%s\", seed: %llu\n", atlas, seed);
     map->transform = MatrixIdentity();
+    PcgRandom_init(&map->rng, seed);
 
-    platform_read(path, &file, &size);
-    if (!file) {
-        TraceLog(LOG_ERROR, "MAP: [%s] Failed to load, could not read file", path);
-        return 0;
-    }
+    { // Atlas
+        char* file;
+        char* extension;
+        size_t size;
+        Image image;
+        Texture texture;
 
-    json = json_parse_ex(file, size, JSON_PARSE_FLAGS, 0, 0, &result);
-    if (!json) {
-        TraceLog(LOG_ERROR, "MAP: [%s] Failed to load, could not parse JSON: [line %llu, %llu] %s",
-                path, result.error_line_no, result.error_row_no, json_parse_error_toString(result.error));
-        return 0;
-    }
-    if (json->type != json_type_object) {
-        TraceLog(LOG_ERROR, "MAP: [%s] Failed to load, JSON top-level structure isn't an object [%i]",
-                path, json->type);
-        return 0;
-    }
-
-    object = json_value_as_object(json);
-    for (struct json_object_element_s* element = object->start; element; element = element->next) {
-        if (util_stricmp((char*)element->name->string, "ceiling") == 0) {
-            if (element->value->type == json_type_array) {
-                map_load_faces(map->ceiling, json_value_as_array(element->value));
-            } else {
-                TraceLog(LOG_WARNING, "MAP: [%s] Face data must be specified as an array of strings", path);
-            }
-        } else if (util_stricmp((char*)element->name->string, "collision") == 0) {
-            if (element->value->type == json_type_array) {
-                map_load_collision(map, json_value_as_array(element->value));
-            } else {
-                TraceLog(LOG_WARNING, "MAP: [%s] Collision must be specified as an array of strings", path);
-            }
-        } else if (util_stricmp((char*)element->name->string, "east") == 0) {
-            if (element->value->type == json_type_array) {
-                map_load_faces(map->east, json_value_as_array(element->value));
-            } else {
-                TraceLog(LOG_WARNING, "MAP: [%s] Face data must be specified as an array of strings", path);
-            }
-        /* TODO entry (append) */
-        /* TODO exit (append) */
-        } else if (util_stricmp((char*)element->name->string, "floor") == 0) {
-            if (element->value->type == json_type_array) {
-                map_load_faces(map->floor, json_value_as_array(element->value));
-            } else {
-                TraceLog(LOG_WARNING, "MAP: [%s] Face data must be specified as an array of strings", path);
-            }
-        } else if (util_stricmp((char*)element->name->string, "info") == 0) {
-            if (element->value->type == json_type_object) {
-                map_load_info(map, json_value_as_object(element->value));
-            } else {
-                TraceLog(LOG_WARNING, "MAP: [%s] Collision must be specified as an array of strings", path);
-            }
-        } else if (util_stricmp((char*)element->name->string, "north") == 0) {
-            if (element->value->type == json_type_array) {
-                map_load_faces(map->north, json_value_as_array(element->value));
-            } else {
-                TraceLog(LOG_WARNING, "MAP: [%s] Face data must be specified as an array of strings", path);
-            }
-        } else if (util_stricmp((char*)element->name->string, "roof") == 0) {
-            if (element->value->type == json_type_array) {
-                map_load_faces(map->roof, json_value_as_array(element->value));
-            } else {
-                TraceLog(LOG_WARNING, "MAP: [%s] Face data must be specified as an array of strings", path);
-            }
-        } else if (util_stricmp((char*)element->name->string, "south") == 0) {
-            if (element->value->type == json_type_array) {
-                map_load_faces(map->south, json_value_as_array(element->value));
-            } else {
-                TraceLog(LOG_WARNING, "MAP: [%s] Face data must be specified as an array of strings", path);
-            }
-        } else if (util_stricmp((char*)element->name->string, "west") == 0) {
-            if (element->value->type == json_type_array) {
-                map_load_faces(map->west, json_value_as_array(element->value));
-            } else {
-                TraceLog(LOG_WARNING, "MAP: [%s] Face data must be specified as an array of strings", path);
-            }
-        } else {
-            util_log(0, "[%s] Name: %s\n", json_type_toString(element->value->type), element->name->string);
+        extension = strrchr(atlas, '.');
+        if (!extension) {
+            util_err(0, "MAP: Image atlas path lacks and extension: \"%s\"\n", atlas);
+            goto skip;
         }
+
+        platform_read(atlas, &file, &size);
+        if (!file) {
+            util_err(0, "MAP: Failed to read image file: \"%s\"\n", atlas);
+            goto skip;
+        }
+
+        image = LoadImageFromMemory(extension, file, size);
+        if (!image.data) {
+            util_err(0, "MAP: File was not a valid image: \"%s\"\n", atlas);
+            goto cleanup;
+        }
+
+        map->material = LoadMaterialDefault();
+        texture = LoadTextureFromImage(image);
+        SetMaterialTexture(&map->material, MATERIAL_MAP_DIFFUSE, texture);
+        UnloadImage(image);
+
+    cleanup:
+        free(file);
+    skip:;
     }
 
-    map_generate(map);
+    // Starting location
+    map->entryX = PcgRandom_randomu(&map->rng) % (TILE_COUNT - 6) + 3;
+    map->entryY = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 2) + TILE_COUNT / 4;
+    map->tiles[map->entryX + map->entryY * TILE_COUNT] = TileFlags_Filled;
 
-    TraceLog(LOG_INFO, "MAP: [%s] Successfully loaded", path);
-    free(file);
-    return 1;
+    map_generateChamber(map, map->entryX, map->entryY, Facing_South);
+    // Build out the map, recursively resolving passages
+    for (int i = 0;
+        i < TILE_COUNT * TILE_COUNT && map->passageCount > 0 && map->chamberCount < MAP_CHAMBERS_MAX;
+        i++)
+    {
+        int randomPassage = PcgRandom_randomu(&map->rng) % map->passageCount;
+        MapPassage p = map->passages[randomPassage];
+        map->passageCount -= 1;
+        if (randomPassage < map->passageCount)
+            map->passages[randomPassage] = map->passages[map->passageCount];
+        map_generatePassage(map, p);
+    }
+
+    /* TODO Flood fill chambers from the end of the list until we find one that doesn't connect to the
+     * entrance and add the exit to it */
+    // TODO Assign textures and place decorations
+    map_upload(map);
+    snprintf(map->name, sizeof(map->name), "Oubliette, L1");
 }
 
 static void
-map_load_collision(Map* map, struct json_array_s* array)
+map_generatePassage(Map* map, MapPassage u)
 {
-    struct json_array_element_s* row = array->start;
-    for (int y = 0; row && y < TILE_COUNT; y++, row = row->next) {
-        struct json_string_s* line = json_value_as_string(row->value);
-        if (line) {
-            const char* c = line->string;
-            for (int x = 0; c < line->string + line->string_size && x < TILE_COUNT; x++, c+=2) {
-                int index = y * TILE_COUNT + x;
-                switch (tolower(*c)) {
-                    case 'x': {
-                        map->tiles[index] |= TileFlags_Solid;
+    // Table of possibilities
+    uint32_t roll;
+    roll = PcgRandom_roll(&map->rng, 1, 6);
+    switch (roll) {
+        default: {
+            // Advance D4+2 and then place another passage
+            bool success = true;
+            unsigned steps = PcgRandom_roll(&map->rng, 1, 4) + 2;
+            int i;
+            for (i = 0; i < steps && success; i++) {
+                map_generateStepForward(map, &u.x, &u.y, u.facing);
+            }
+            if (success) {
+                uint32_t turn = PcgRandom_roll(&map->rng, 1, 6);
+                switch (turn) {
+                    case 1:
+                    case 2: {
+                        u.facing += 1;
+                        u.facing %= 4;
                     } break;
-                    case 'e': {
-                        map->tiles[index] |= TileFlags_BarEast;
+
+                    default: {
                     } break;
-                    case 's': {
-                        map->tiles[index] |= TileFlags_BarSouth;
+
+                    case 5:
+                    case 6: {
+                        u.facing += 3;
+                        u.facing %= 4;
                     } break;
                 }
+                map->passages[map->passageCount++] = u;
             }
-        } else {
-            TraceLog(LOG_WARNING, "MAP: Collision must be specified as an array of strings");
-        }
+        } break;
+
+        case 5:
+        case 6: {
+            map_generateChamber(map, u.x, u.y, u.facing);
+        } break;
     }
 }
 
-static void
-map_load_faces(Face* faces, struct json_array_s* array)
+static bool
+map_generateStepForward(Map* map, int* x, int* y, Facing facing)
 {
-    struct json_array_element_s* row = array->start;
-    for (int y = 0; row && y < TILE_COUNT; y++, row = row->next) {
-        struct json_string_s* line = json_value_as_string(row->value);
-        if (line) {
-            const char* c = line->string;
-            for (int x = 0; c < line->string + line->string_size && x < TILE_COUNT; x++, c+=2) {
-                int index = y * TILE_COUNT + x;
-                int face = util_pseudohex(*c);
-                if (face >= 0) {
-                    faces[index] = face;
-                } else if (face < 0) {
-                    TraceLog(LOG_WARNING, "MAP: Invalid face index [%c], must be psuedo-hexadecimal digit "
-                            "in the range of 0-G (inclusive)", *c);
-                } else {
-                    faces[index] = 0;
-                }
-            }
-        } else {
-            TraceLog(LOG_WARNING, "MAP: Face array must be specified as an array of strings");
-        }
+    unsigned target; // Tile directly in front
+    unsigned wall; // Tile that controls passage between current and target
+
+    switch (facing) {
+        default: {
+            if (*y <= 0) return false; // Edge of the map
+            wall = util_traverse(facing, *x, *y, 1, 0, 0, 0);
+            if (wall > TILE_COUNT * TILE_COUNT)
+                return false;
+            map->tiles[wall] |= TileFlags_AllowSouth;
+            *y -= 1;
+        } break;
+        case Facing_East: {
+            if (*x >= TILE_COUNT - 1) return false; // Edge of the map
+            wall = util_traverse(facing, *x, *y, 0, 0, 0, 0);
+            if (wall > TILE_COUNT * TILE_COUNT)
+                return false;
+            map->tiles[wall] |= TileFlags_AllowEast;
+            *x += 1;
+        } break;
+        case Facing_South: {
+            if (*y >= TILE_COUNT - 1) return false; // Edge of the map
+            wall = util_traverse(facing, *x, *y, 0, 0, 0, 0);
+            if (wall > TILE_COUNT * TILE_COUNT)
+                return false;
+            map->tiles[wall] |= TileFlags_AllowSouth;
+            *y += 1;
+        } break;
+        case Facing_West: {
+            if (*x <= 0) return false; // Edge of the map
+            wall = util_traverse(facing, *x, *y, 1, 0, 0, 0);
+            if (wall > TILE_COUNT * TILE_COUNT)
+                return false;
+            map->tiles[wall] |= TileFlags_AllowEast;
+            *x -= 1;
+        } break;
     }
+
+    target = util_traverse(facing, *x, *y, 0, 0, 0, 0);
+    if (target > TILE_COUNT * TILE_COUNT)
+        return false;
+    map->tiles[target] |= TileFlags_AllowEntry;
+    if (map->tiles[target] & TileFlags_Chamber)
+        return false;
+
+    return true;
 }
 
 static void
-map_load_info(Map* map, struct json_object_s* root)
+map_generateChamber(Map* map, int x, int y, Facing facing)
 {
-    struct json_object_element_s* element = root->start;
-    for (int i = 0; i < root->length && element; i++, element = element->next) {
-        if (util_stricmp((char*)element->name->string, "atlas") == 0) {
-            struct json_string_s* str;
-            char* file, *ext;
-            size_t size;
+    MapChamber* c;
+    uint32_t roll;
 
-            str = json_value_as_string(element->value);
-            if (!str) {
-                TraceLog(LOG_WARNING, "MAP: Texture path for atlas must be string, was %s",
-                        json_type_toString(element->value->type));
+    if (map->chamberCount >= MAP_CHAMBERS_MAX) {
+        util_err(0, "MAP: Exceeded maximum chambers!\n");
+    }
+
+    /* Register new chamber and determine dimensions */
+    c = map->chambers + map->chamberCount++;
+    c->w = PcgRandom_roll(&map->rng, 1, 3) * 2 + 1;
+    c->h = PcgRandom_roll(&map->rng, 1, 3) * 2 + 1;
+
+    /* Place chamber in front of the cursor */
+    switch (facing) {
+        default: {
+            c->x = x - (PcgRandom_roll(&map->rng, 1, c->w) - 1);
+            c->y = y + c->h;
+        } break;
+        case Facing_East: {
+            c->x = x + 1;
+            c->y = y - (PcgRandom_roll(&map->rng, 1, c->h) - 1);
+        } break;
+        case Facing_South: {
+            c->x = x - (PcgRandom_roll(&map->rng, 1, c->w) - 1);
+            c->y = y + 1;
+        } break;
+        case Facing_West: {
+            c->x = x + c->w;
+            c->y = y - (PcgRandom_roll(&map->rng, 1, c->h) - 1);
+        } break;
+    }
+
+    /* Bore out collision area */
+    for (int i = 0; i < c->w; i++) {
+        for (int j = 0; j < c->h; j++) {
+            int index = c->x + i + (c->y + j) * TILE_COUNT;
+            if (c->x + i < 0 || c->x + i >= TILE_COUNT || c->y + j < 0 || c->y + j >= TILE_COUNT)
                 continue;
-            }
 
-            ext = strrchr(str->string, '.');
-            if (!ext) {
-                TraceLog(LOG_WARNING, "MAP: Invalid atlas texture path, could not find extension in %s",
-                        element->value);
-                continue;
-            }
+            map->tiles[index] |= TileFlags_AllowEntry | TileFlags_Chamber;
+            if (i < c->w - 1)
+                map->tiles[index] |= TileFlags_AllowEast;
+            if (j < c->h - 1)
+                map->tiles[index] |= TileFlags_AllowSouth;
+        }
+    }
 
-            platform_read((char*) str->string, &file, &size);
-            if (!file)
-                continue;
-
-            Image image = LoadImageFromMemory(ext, file, size);
-            if (!image.data) {
-                util_log(0, "\t[Path: %s, Ext: %s]\n", str->string, ext);
-            }
-
-            Texture texture = LoadTextureFromImage(image);
-            SetMaterialTexture(&map->material, MATERIAL_MAP_DIFFUSE, texture);
-            UnloadImage(image);
-            free(file);
-        } else if (util_stricmp((char*)element->name->string, "name") == 0) {
-            if (element->value->type == json_type_string) {
-                struct json_string_s* str = json_value_as_string(element->value);
-                strncpy(map->name, str->string, sizeof(map->name) - 1);
+    /* Generate exits */
+    roll = PcgRandom_roll(&map->rng, 1, 6);
+    if (map->chamberCount > MAP_CHAMBERS_MAX / 4)
+        roll -= 1;
+    if (map->chamberCount > MAP_CHAMBERS_MAX / 2)
+        roll -= 1;
+    if (map->chamberCount > MAP_CHAMBERS_MAX * 3 / 4)
+        roll -= 1;
+    roll = Clamp(roll, 0, 6);
+    switch (roll) {
+        default: {
+            // No new exits!
+        } break;
+        case 1: {
+            map_generateChamberRandomPassage(map, c, facing); // Opposite
+        } break;
+        case 2: {
+            map_generateChamberRandomPassage(map, c, (facing + 3) % 4); // Left
+        } break;
+        case 3: {
+            map_generateChamberRandomPassage(map, c, (facing + 1) % 4); // Right
+        } break;
+        case 4: {
+            map_generateChamberRandomPassage(map, c, facing); // Opposite
+            map_generateChamberRandomPassage(map, c, (facing + 3) % 4); // Left
+        } break;
+        case 5: {
+            map_generateChamberRandomPassage(map, c, facing); // Opposite
+            map_generateChamberRandomPassage(map, c, (facing + 1) % 4); // Right
+        } break;
+        case 6: {
+            if (PcgRandom_roll(&map->rng, 1, 6) == 1) {
+                // TODO Every tile has an exit!
+                map_generateChamberRandomPassage(map, c, facing); // Opposite
+                map_generateChamberRandomPassage(map, c, (facing + 3) % 4); // Left
+                map_generateChamberRandomPassage(map, c, (facing + 1) % 4); // Right
             } else {
-                TraceLog(LOG_WARNING, "MAP: info/name must be a string");
+                map_generateChamberRandomPassage(map, c, facing); // Opposite
+                map_generateChamberRandomPassage(map, c, (facing + 3) % 4); // Left
+                map_generateChamberRandomPassage(map, c, (facing + 1) % 4); // Right
             }
-        }
+        } break;
     }
 }
 
 static void
-map_unload(Map* map)
+map_generateChamberRandomPassage(Map* map, MapChamber* chamber, Facing facing)
 {
-    UnloadMaterial(map->material);
-    if (map->mesh.vertices) {
-        UnloadMesh(map->mesh);
-        free(map->mesh.vertices);
-        free(map->mesh.texcoords);
-        free(map->mesh.normals);
-        free(map->mesh.indices);
+    MapPassage passage = {};
+
+    if (map->passageCount >= MAP_PASSAGES_MAX) {
+        util_err(0, "MAP: Exceeded maximum passages!\n");
+        return;
     }
-    memset(map, 0, sizeof(*map));
+
+    passage.facing = facing;
+    switch (passage.facing) {
+        default: {
+            passage.x = PcgRandom_randomu(&map->rng) % chamber->w + chamber->x;
+            passage.y = chamber->y;
+        } break;
+        case Facing_East: {
+            passage.x = chamber->x + chamber->w - 1;
+            passage.y = PcgRandom_randomu(&map->rng) % chamber->h + chamber->y;
+        } break;
+        case Facing_South: {
+            passage.x = PcgRandom_randomu(&map->rng) % chamber->w + chamber->x;
+            passage.y = chamber->y + chamber->h - 1;
+        } break;
+        case Facing_West: {
+            passage.x = chamber->x;
+            passage.y = PcgRandom_randomu(&map->rng) % chamber->h + chamber->y;
+        } break;
+    }
+
+    map->passages[map->passageCount++] = passage;
 }
 
 static void
-map_generate(Map* map)
+map_upload(Map* map)
 {
     /* TODO New Approach */
     /* Deallocate if already existent */
@@ -339,12 +408,6 @@ map_generate(Map* map)
     }
     for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
         if (map->ceiling[i]) {
-            map->mesh.vertexCount += 4;
-            map->mesh.triangleCount += 2;
-        }
-    }
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->roof[i]) {
             map->mesh.vertexCount += 4;
             map->mesh.triangleCount += 2;
         }
@@ -659,57 +722,21 @@ map_generate(Map* map)
         }
     }
 
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->roof[i]) {
-            Vector3 corner = map_tileCorner(i % TILE_COUNT, i / TILE_COUNT);
-            map->mesh.vertices[vcount * 3 +  0] = corner.x;
-            map->mesh.vertices[vcount * 3 +  1] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  2] = corner.z + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  3] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  4] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  5] = corner.z + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  6] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  7] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  8] = corner.z;
-            map->mesh.vertices[vcount * 3 +  9] = corner.x;
-            map->mesh.vertices[vcount * 3 + 10] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 + 11] = corner.z;
-
-            Rectangle r = map_subImageUV(map->roof[i]);
-            map->mesh.texcoords[vcount * 2 + 0] = r.x;
-            map->mesh.texcoords[vcount * 2 + 1] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 2] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 3] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 4] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 5] = r.y;
-            map->mesh.texcoords[vcount * 2 + 6] = r.x;
-            map->mesh.texcoords[vcount * 2 + 7] = r.y;
-
-            map->mesh.normals[vcount * 3 +  0] = 0;
-            map->mesh.normals[vcount * 3 +  1] = 1;
-            map->mesh.normals[vcount * 3 +  2] = 0;
-            map->mesh.normals[vcount * 3 +  3] = 0;
-            map->mesh.normals[vcount * 3 +  4] = 1;
-            map->mesh.normals[vcount * 3 +  5] = 0;
-            map->mesh.normals[vcount * 3 +  6] = 0;
-            map->mesh.normals[vcount * 3 +  7] = 1;
-            map->mesh.normals[vcount * 3 +  8] = 0;
-            map->mesh.normals[vcount * 3 +  9] = 0;
-            map->mesh.normals[vcount * 3 + 10] = 1;
-            map->mesh.normals[vcount * 3 + 11] = 0;
-
-            map->mesh.indices[ecount * 3 +  0] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  1] = vcount + 1;
-            map->mesh.indices[ecount * 3 +  2] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  3] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  4] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  5] = vcount + 3;
-            vcount += 4;
-            ecount += 2;
-        }
-    }
-
     UploadMesh(&map->mesh, 1);
+}
+
+static void
+map_unload(Map* map)
+{
+    UnloadMaterial(map->material);
+    if (map->mesh.vertices) {
+        UnloadMesh(map->mesh);
+        free(map->mesh.vertices);
+        free(map->mesh.texcoords);
+        free(map->mesh.normals);
+        free(map->mesh.indices);
+    }
+    memset(map, 0, sizeof(*map));
 }
 
 static void

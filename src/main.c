@@ -14,6 +14,9 @@
 #include "rcamera.h"
 #include "rlgl.h"
 
+#define MST_RANDOM_IMPL 1
+#define MST_RANDOM_API static
+#include "mst_random.h"
 
 #if PLATFORM_LINUX
 #pragma GCC diagnostic push
@@ -88,24 +91,26 @@ main(int argc, char* argv[])
     #if DEBUG_MODE
         m->flags |= GlobalFlags_PartyStats;
         m->flags |= GlobalFlags_EditorModePermitted;
-        //m->flags |= GlobalFlags_ShowCollision;
+        m->flags |= GlobalFlags_ShowCollision;
     #endif
 
     ext_init(&m->ext);
 
-    m->font = LoadFontEx("data/fonts/Caudex-Regular.ttf", 32, 0, 0);
-    GenTextureMipmaps(&m->font.texture);
-    m->textColor = ColorFromNormalized((Vector4){218.f / 255.f, 209.f / 255.f, 200.f / 255.f, 1.f});
-    m->errorColor = ColorFromNormalized((Vector4){255.f / 255.f,  15.f / 255.f,  21.f / 255.f, 1.f});
+    m->fonts.text = LoadFontEx("data/fonts/CrimsonText-Regular.ttf", 20, 0, 0);
+    m->fonts.textB = LoadFontEx("data/fonts/CrimsonText-Bold.ttf", 20, 0, 0);
+    m->fonts.textI = LoadFontEx("data/fonts/CrimsonText-Italic.ttf", 20, 0, 0);
+    m->fonts.title = LoadFontEx("data/fonts/Coelacanth.otf", 64, 0, 0);
+    m->fonts.titleB = LoadFontEx("data/fonts/CoelacanthBold.otf", 64, 0, 0);
+    m->fonts.titleI = LoadFontEx("data/fonts/CoelacanthItalic.otf", 64, 0, 0);
 
     Vector2 dragStart;
 
     /* TODO Load Map */
-    map_load(&m->map, "data/maps/example.map");
+    map_generate(&m->map, "data/textures/example.png", 1);
 
-    /* TODO Load start location */
-    m->partyX = 12;
-    m->partyY = 22;
+    m->partyFacing = 2; // Party always enters facing South
+    m->partyX = m->map.entryX;
+    m->partyY = m->map.entryY + 1;
     m->partyMoveFreq = 0.2f;
 
     m->camera = map_cameraForTile(m->partyX, m->partyY, m->partyFacing);
@@ -198,19 +203,14 @@ main(int argc, char* argv[])
              * will have to extract camera movement though */
             if (direction >= 0) {
                 unsigned targetTile, currentTile;
-                bool moveAllowed = true;
                 currentTile = m->partyX + m->partyY * TILE_COUNT;
                 switch (direction % 4) {
                     case 0: { /* North */
                         targetTile = m->partyX + (m->partyY - 1) * TILE_COUNT;
-                        if (m->partyY <= 0) {
-                            moveAllowed = false;
-                        } else if (m->map.tiles[targetTile] & TileFlags_Solid) {
-                            moveAllowed = false;
-                        } else if (m->map.tiles[targetTile] & TileFlags_BarSouth) {
-                            moveAllowed = false;
-                        }
-                        if (moveAllowed) {
+                        if (targetTile < TILE_COUNT * TILE_COUNT
+                            && m->map.tiles[targetTile] & TileFlags_AllowEntry
+                            && m->map.tiles[targetTile] & TileFlags_AllowSouth)
+                        {
                             m->partyY -= 1;
                         } else {
                             m->camera.position.z -= 0.1f;
@@ -219,14 +219,10 @@ main(int argc, char* argv[])
 
                     case 1: { /* East */
                         targetTile = m->partyX + 1 + m->partyY * TILE_COUNT;
-                        if (m->partyX >= TILE_COUNT - 1) {
-                            moveAllowed = false;
-                        } else if (m->map.tiles[targetTile] & TileFlags_Solid) {
-                            moveAllowed = false;
-                        } else if (m->map.tiles[currentTile] & TileFlags_BarEast) {
-                            moveAllowed = false;
-                        }
-                        if (moveAllowed) {
+                        if (targetTile < TILE_COUNT * TILE_COUNT
+                            && m->map.tiles[targetTile] & TileFlags_AllowEntry
+                            && m->map.tiles[currentTile] & TileFlags_AllowEast)
+                        {
                             m->partyX += 1;
                         } else {
                             m->camera.position.x += 0.1f;
@@ -235,14 +231,10 @@ main(int argc, char* argv[])
 
                     case 2: { /* South */
                         targetTile = m->partyX + (m->partyY + 1) * TILE_COUNT;
-                        if (m->partyY >= TILE_COUNT - 1) {
-                            moveAllowed = false;
-                        } else if (m->map.tiles[targetTile] & TileFlags_Solid) {
-                            moveAllowed = false;
-                        } else if (m->map.tiles[currentTile] & TileFlags_BarSouth) {
-                            moveAllowed = false;
-                        }
-                        if (moveAllowed) {
+                        if (targetTile < TILE_COUNT * TILE_COUNT
+                            && m->map.tiles[targetTile] & TileFlags_AllowEntry
+                            && m->map.tiles[currentTile] & TileFlags_AllowSouth)
+                        {
                             m->partyY += 1;
                         } else {
                             m->camera.position.z += 0.1f;
@@ -251,14 +243,10 @@ main(int argc, char* argv[])
 
                     case 3: { /* West */
                         targetTile = m->partyX - 1 + m->partyY * TILE_COUNT;
-                        if (m->partyX <= 0) {
-                            moveAllowed = false;
-                        } else if (m->map.tiles[targetTile] & TileFlags_Solid) {
-                            moveAllowed = false;
-                        } else if (m->map.tiles[targetTile] & TileFlags_BarEast) {
-                            moveAllowed = false;
-                        }
-                        if (moveAllowed) {
+                        if (targetTile < TILE_COUNT * TILE_COUNT
+                            && m->map.tiles[targetTile] & TileFlags_AllowEntry
+                            && m->map.tiles[targetTile] & TileFlags_AllowEast)
+                        {
                             m->partyX -= 1;
                         } else {
                             m->camera.position.x -= 0.1f;
@@ -287,54 +275,92 @@ main(int argc, char* argv[])
 
         /* Rendering */
 
+        { /* Determine active play area */
+            float aspect = (float)GetRenderWidth() / (float)GetRenderHeight();
+
+            if (aspect > 2.f) {
+                m->area.width = GetRenderHeight() * 2;
+                m->area.height = GetRenderHeight();
+                m->area.top = 0;
+                m->area.left = (GetRenderWidth() - m->area.width) / 2;
+            } else if (aspect < 1.f) {
+                m->area.width = GetRenderWidth();
+                m->area.height = GetRenderWidth();
+                m->area.top = (GetRenderHeight() - m->area.height) / 2;
+                m->area.left = 0;
+            } else {
+                m->area.width = GetRenderWidth();
+                m->area.height = GetRenderHeight();
+                m->area.top = 0;
+                m->area.left = 0;
+            }
+            m->area.bottom = m->area.top + m->area.height;
+            m->area.right = m->area.left + m->area.width;
+        }
+
         BeginDrawing();
         {
             ClearBackground(CLEAR_COLOR);
 
             BeginMode3D(m->camera);
 
-            map_draw(&m->map);
+            if (m->map.name[0])
+                map_draw(&m->map);
+
+            rlDisableDepthMask();
             if (m->flags & (GlobalFlags_PartyStats | GlobalFlags_EditorMode))
                 DrawGrid(TILE_COUNT + 1, TILE_SIDE_LENGTH);
             if (m->flags & GlobalFlags_ShowCollision) {
+                float size = TILE_SIDE_LENGTH + 0.05f;
                 for (int x = 0; x < TILE_COUNT; x++) {
                     for (int y = 0; y < TILE_COUNT; y++) {
+                        if (abs(x - m->partyX) > 4 || abs(y - m->partyY) > 4)
+                            continue;
+
                         int index = x + y * TILE_COUNT;
-                        if (m->map.tiles[index] & TileFlags_Solid) {
+                        if (!(m->map.tiles[index] & TileFlags_AllowEntry)) {
                             Vector3 position = map_tileCenter(x, y);
-                            DrawCubeWires(position, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, LIGHTGRAY);
-                            DrawCube(position, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, CLIP_COLOR);
+                            DrawCube(position, size, size, size, CLIP_COLOR);
+                            DrawCubeWires(position, size, size, size, LIGHTGRAY);
                         }
 
-                        if (m->map.tiles[index] & TileFlags_BarEast) {
+                        if (!(m->map.tiles[index] & TileFlags_AllowEast)) {
                             Vector3 position = map_tileCenter(x, y);
                             position.x += (float)TILE_SIDE_LENGTH / 2.f;
-                            DrawCube(position, 0.1f, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, CLIP_COLOR);
-                            DrawCubeWires(position, 0.1f, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, LIGHTGRAY);
+                            DrawCube(position, 0.1f, size, size, CLIP_COLOR);
+                            DrawCubeWires(position, 0.1f, size, size, LIGHTGRAY);
                         }
 
-                        if (m->map.tiles[index] & TileFlags_BarSouth) {
+                        if (!(m->map.tiles[index] & TileFlags_AllowSouth)) {
                             Vector3 position = map_tileCenter(x, y);
                             position.z += (float)TILE_SIDE_LENGTH / 2.f;
-                            DrawCube(position, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, 0.1f, CLIP_COLOR);
-                            DrawCubeWires(position, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, 0.1f, LIGHTGRAY);
+                            DrawCube(position, size, size, 0.1f, CLIP_COLOR);
+                            DrawCubeWires(position, size, size, 0.1f, LIGHTGRAY);
                         }
                     }
                 }
             }
+            rlEnableDepthMask();
 
             EndMode3D();
 
             char* message = "7DRL 2026. Let's Rock!";
-            Vector2 position = MeasureTextEx(m->font, message, m->font.baseSize, 0);
-            position.x = GetScreenWidth() / 2 - position.x / 2;
-            position.y = GetScreenHeight() * 3 / 4 - position.y / 2;
-            ui_text(m->font, message, position, m->textColor, 0);
+            Vector2 position = MeasureTextEx(m->fonts.text, message, m->fonts.text.baseSize, 0);
+            position.x = m->area.left + m->area.width / 2 - position.x / 2;
+            position.y = m->area.top + m->area.height * 3 / 4 - position.y / 2;
+            ui_text(m->fonts.text, message, position, TEXT_COLOR, 0);
+
+            if (m->map.name[0]) {
+                Vector2 position = MeasureTextEx(m->fonts.title, m->map.name, m->fonts.title.baseSize, 0);
+                position.x = m->area.left + m->area.width - position.x - 30;
+                position.y = m->area.top + 20;
+                ui_text(m->fonts.title, m->map.name, position, TEXT_COLOR, 0);
+            }
 
             if (m->flags & GlobalFlags_PartyStats) {
                 char buf[128] = {0};
                 char* facing = 0;
-                Vector2 position = (Vector2){GetScreenWidth() - 100, 10};
+                Vector2 position = (Vector2){GetRenderWidth() - 120, GetRenderHeight() / 3};
                 switch (m->partyFacing) {
                     case 0: facing = "North"; break;
                     case 1: facing = "East"; break;
@@ -350,14 +376,47 @@ main(int argc, char* argv[])
                         m->camera.position.x, m->camera.position.z,
                         m->partyX, m->partyY,
                         facing);
-                ui_text(GetFontDefault(), buf, position, m->textColor, 1);
+                ui_text(GetFontDefault(), buf, position, TEXT_COLOR, 1);
             }
 
             if (m->ext.cimgui.handle && (m->flags & GlobalFlags_EditorModePermitted)) {
                 ext_CImguiNewFrame(m);
                 if (m->flags & GlobalFlags_EditorMode) {
                     bool show = 1;
+                    char buffer[TILE_COUNT * 2 + 1] = {};
+
                     m->ext.cimgui.ShowDemoWindow(&show);
+                    m->ext.cimgui.Begin("Map Overview", &show, ImGuiWindowFlags_AlwaysAutoResize);
+
+                    //ImU32 allow = m->ext.cimgui.GetColorU32_Vec4((ImVec4){0.15f, 0.1f, 0.1f, 0.65f});
+                    //ImU32 party = m->ext.cimgui.GetColorU32_Vec4((ImVec4){0.4f, 0.4f, 0.2f, 1.f});
+
+                    for (int y = 0; y < TILE_COUNT; y++) {
+                        for (int x = 0; x < TILE_COUNT; x++) {
+                            TileFlags t = m->map.tiles[x + y * TILE_COUNT];
+
+                            if (m->partyX == x && m->partyY == y) {
+                                buffer[x * 2] = 'P';
+                            } else if (t & TileFlags_Feature) {
+                                buffer[x * 2] = '?';
+                            } else {
+                                buffer[x * 2] = ' ';
+                            }
+
+                            if (t & TileFlags_Filled) {
+                                buffer[x * 2 + 1] = 'f';
+                            } else if (t & TileFlags_Chamber) {
+                                buffer[x * 2 + 1] = 'c';
+                            } else if (t & TileFlags_AllowEntry) {
+                                buffer[x * 2 + 1] = '.';
+                            } else {
+                                buffer[x * 2 + 1] = ' ';
+                            }
+                        }
+                        m->ext.cimgui.Text(buffer);
+
+                    }
+                    m->ext.cimgui.End();
                     if (!show)
                         m->flags &= ~(GlobalFlags_EditorMode);
                 }
@@ -369,7 +428,12 @@ main(int argc, char* argv[])
         EndDrawing();
     }
 
-    UnloadFont(m->font);
+    UnloadFont(m->fonts.text);
+    UnloadFont(m->fonts.textB);
+    UnloadFont(m->fonts.textI);
+    UnloadFont(m->fonts.title);
+    UnloadFont(m->fonts.titleB);
+    UnloadFont(m->fonts.titleI);
     ext_deinit(&m->ext);
     RL_FREE(m);
     CloseWindow();
