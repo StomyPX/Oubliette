@@ -2,6 +2,7 @@
 #define CLEAR_COLOR (Color){6, 0, 3, 255}
 #define TEXT_COLOR (Color){218, 209, 200, 255}
 #define ERROR_COLOR (Color){255, 15, 21, 255}
+#define GLOOM_COLOR (Color){61, 81, 20, 255}
 
 static int util_stricmp(char* a, char* b);
 static int util_pseudohex(char c);

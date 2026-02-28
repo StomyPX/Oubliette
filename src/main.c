@@ -91,7 +91,7 @@ main(int argc, char* argv[])
     #if DEBUG_MODE
         m->flags |= GlobalFlags_PartyStats;
         m->flags |= GlobalFlags_EditorModePermitted;
-        m->flags |= GlobalFlags_ShowCollision;
+        //m->flags |= GlobalFlags_ShowCollision;
     #endif
 
     ext_init(&m->ext);
@@ -105,8 +105,7 @@ main(int argc, char* argv[])
 
     Vector2 dragStart;
 
-    /* TODO Load Map */
-    map_generate(&m->map, "data/textures/example.png", 1);
+    map_generate(&m->map, 1);
 
     m->partyFacing = 2; // Party always enters facing South
     m->partyX = m->map.entryX;
@@ -307,12 +306,14 @@ main(int argc, char* argv[])
             BeginMode3D(m->camera);
 
             if (m->map.name[0])
-                map_draw(&m->map);
+                map_draw(&m->map, GLOOM_COLOR, 4.f * TILE_SIDE_LENGTH);
 
             rlDisableDepthMask();
-            if (m->flags & (GlobalFlags_PartyStats | GlobalFlags_EditorMode))
+            if (m->flags & GlobalFlags_EditorMode)
                 DrawGrid(TILE_COUNT + 1, TILE_SIDE_LENGTH);
+
             if (m->flags & GlobalFlags_ShowCollision) {
+                // TODO Draw inward in a spiral pattern
                 float size = TILE_SIDE_LENGTH + 0.05f;
                 for (int x = 0; x < TILE_COUNT; x++) {
                     for (int y = 0; y < TILE_COUNT; y++) {
@@ -342,15 +343,32 @@ main(int argc, char* argv[])
                     }
                 }
             }
+
+            if (m->flags & GlobalFlags_EditorMode) { /* Party location indicator */
+                Camera3D c;
+                Vector3 start, end, center;
+                c = map_cameraForTile(m->partyX, m->partyY, m->partyFacing);
+
+                start = map_tileCenter(m->partyX, m->partyY);
+                end = c.position;
+                start.y = end.y;
+                DrawCylinderWiresEx(start, end, 0.001f, 0.2f, 6, SKYBLUE);
+                center = c.position;
+                center.y -= CAMERA_HEIGHT / 2.f;
+                DrawCube(center, 0.5f, CAMERA_HEIGHT + 0.15f, 0.5f, BEIGE);
+                DrawCubeWires(center, 0.5f, CAMERA_HEIGHT + 0.15f, 0.5f, SKYBLUE);
+            }
             rlEnableDepthMask();
 
             EndMode3D();
 
+            /*
             char* message = "7DRL 2026. Let's Rock!";
             Vector2 position = MeasureTextEx(m->fonts.text, message, m->fonts.text.baseSize, 0);
             position.x = m->area.left + m->area.width / 2 - position.x / 2;
             position.y = m->area.top + m->area.height * 3 / 4 - position.y / 2;
             ui_text(m->fonts.text, message, position, TEXT_COLOR, 0);
+            */
 
             if (m->map.name[0]) {
                 Vector2 position = MeasureTextEx(m->fonts.title, m->map.name, m->fonts.title.baseSize, 0);

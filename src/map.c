@@ -41,7 +41,7 @@ map_cameraForTile(int x, int y, Facing facing)
     Camera c = {0};
 
     c.position = map_tileCenter(x, y);
-    c.position.y = 1.7f;
+    c.position.y = CAMERA_HEIGHT;
     c.target = c.position;
     c.target.y = 0.f;
     switch (facing % 4) {
@@ -71,46 +71,21 @@ map_cameraForTile(int x, int y, Facing facing)
 }
 
 static void
-map_generate(Map* map, char* atlas, uint64_t seed)
+map_generate(Map* map, uint64_t seed)
 {
-    util_log(0, "MAP: Loading, atlas: \"%s\", seed: %llu\n", atlas, seed);
-    map->transform = MatrixIdentity();
+    util_log(0, "MAP: Loading, seed: %llu\n", seed);
     PcgRandom_init(&map->rng, seed);
+    map->wall = LoadModel("data/statics/wall0.glb");
+    map->wallTex = LoadTexture("data/textures/walls.png");
+    SetMaterialTexture(&map->wall.materials[0], MATERIAL_MAP_DIFFUSE, map->wallTex);
 
-    { // Atlas
-        char* file;
-        char* extension;
-        size_t size;
-        Image image;
-        Texture texture;
+    map->flor = LoadModel("data/statics/floor0.glb");
+    map->florTex = LoadTexture("data/textures/str_stoneflr3.png");
+    SetMaterialTexture(&map->flor.materials[0], MATERIAL_MAP_DIFFUSE, map->florTex);
 
-        extension = strrchr(atlas, '.');
-        if (!extension) {
-            util_err(0, "MAP: Image atlas path lacks and extension: \"%s\"\n", atlas);
-            goto skip;
-        }
-
-        platform_read(atlas, &file, &size);
-        if (!file) {
-            util_err(0, "MAP: Failed to read image file: \"%s\"\n", atlas);
-            goto skip;
-        }
-
-        image = LoadImageFromMemory(extension, file, size);
-        if (!image.data) {
-            util_err(0, "MAP: File was not a valid image: \"%s\"\n", atlas);
-            goto cleanup;
-        }
-
-        map->material = LoadMaterialDefault();
-        texture = LoadTextureFromImage(image);
-        SetMaterialTexture(&map->material, MATERIAL_MAP_DIFFUSE, texture);
-        UnloadImage(image);
-
-    cleanup:
-        free(file);
-    skip:;
-    }
+    map->ceiling = LoadModel("data/statics/ceiling0.glb");
+    map->ceilingTex = LoadTexture("data/textures/dlv_metalstr1c.png");
+    SetMaterialTexture(&map->ceiling.materials[0], MATERIAL_MAP_DIFFUSE, map->ceilingTex);
 
     // Starting location
     map->entryX = PcgRandom_randomu(&map->rng) % (TILE_COUNT - 6) + 3;
@@ -131,10 +106,10 @@ map_generate(Map* map, char* atlas, uint64_t seed)
         map_generatePassage(map, p);
     }
 
-    /* TODO Flood fill chambers from the end of the list until we find one that doesn't connect to the
-     * entrance and add the exit to it */
-    // TODO Assign textures and place decorations
-    map_upload(map);
+    /* TODO Flood fill chambers from the end of the list until we find one far enough away from the entrance
+     * to add the exit to. */
+    // TODO Place features
+
     snprintf(map->name, sizeof(map->name), "Oubliette, L1");
 }
 
@@ -396,386 +371,99 @@ map_generateChamberRandomPassage(Map* map, MapChamber chamber, Facing facing)
 }
 
 static void
-map_upload(Map* map)
-{
-    /* TODO New Approach */
-    /* Deallocate if already existent */
-    if (map->mesh.vertices) {
-        UnloadMesh(map->mesh);
-        free(map->mesh.vertices);
-        free(map->mesh.texcoords);
-        free(map->mesh.normals);
-        free(map->mesh.indices);
-    }
-
-    /* Pre-Count */
-    memset(&map->mesh, 0, sizeof(map->mesh));
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->north[i]) {
-            map->mesh.vertexCount += 4;
-            map->mesh.triangleCount += 2;
-        }
-    }
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->east[i]) {
-            map->mesh.vertexCount += 4;
-            map->mesh.triangleCount += 2;
-        }
-    }
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->south[i]) {
-            map->mesh.vertexCount += 4;
-            map->mesh.triangleCount += 2;
-        }
-    }
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->west[i]) {
-            map->mesh.vertexCount += 4;
-            map->mesh.triangleCount += 2;
-        }
-    }
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->floor[i]) {
-            map->mesh.vertexCount += 4;
-            map->mesh.triangleCount += 2;
-        }
-    }
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->ceiling[i]) {
-            map->mesh.vertexCount += 4;
-            map->mesh.triangleCount += 2;
-        }
-    }
-
-    /* Allocate */
-    map->mesh.vertices =    malloc(sizeof(*map->mesh.vertices)  * map->mesh.vertexCount * 3);
-    map->mesh.texcoords =   malloc(sizeof(*map->mesh.texcoords) * map->mesh.vertexCount * 2);
-    map->mesh.normals =     malloc(sizeof(*map->mesh.normals)   * map->mesh.vertexCount * 3);
-    map->mesh.indices =     malloc(sizeof(*map->mesh.indices)   * map->mesh.triangleCount * 3);
-
-    /* Build Faces */
-    unsigned vcount = 0;
-    unsigned ecount = 0;
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->north[i]) {
-            Vector3 corner = map_tileCorner(i % TILE_COUNT, i / TILE_COUNT);
-            map->mesh.vertices[vcount * 3 +  0] = corner.x;
-            map->mesh.vertices[vcount * 3 +  1] = corner.y;
-            map->mesh.vertices[vcount * 3 +  2] = corner.z;
-            map->mesh.vertices[vcount * 3 +  3] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  4] = corner.y;
-            map->mesh.vertices[vcount * 3 +  5] = corner.z;
-            map->mesh.vertices[vcount * 3 +  6] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  7] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  8] = corner.z;
-            map->mesh.vertices[vcount * 3 +  9] = corner.x;
-            map->mesh.vertices[vcount * 3 + 10] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 + 11] = corner.z;
-
-            Rectangle r = map_subImageUV(map->north[i]);
-            map->mesh.texcoords[vcount * 2 + 0] = r.x;
-            map->mesh.texcoords[vcount * 2 + 1] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 2] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 3] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 4] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 5] = r.y;
-            map->mesh.texcoords[vcount * 2 + 6] = r.x;
-            map->mesh.texcoords[vcount * 2 + 7] = r.y;
-
-            map->mesh.normals[vcount * 3 +  0] = 0;
-            map->mesh.normals[vcount * 3 +  1] = 0;
-            map->mesh.normals[vcount * 3 +  2] = 1;
-            map->mesh.normals[vcount * 3 +  3] = 0;
-            map->mesh.normals[vcount * 3 +  4] = 0;
-            map->mesh.normals[vcount * 3 +  5] = 1;
-            map->mesh.normals[vcount * 3 +  6] = 0;
-            map->mesh.normals[vcount * 3 +  7] = 0;
-            map->mesh.normals[vcount * 3 +  8] = 1;
-            map->mesh.normals[vcount * 3 +  9] = 0;
-            map->mesh.normals[vcount * 3 + 10] = 0;
-            map->mesh.normals[vcount * 3 + 11] = 1;
-
-            map->mesh.indices[ecount * 3 +  0] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  1] = vcount + 1;
-            map->mesh.indices[ecount * 3 +  2] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  3] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  4] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  5] = vcount + 3;
-            vcount += 4;
-            ecount += 2;
-        }
-    }
-
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->east[i]) {
-            Vector3 corner = map_tileCorner(i % TILE_COUNT, i / TILE_COUNT);
-            map->mesh.vertices[vcount * 3 +  0] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  1] = corner.y;
-            map->mesh.vertices[vcount * 3 +  2] = corner.z;
-            map->mesh.vertices[vcount * 3 +  3] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  4] = corner.y;
-            map->mesh.vertices[vcount * 3 +  5] = corner.z + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  6] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  7] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  8] = corner.z + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  9] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 + 10] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 + 11] = corner.z;
-
-            Rectangle r = map_subImageUV(map->east[i]);
-            map->mesh.texcoords[vcount * 2 + 0] = r.x;
-            map->mesh.texcoords[vcount * 2 + 1] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 2] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 3] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 4] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 5] = r.y;
-            map->mesh.texcoords[vcount * 2 + 6] = r.x;
-            map->mesh.texcoords[vcount * 2 + 7] = r.y;
-
-            map->mesh.normals[vcount * 3 +  0] = -1;
-            map->mesh.normals[vcount * 3 +  1] = 0;
-            map->mesh.normals[vcount * 3 +  2] = 0;
-            map->mesh.normals[vcount * 3 +  3] = -1;
-            map->mesh.normals[vcount * 3 +  4] = 0;
-            map->mesh.normals[vcount * 3 +  5] = 0;
-            map->mesh.normals[vcount * 3 +  6] = -1;
-            map->mesh.normals[vcount * 3 +  7] = 0;
-            map->mesh.normals[vcount * 3 +  8] = 0;
-            map->mesh.normals[vcount * 3 +  9] = -1;
-            map->mesh.normals[vcount * 3 + 10] = 0;
-            map->mesh.normals[vcount * 3 + 11] = 0;
-
-            map->mesh.indices[ecount * 3 +  0] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  1] = vcount + 1;
-            map->mesh.indices[ecount * 3 +  2] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  3] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  4] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  5] = vcount + 3;
-            vcount += 4;
-            ecount += 2;
-        }
-    }
-
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->south[i]) {
-            Vector3 corner = map_tileCorner(i % TILE_COUNT, i / TILE_COUNT);
-            map->mesh.vertices[vcount * 3 +  0] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  1] = corner.y;
-            map->mesh.vertices[vcount * 3 +  2] = corner.z + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  3] = corner.x;
-            map->mesh.vertices[vcount * 3 +  4] = corner.y;
-            map->mesh.vertices[vcount * 3 +  5] = corner.z + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  6] = corner.x;
-            map->mesh.vertices[vcount * 3 +  7] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  8] = corner.z + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  9] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 + 10] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 + 11] = corner.z + TILE_SIDE_LENGTH;
-
-            Rectangle r = map_subImageUV(map->south[i]);
-            map->mesh.texcoords[vcount * 2 + 0] = r.x;
-            map->mesh.texcoords[vcount * 2 + 1] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 2] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 3] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 4] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 5] = r.y;
-            map->mesh.texcoords[vcount * 2 + 6] = r.x;
-            map->mesh.texcoords[vcount * 2 + 7] = r.y;
-
-            map->mesh.normals[vcount * 3 +  0] = 0;
-            map->mesh.normals[vcount * 3 +  1] = 0;
-            map->mesh.normals[vcount * 3 +  2] = -1;
-            map->mesh.normals[vcount * 3 +  3] = 0;
-            map->mesh.normals[vcount * 3 +  4] = 0;
-            map->mesh.normals[vcount * 3 +  5] = -1;
-            map->mesh.normals[vcount * 3 +  6] = 0;
-            map->mesh.normals[vcount * 3 +  7] = 0;
-            map->mesh.normals[vcount * 3 +  8] = -1;
-            map->mesh.normals[vcount * 3 +  9] = 0;
-            map->mesh.normals[vcount * 3 + 10] = 0;
-            map->mesh.normals[vcount * 3 + 11] = -1;
-
-            map->mesh.indices[ecount * 3 +  0] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  1] = vcount + 1;
-            map->mesh.indices[ecount * 3 +  2] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  3] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  4] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  5] = vcount + 3;
-            vcount += 4;
-            ecount += 2;
-        }
-    }
-
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->west[i]) {
-            Vector3 corner = map_tileCorner(i % TILE_COUNT, i / TILE_COUNT);
-            map->mesh.vertices[vcount * 3 +  0] = corner.x;
-            map->mesh.vertices[vcount * 3 +  1] = corner.y;
-            map->mesh.vertices[vcount * 3 +  2] = corner.z + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  3] = corner.x;
-            map->mesh.vertices[vcount * 3 +  4] = corner.y;
-            map->mesh.vertices[vcount * 3 +  5] = corner.z;
-            map->mesh.vertices[vcount * 3 +  6] = corner.x;
-            map->mesh.vertices[vcount * 3 +  7] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  8] = corner.z;
-            map->mesh.vertices[vcount * 3 +  9] = corner.x;
-            map->mesh.vertices[vcount * 3 + 10] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 + 11] = corner.z + TILE_SIDE_LENGTH;
-
-            Rectangle r = map_subImageUV(map->west[i]);
-            map->mesh.texcoords[vcount * 2 + 0] = r.x;
-            map->mesh.texcoords[vcount * 2 + 1] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 2] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 3] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 4] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 5] = r.y;
-            map->mesh.texcoords[vcount * 2 + 6] = r.x;
-            map->mesh.texcoords[vcount * 2 + 7] = r.y;
-
-            map->mesh.normals[vcount * 3 +  0] = 1;
-            map->mesh.normals[vcount * 3 +  1] = 0;
-            map->mesh.normals[vcount * 3 +  2] = 0;
-            map->mesh.normals[vcount * 3 +  3] = 1;
-            map->mesh.normals[vcount * 3 +  4] = 0;
-            map->mesh.normals[vcount * 3 +  5] = 0;
-            map->mesh.normals[vcount * 3 +  6] = 1;
-            map->mesh.normals[vcount * 3 +  7] = 0;
-            map->mesh.normals[vcount * 3 +  8] = 0;
-            map->mesh.normals[vcount * 3 +  9] = 1;
-            map->mesh.normals[vcount * 3 + 10] = 0;
-            map->mesh.normals[vcount * 3 + 11] = 0;
-
-            map->mesh.indices[ecount * 3 +  0] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  1] = vcount + 1;
-            map->mesh.indices[ecount * 3 +  2] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  3] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  4] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  5] = vcount + 3;
-            vcount += 4;
-            ecount += 2;
-        }
-    }
-
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->floor[i]) {
-            Vector3 corner = map_tileCorner(i % TILE_COUNT, i / TILE_COUNT);
-            map->mesh.vertices[vcount * 3 +  0] = corner.x;
-            map->mesh.vertices[vcount * 3 +  1] = corner.y;
-            map->mesh.vertices[vcount * 3 +  2] = corner.z + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  3] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  4] = corner.y;
-            map->mesh.vertices[vcount * 3 +  5] = corner.z + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  6] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  7] = corner.y;
-            map->mesh.vertices[vcount * 3 +  8] = corner.z;
-            map->mesh.vertices[vcount * 3 +  9] = corner.x;
-            map->mesh.vertices[vcount * 3 + 10] = corner.y;
-            map->mesh.vertices[vcount * 3 + 11] = corner.z;
-
-            Rectangle r = map_subImageUV(map->floor[i]);
-            map->mesh.texcoords[vcount * 2 + 0] = r.x;
-            map->mesh.texcoords[vcount * 2 + 1] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 2] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 3] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 4] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 5] = r.y;
-            map->mesh.texcoords[vcount * 2 + 6] = r.x;
-            map->mesh.texcoords[vcount * 2 + 7] = r.y;
-
-            map->mesh.normals[vcount * 3 +  0] = 0;
-            map->mesh.normals[vcount * 3 +  1] = 1;
-            map->mesh.normals[vcount * 3 +  2] = 0;
-            map->mesh.normals[vcount * 3 +  3] = 0;
-            map->mesh.normals[vcount * 3 +  4] = 1;
-            map->mesh.normals[vcount * 3 +  5] = 0;
-            map->mesh.normals[vcount * 3 +  6] = 0;
-            map->mesh.normals[vcount * 3 +  7] = 1;
-            map->mesh.normals[vcount * 3 +  8] = 0;
-            map->mesh.normals[vcount * 3 +  9] = 0;
-            map->mesh.normals[vcount * 3 + 10] = 1;
-            map->mesh.normals[vcount * 3 + 11] = 0;
-
-            map->mesh.indices[ecount * 3 +  0] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  1] = vcount + 1;
-            map->mesh.indices[ecount * 3 +  2] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  3] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  4] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  5] = vcount + 3;
-            vcount += 4;
-            ecount += 2;
-        }
-    }
-
-    for (unsigned i = 0; i < TILE_COUNT * TILE_COUNT; i++) {
-        if (map->ceiling[i]) {
-            Vector3 corner = map_tileCorner(i % TILE_COUNT, i / TILE_COUNT);
-            map->mesh.vertices[vcount * 3 +  0] = corner.x;
-            map->mesh.vertices[vcount * 3 +  1] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  2] = corner.z;
-            map->mesh.vertices[vcount * 3 +  3] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  4] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  5] = corner.z;
-            map->mesh.vertices[vcount * 3 +  6] = corner.x + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  7] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  8] = corner.z + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 +  9] = corner.x;
-            map->mesh.vertices[vcount * 3 + 10] = corner.y + TILE_SIDE_LENGTH;
-            map->mesh.vertices[vcount * 3 + 11] = corner.z + TILE_SIDE_LENGTH;
-
-            Rectangle r = map_subImageUV(map->ceiling[i]);
-            map->mesh.texcoords[vcount * 2 + 0] = r.x;
-            map->mesh.texcoords[vcount * 2 + 1] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 2] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 3] = r.y + r.height;
-            map->mesh.texcoords[vcount * 2 + 4] = r.x + r.width;
-            map->mesh.texcoords[vcount * 2 + 5] = r.y;
-            map->mesh.texcoords[vcount * 2 + 6] = r.x;
-            map->mesh.texcoords[vcount * 2 + 7] = r.y;
-
-            map->mesh.normals[vcount * 3 +  0] = 0;
-            map->mesh.normals[vcount * 3 +  1] = -1;
-            map->mesh.normals[vcount * 3 +  2] = 0;
-            map->mesh.normals[vcount * 3 +  3] = 0;
-            map->mesh.normals[vcount * 3 +  4] = -1;
-            map->mesh.normals[vcount * 3 +  5] = 0;
-            map->mesh.normals[vcount * 3 +  6] = 0;
-            map->mesh.normals[vcount * 3 +  7] = -1;
-            map->mesh.normals[vcount * 3 +  8] = 0;
-            map->mesh.normals[vcount * 3 +  9] = 0;
-            map->mesh.normals[vcount * 3 + 10] = -1;
-            map->mesh.normals[vcount * 3 + 11] = 0;
-
-            map->mesh.indices[ecount * 3 +  0] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  1] = vcount + 1;
-            map->mesh.indices[ecount * 3 +  2] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  3] = vcount + 0;
-            map->mesh.indices[ecount * 3 +  4] = vcount + 2;
-            map->mesh.indices[ecount * 3 +  5] = vcount + 3;
-            vcount += 4;
-            ecount += 2;
-        }
-    }
-
-    UploadMesh(&map->mesh, 1);
-}
-
-static void
 map_unload(Map* map)
 {
-    UnloadMaterial(map->material);
-    if (map->mesh.vertices) {
-        UnloadMesh(map->mesh);
-        free(map->mesh.vertices);
-        free(map->mesh.texcoords);
-        free(map->mesh.normals);
-        free(map->mesh.indices);
-    }
+    if (map->wall.meshes)
+        UnloadModel(map->wall);
     memset(map, 0, sizeof(*map));
 }
 
 static void
-map_draw(Map* map)
+map_draw(Map* map, Color light, float visibility)
 {
-    DrawMesh(map->mesh, map->material, map->transform);
+    const int radius = visibility / TILE_SIDE_LENGTH + 1;
+    const int total = radius * 2 + 1;
+    float distance;
+    float power = 1.f / 2.f;
+    Vector3 up = (Vector3){0.f, 1.f, 0.f};
+    Vector3 one = Vector3One();
+    Vector3 position;
+    Vector3 origin, center;
+    Color color;
+
+    if (m->flags & GlobalFlags_EditorMode) {
+        position = map_tileCenter(m->partyX, m->partyY);
+        position.y += CAMERA_HEIGHT;
+    } else {
+        position = m->camera.position;
+    }
+    // TODO Draw outward in a spiral pattern, skip walls between solid cells
+    for (int i = 0; i < total; i++) {
+        int x = m->partyX - radius - 1 + i;
+        for (int j = 0; j < total; j++) {
+            int y = m->partyY - radius - 1 + j;
+            int index = x + y * TILE_COUNT;
+
+            if (x < 0 || x >= TILE_COUNT || y < 0 || y >= TILE_COUNT)
+                continue;
+
+            if (!(m->map.tiles[index] & TileFlags_AllowEast) || x == TILE_COUNT - 1) {
+                origin = map_tileCorner(x + 1, y + 1);
+                center = map_tileCenter(x, y);
+                center.x += TILE_SIDE_LENGTH / 2.f;
+                center.y += TILE_SIDE_LENGTH / 2.f;
+                distance = Vector3Distance(position, center);
+                color = ColorLerp(light, CLEAR_COLOR, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                DrawModelEx(map->wall, origin, up, -90.f, one, color);
+            }
+
+            if (!(m->map.tiles[index] & TileFlags_AllowSouth) || y == TILE_COUNT - 1) {
+                origin = map_tileCorner(x + 1, y + 1);
+                center = map_tileCenter(x, y);
+                center.z += TILE_SIDE_LENGTH / 2.f;
+                center.y += TILE_SIDE_LENGTH / 2.f;
+                distance = Vector3Distance(position, center);
+                color = ColorLerp(light, CLEAR_COLOR, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                DrawModel(map->wall, origin, 1.f, color);
+            }
+
+            if (x == 0) { /* West Edge */
+                origin = map_tileCorner(x, y + 1);
+                center = map_tileCenter(x, y);
+                center.x -= TILE_SIDE_LENGTH / 2.f;
+                center.y += TILE_SIDE_LENGTH / 2.f;
+                distance = Vector3Distance(position, center);
+                color = ColorLerp(light, CLEAR_COLOR, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                DrawModelEx(map->wall, origin, up, -90.f, one, color);
+            }
+
+            if (y == 0) { /* North Edge */
+                origin = map_tileCorner(x + 1, y);
+                center = map_tileCenter(x, y);
+                center.z += TILE_SIDE_LENGTH / 2.f;
+                center.y += TILE_SIDE_LENGTH / 2.f;
+                distance = Vector3Distance(position, center);
+                color = ColorLerp(light, CLEAR_COLOR, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                DrawModel(map->wall, origin, 1.f, color);
+            }
+
+            if (map->tiles[index] & TileFlags_AllowEntry) {
+                origin = map_tileCorner(x + 1, y + 1);
+                center = map_tileCenter(x, y);
+                distance = Vector3Distance(position, center);
+                color = ColorLerp(light, CLEAR_COLOR, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                DrawModel(map->flor, origin, 1.f, color);
+            }
+
+            if (map->tiles[index] & TileFlags_AllowEntry) {
+                origin = map_tileCorner(x + 1, y + 1);
+                center = map_tileCenter(x, y);
+                center.y += TILE_SIDE_LENGTH;
+                distance = Vector3Distance(position, center);
+                color = ColorLerp(light, CLEAR_COLOR, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                DrawModel(map->ceiling, origin, 1.f, color);
+            }
+        }
+    }
 }
 

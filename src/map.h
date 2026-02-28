@@ -1,11 +1,7 @@
 #define TILE_COUNT 48
 #define TILE_SIDE_LENGTH 3.f
 #define MAP_ATLAS_SUBIMAGE_COUNT 16
-
-/* A face is two 4-bit values ORed together. The lower bits indicate atlas index plus one, while the lower
- * bits indicate what piece of that atlas is used, subdividing each into a 4x4 grid (zero at top-left,
- * row-major order). */
-typedef unsigned char Face;
+#define CAMERA_HEIGHT 1.6f
 
 typedef enum {
     TileFlags_AllowEntry = 1 << 0,
@@ -33,16 +29,13 @@ typedef struct {
  * Northwest at (-TILE_COUNT/2 * TILE_SIDE_LENGTH, TILE_COUNT/2 * TILE_SIDE_LENGTH) */
 typedef struct {
     char        name    [32];
-    Mesh        mesh;
-    Material    material;
-    Matrix      transform;
     TileFlags   tiles   [TILE_COUNT * TILE_COUNT];
-    Face        north   [TILE_COUNT * TILE_COUNT];
-    Face        east    [TILE_COUNT * TILE_COUNT];
-    Face        south   [TILE_COUNT * TILE_COUNT];
-    Face        west    [TILE_COUNT * TILE_COUNT];
-    Face        floor   [TILE_COUNT * TILE_COUNT];
-    Face        ceiling [TILE_COUNT * TILE_COUNT];
+    Model       wall;
+    Texture2D   wallTex;
+    Model       flor;
+    Texture2D   florTex;
+    Model       ceiling;
+    Texture2D   ceilingTex;
     // TODO decorations (models/sprites)
 
     // Build Info
@@ -63,13 +56,12 @@ static Rectangle map_subImageUV(int num); /* Starts at 1 */
 static Camera3D map_cameraForTile(int x, int y, Facing facing);
 
 /* Returns non-zero on success */
-static void map_generate(Map* map, char* atlas, uint64_t seed);
+static void map_generate(Map* map, uint64_t seed);
 static void map_generatePassage(Map* map, MapPassage u);
 static bool map_generateStepForward(Map* map, int* x, int* y, Facing facing);
 static void map_generateChamber(Map* map, int x, int y, Facing facing);
 static void map_generateChamberRandomPassage(Map* map, MapChamber chamber, Facing facing);
 
-static void map_upload(Map* map);
 static void map_unload(Map* map);
-static void map_draw(Map* map);
+static void map_draw(Map* map, Color light, float visibility);
 

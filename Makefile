@@ -48,7 +48,7 @@ cimgui.so: | $(cimgui_directory)
 
 lib/libraylib.glibc.a: | $(raylib_directory)
 	@cd ext/raylib/src/ && $(MAKE) clean
-	docker $(RUN_STEAM_RT) "cd /build/ext/raylib/src/ && make -j8 CC=gcc PLATFORM=PLATFORM_DESKTOP"
+	docker $(RUN_STEAM_RT) "cd /build/ext/raylib/src/ && make -j8 CC=gcc PLATFORM=PLATFORM_DESKTOP RAYLIB_CONFIG_FLAGS=NONE"
 	@mkdir -p lib/
 	mv ext/raylib/src/libraylib.a lib/libraylib.glibc.a
 
@@ -79,7 +79,7 @@ cimgui.dll: | $(cimgui_directory)
 
 lib/libraylib.mingw.a: | $(raylib_directory)
 	cd ext/raylib/src/ && $(MAKE) clean
-	cd ext/raylib/src/ && $(MAKE) CC=x86_64-w64-mingw32-gcc PLATFORM=PLATFORM_DESKTOP
+	cd ext/raylib/src/ && $(MAKE) CC=x86_64-w64-mingw32-gcc PLATFORM=PLATFORM_DESKTOP RAYLIB_CONFIG_FLAGS=NONE
 	mv ext/raylib/src/libraylib.a lib/libraylib.mingw.a
 
 # Just copy them out of the local MinGW toolchain
