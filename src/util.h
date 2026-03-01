@@ -25,6 +25,14 @@ typedef enum: unsigned short {
 /* Messages are shown for 3 seconds + 0.1 per character */
 static int util_log(unsigned short channel, char* fmt, ...);
 static int util_err(unsigned short channel, char* fmt, ...);
+static void util_trace(int loglevel, const char* text, va_list args); // For raylib
 static void util_drawLog(void);
+static void util_clearLog(void);
+
+/* File handling wrappers for Raylib */
+static unsigned char* util_readFileData(const char* filename, int* size);
+static bool util_writeFileData(const char* filename, void* data, int size);
+static char* util_readFileText(const char* filename);
+static bool util_writeFileText(const char* filename, char* text);
 
 

@@ -49,6 +49,8 @@ ext_init(External* ext)
             io->SetClipboardTextFn = ext_CImguiSetClipboard;
             io->GetClipboardTextFn = ext_CImguiGetClipboard;
             io->ClipboardUserData = 0;
+            io->IniFilename = 0;
+            io->LogFilename = 0;
 
             /* Cursor mapping */
 

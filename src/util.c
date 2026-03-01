@@ -172,12 +172,41 @@ util_err(unsigned short channel, char* fmt, ...)
 }
 
 static void
+util_trace(int loglevel, const char* text, va_list args)
+{
+    int count;
+    int channel = 0;
+    va_list args2;
+    va_copy(args2, args);
+
+    count = vsnprintf(g_util_logLines[g_util_logLinesCursor].text, UTIL_LOGLINE_LENGTH, text, args);
+
+    if (loglevel >= LOG_ERROR) {
+        vfprintf(stderr, text, args2);
+        fprintf(stderr, "\n");
+        channel = -1;
+    } else {
+        vfprintf(stdout, text, args2);
+        fprintf(stdout, "\n");
+    }
+
+    g_util_logLines[g_util_logLinesCursor].seconds
+        = 5.f + (float)(count < UTIL_LOGLINE_LENGTH ? count : UTIL_LOGLINE_LENGTH);
+    g_util_logLines[g_util_logLinesCursor].channel = channel;
+    g_util_logLinesCursor += 1;
+    g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
+}
+
+static void
 util_drawLog(void)
 {
     float deltaTime = GetFrameTime();
     Color color;
     Vector2 position = (Vector2){20.f, 20.f};
     Font font = GetFontDefault();
+
+    if (IsKeyDown(KEY_KP_ENTER))
+        deltaTime *= 5.f;
 
     for (int i = 0; i < UTIL_LOGLINE_COUNT; i++) {
         int index = (g_util_logLinesCursor - i + UTIL_LOGLINE_COUNT) % UTIL_LOGLINE_COUNT;
@@ -196,4 +225,106 @@ util_drawLog(void)
     for (unsigned i = 0; i < UTIL_LOGLINE_COUNT; i++) {
         g_util_logLines[i].seconds -= deltaTime;
     }
+}
+
+static void
+util_clearLog(void)
+{
+    for (unsigned i = 0; i < UTIL_LOGLINE_COUNT; i++) {
+        if (g_util_logLines[i].seconds > 1.f)
+            g_util_logLines[i].seconds = 1.f;
+    }
+}
+
+static unsigned char*
+util_readFileData(const char* filename, int* size)
+{
+    PHYSFS_Stat stat;
+    PHYSFS_File* file;
+    PHYSFS_sint64 count;
+    void* buffer;
+
+    if (!PHYSFS_exists(filename)) {
+        TraceLog(LOG_DEBUG, "PHYSFS: [%s] does not exist", filename);
+        *size = 0;
+        return 0;
+    }
+
+    PHYSFS_stat(filename, &stat);
+    buffer = MemAlloc(stat.filesize);
+    if (!buffer) {
+        TraceLog(LOG_ERROR, "PHYSFS: could not allocate memory to read [%s]", filename);
+        return 0;
+    }
+
+    file = PHYSFS_openRead(filename);
+    if (!file) {
+        TraceLog(LOG_ERROR, "PHYSFS: [%s] could not be opened, err: %s",
+                filename, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
+        return 0;
+    }
+
+    count = PHYSFS_readBytes(file, buffer, stat.filesize);
+    if (count < 0) {
+        TraceLog(LOG_ERROR, "PHYSFS: [%s] could not be read, err: %s",
+                filename, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
+        return 0;
+    } else if (count < stat.filesize) {
+        TraceLog(LOG_WARNING, "PHYSFS: [%s] did not read to completion %lli/%i, err: %s",
+                filename, count, size, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
+    }
+
+    if (!PHYSFS_close(file)) {
+        TraceLog(LOG_WARNING, "PHYSFS: [%s] could not be closed after reading, err: %s",
+                filename, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
+    }
+
+    if (size)
+        *size = stat.filesize;
+    TraceLog(LOG_TRACE, "PHYSFS: [%s] read successfully", filename);
+    return buffer;
+}
+
+static bool
+util_writeFileData(const char* filename, void* data, int size)
+{
+    PHYSFS_File* file;
+    PHYSFS_sint64 count;
+
+    file = PHYSFS_openWrite(filename);
+    if (!file) {
+        TraceLog(LOG_ERROR, "PHYSFS: [%s] could not be opened for writing, err: %s",
+                filename, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
+        return false;
+    }
+
+    count = PHYSFS_writeBytes(file, data, size);
+    if (count < 0) {
+        TraceLog(LOG_ERROR, "PHYSFS: [%s] could not be written, err: %s",
+                filename, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
+        return false;
+    } else if (count < size) {
+        TraceLog(LOG_WARNING, "PHYSFS: [%s] did not write to completion %lli/%i, err: %s",
+                filename, count, size, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
+    }
+
+    if (!PHYSFS_close(file)) {
+        TraceLog(LOG_WARNING, "PHYSFS: [%s] could not be closed after writing, err: %s",
+                filename, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
+    }
+
+    TraceLog(LOG_TRACE, "PHYSFS: [%s] written successfully", filename);
+    return true;
+}
+
+static char*
+util_readFileText(const char* filename)
+{
+    return util_readFileData(filename, 0);
+}
+
+static bool
+util_writeFileText(const char* filename, char* text)
+{
+    return util_writeFileData(filename, text, strlen(text));
 }

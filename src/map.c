@@ -110,7 +110,7 @@ map_generate(Map* map, uint64_t seed)
      * to add the exit to. */
     // TODO Place features
 
-    snprintf(map->name, sizeof(map->name), "Oubliette, L1");
+    snprintf(map->name, sizeof(map->name), "Oubliette");
 }
 
 static void
@@ -383,12 +383,11 @@ map_unload(Map* map)
 }
 
 static void
-map_draw(Map* map, Color light, float visibility)
+map_draw(Map* map, Color light, float visibility, float power)
 {
     const int radius = visibility / TILE_SIDE_LENGTH + 1;
     const int total = radius * 2 + 1;
     float distance;
-    float power = 1.f / 2.f;
     Vector3 up = (Vector3){0.f, 1.f, 0.f};
     Vector3 one = Vector3One();
     Vector3 position;

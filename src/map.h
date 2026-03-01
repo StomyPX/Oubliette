@@ -63,5 +63,5 @@ static void map_generateChamber(Map* map, int x, int y, Facing facing);
 static void map_generateChamberRandomPassage(Map* map, MapChamber chamber, Facing facing);
 
 static void map_unload(Map* map);
-static void map_draw(Map* map, Color light, float visibility);
+static void map_draw(Map* map, Color light, float visibility, float power);
 

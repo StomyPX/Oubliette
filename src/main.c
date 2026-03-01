@@ -72,18 +72,22 @@ main(int argc, char* argv[])
 {
     PHYSFS_init(argv[0]);
     PHYSFS_permitSymbolicLinks(1);
-    PHYSFS_mount(PHYSFS_getBaseDir(), 0, 0);
+    PHYSFS_setSaneConfig("StomyGame", GAME_NAME, "pk3", 0, 0);
 
-    /* TODO Fill in and enable:
-    char* prefdir = PHYSFS_setPrefDir("DevName", "GameName");
-    PHYSFS_setWriteDir(prefdir);
-    PHYSFS_mount(prefdir, 0, 0);
-    */
-
-    /* TODO Auto-load all zip files found in res/ */
-
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
+    SetTraceLogCallback(util_trace);
+    /* TODO Set Raylib file callbacks */
+    SetLoadFileDataCallback(util_readFileData);
+    SetSaveFileDataCallback(util_writeFileData);
+    SetLoadFileTextCallback(util_readFileText);
+    SetSaveFileTextCallback(util_writeFileText);
     InitWindow(1280, 720, GAME_NAME);
     SetExitKey(KEY_NULL);
+    #if MODE_DEBUG
+        SetTraceLogLevel(LOG_DEBUG);
+    #else
+        SetTraceLogLevel(LOG_WARNING);
+    #endif
 
     m = RL_MALLOC(sizeof(Memory));
     memset(m, 0, sizeof(Memory));
@@ -97,9 +101,9 @@ main(int argc, char* argv[])
 
     ext_init(&m->ext);
 
-    m->fonts.text = LoadFontEx("data/fonts/CrimsonText-Regular.ttf", 20, 0, 0);
-    m->fonts.textB = LoadFontEx("data/fonts/CrimsonText-Bold.ttf", 20, 0, 0);
-    m->fonts.textI = LoadFontEx("data/fonts/CrimsonText-Italic.ttf", 20, 0, 0);
+    m->fonts.text = LoadFontEx("data/fonts/CrimsonText-Regular.ttf", 24, 0, 0);
+    m->fonts.textB = LoadFontEx("data/fonts/CrimsonText-Bold.ttf", 24, 0, 0);
+    m->fonts.textI = LoadFontEx("data/fonts/CrimsonText-Italic.ttf", 24, 0, 0);
     m->fonts.title = LoadFontEx("data/fonts/Coelacanth.otf", 64, 0, 0);
     m->fonts.titleB = LoadFontEx("data/fonts/CoelacanthBold.otf", 64, 0, 0);
     m->fonts.titleI = LoadFontEx("data/fonts/CoelacanthItalic.otf", 64, 0, 0);
@@ -114,6 +118,8 @@ main(int argc, char* argv[])
     m->portraits[3] = LoadTexture("data/portraits/faustine.jpg");
     for (int i = 0; i < 4; i++)
         GenTextureMipmaps(m->portraits + i);
+
+    /* TODO Auto-load all zip files found in data/ */
 
     Vector2 dragStart;
 
@@ -135,6 +141,14 @@ main(int argc, char* argv[])
 
         if (IsKeyPressed(KEY_F4) && (IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT)))
             m->flags |= GlobalFlags_RequestQuit;
+
+        if (IsKeyPressed(KEY_ENTER) && (IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT))) {
+            ToggleBorderlessWindowed();
+            TraceLog(LOG_TRACE, "Toggled Borderless Fullscreen");
+        }
+
+        if (IsKeyPressed(KEY_KP_ENTER))
+            util_clearLog();
 
         if (m->flags & GlobalFlags_EditorModePermitted) {
             if (IsKeyPressed(KEY_F1))
@@ -328,11 +342,11 @@ main(int argc, char* argv[])
 
             BeginTextureMode(m->rtex);
             BeginMode3D(m->camera);
-            ClearBackground(CLEAR_COLOR);
+            ClearBackground(BLACK);
 
             if (m->map.name[0]) {
-                // TODO Redo lighting to allow multiple sources
-                map_draw(&m->map, BEIGE /*GLOOM_COLOR*/, 4.f * TILE_SIDE_LENGTH);
+                // TODO Redo lighting to allow multiple sources with different curves
+                map_draw(&m->map, /*BEIGE*/ GLOOM_COLOR, 4.f * TILE_SIDE_LENGTH, 2.0f);
             }
 
             rlDisableDepthMask();
