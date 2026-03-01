@@ -143,7 +143,7 @@ util_log(unsigned short channel, char* fmt, ...)
     va_end(ap);
 
     g_util_logLines[g_util_logLinesCursor].seconds
-        = 5.f + 0.2f * (float)(count < UTIL_LOGLINE_LENGTH ? count : UTIL_LOGLINE_LENGTH);
+        = 5.f + 0.1f * (float)(count < UTIL_LOGLINE_LENGTH ? count : UTIL_LOGLINE_LENGTH);
     g_util_logLines[g_util_logLinesCursor].channel = channel;
     g_util_logLinesCursor += 1;
     g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
@@ -188,7 +188,7 @@ util_err(unsigned short channel, char* fmt, ...)
     va_end(ap);
 
     g_util_logLines[g_util_logLinesCursor].seconds
-        = 5.f + 0.2f * (float)(count < UTIL_LOGLINE_LENGTH ? count : UTIL_LOGLINE_LENGTH);
+        = 5.f + 0.1f * (float)(count < UTIL_LOGLINE_LENGTH ? count : UTIL_LOGLINE_LENGTH);
     g_util_logLines[g_util_logLinesCursor].channel = errchannel;
     g_util_logLinesCursor += 1;
     g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
@@ -234,7 +234,7 @@ util_trace(int loglevel, const char* text, va_list args)
         count = vsnprintf(g_util_logLines[g_util_logLinesCursor].text, UTIL_LOGLINE_LENGTH, text, args);
 
         g_util_logLines[g_util_logLinesCursor].seconds
-            = 5.f + 0.2f * (float)(count < UTIL_LOGLINE_LENGTH ? count : UTIL_LOGLINE_LENGTH);
+            = 5.f + 0.1f * (float)(count < UTIL_LOGLINE_LENGTH ? count : UTIL_LOGLINE_LENGTH);
         g_util_logLines[g_util_logLinesCursor].channel = channel;
         g_util_logLinesCursor += 1;
         g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
@@ -391,3 +391,36 @@ util_rdtsc(void)
     __asm__ __volatile__ ("rdtsc" : "=a" (low), "=d" (high));
     return ((uint64_t) high << 32) | low;
 }
+
+static bool
+util_jsonParseString(struct json_object_element_s* element, char* key, char* target, size_t size)
+{
+    if (util_stricmp((char*)element->name->string, key) != 0)
+        return false;
+
+    if (element->value->type == json_type_string) {
+        snprintf(target, size, json_value_as_string(element->value)->string);
+    } else {
+        TraceLog(LOG_DEBUG, "MONSTERS: Element for %s was expected to be a string but was a %s",
+                key, json_type_toString(element->value->type));
+    }
+
+    return true;
+}
+
+static bool
+util_jsonParseInteger(struct json_object_element_s* element, char* key, int64_t* target)
+{
+    if (util_stricmp((char*)element->name->string, key) != 0)
+        return false;
+
+    if (element->value->type == json_type_number) {
+        *target = strtoll(json_value_as_number(element->value)->number, 0, 0);
+    } else {
+        TraceLog(LOG_DEBUG, "MONSTERS: Element for %s was expected to be a number but was a %s",
+                key, json_type_toString(element->value->type));
+    }
+
+    return true;
+}
+

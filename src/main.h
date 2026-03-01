@@ -6,6 +6,7 @@ typedef struct Memory_ {
     int rtexW, rtexH;
     Map map;
     PcgRandom rng; // Primary RNG
+    MonstrousCompendium monsters;
 
     struct { /* Zone of the screen used by the game under extreme aspect ratios */
         int top, left, bottom, right;

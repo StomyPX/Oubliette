@@ -46,4 +46,8 @@ static bool util_writeFileText(const char* filename, char* text);
 
 static uint64_t util_rdtsc(void);
 
+/* JSON Parsing Helpers */
+static bool util_jsonParseString(struct json_object_element_s* element, char* key, char* target, size_t size);
+static bool util_jsonParseInteger(struct json_object_element_s* element, char* key, int64_t* target);
+
 

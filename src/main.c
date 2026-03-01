@@ -57,13 +57,14 @@
 #include "map.h"
 #include "char.h"
 #include "ui.h"
-#include "editor.h"
+#include "monster.h"
 #include "main.h"
 
 /* Sources (order doesn't matter) */
 #include "char.c"
 #include "ext.c"
 #include "map.c"
+#include "monster.c"
 #include "platform.c"
 #include "ui.c"
 #include "util.c"
@@ -100,6 +101,7 @@ main(int argc, char* argv[])
 
     ext_init(&m->ext);
     PcgRandom_init(&m->rng, util_rdtsc());
+    monster_init(&m->monsters);
 
     m->fonts.text = LoadFontEx("data/fonts/CrimsonText-Regular.ttf", 24, 0, 0);
     m->fonts.textB = LoadFontEx("data/fonts/CrimsonText-Bold.ttf", 24, 0, 0);
@@ -166,9 +168,6 @@ main(int argc, char* argv[])
                 m->flags ^= GlobalFlags_ShowMap;
         }
 
-        if (IsKeyPressed(KEY_R))
-            util_log(0, "Have a random number: %u", PcgRandom_randomu(&m->rng));
-
         if (m->flags & GlobalFlags_EditorMode) {
             if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
                 dragStart = GetMousePosition();
@@ -194,6 +193,30 @@ main(int argc, char* argv[])
             }
         } else {
             int direction = -1;
+
+            if (IsKeyPressed(KEY_R)) { // Resting
+                util_log(0, "Resting...");
+                m->encounter += 300;
+                m->flags |= GlobalFlags_AdvanceTurn;
+
+                for (int i = 0; i < arrlen(m->party); i++) {
+                    Character* c = m->party + i;
+                    if (!c->name[0] || c->health < 1)
+                        continue;
+
+                    if (c->stamina < char_maxStamina(*c)) {
+                        int die = (c->constitution + c->willpower) / 10 + 2;
+                        c->stamina += PcgRandom_roll(&m->rng, 1, die);
+                        if (c->stamina > char_maxStamina(*c))
+                            c->stamina = char_maxStamina(*c);
+                    } else if (c->health < char_maxHealth(*c)) {
+                        int die = c->constitution / 20 + 2;
+                        c->health += PcgRandom_roll(&m->rng, 1, die) - 1;
+                        if (c->health > char_maxHealth(*c))
+                            c->health = char_maxHealth(*c);
+                    }
+                }
+            }
 
             if (IsKeyPressed(KEY_W)) {
                 direction = m->partyFacing + 0;
@@ -309,13 +332,18 @@ main(int argc, char* argv[])
                     for (int i = 0; i < arrlen(m->party); i++) {
                         if (m->party[i].name[0]) {
                             if (m->party[i].health > 0) {
-                                ticks += 20 - char_modifier(m->party[i].dexterity) * 2;
+                                int contrib = 20;
+                                contrib -= char_modifier(m->party[i].dexterity) * 2;
+                                contrib -= char_modifier(m->party[i].intellect);
+                                contrib += char_modifier(m->party[i].strength);
                                 // TODO Silent move
-                            } else {
-                                ticks += 30;
+                                ticks += contrib;
                             }
                         }
                     }
+
+                    if (ticks < 50)
+                        ticks = 50;
                     m->encounter += ticks;
                 } else {
                     /* Tick up very slightly */
@@ -343,7 +371,7 @@ main(int argc, char* argv[])
                     m->encounter -= chance * m->map.encounterFreq;
 
                     if (PcgRandom_roll(&m->rng, 1, die) <= chance) {
-                        util_log(0, "Oh no! An encounter with a hideous and vile creature!");
+                        monster_encounter(&m->monsters);
                     }
                 }
 
@@ -528,12 +556,14 @@ main(int argc, char* argv[])
                         "Camera: %4.1f, %4.1f\n"
                         "Tile: %2i, %2i\n"
                         "Facing: %s\n"
-                        "Enc: %i/%i\n",
+                        "Enc: %i/%i\n"
+                        "Seed: %llu\n",
                         m->flags & GlobalFlags_EditorMode ? "ON" : "off",
                         m->camera.position.x, m->camera.position.z,
                         m->partyX, m->partyY,
                         Facing_toString(m->partyFacing),
-                        m->encounter, m->map.encounterFreq);
+                        m->encounter, m->map.encounterFreq,
+                        m->map.seed);
                 ui_text(GetFontDefault(), buf, position, GetFontDefault().baseSize, 1, BONE);
             }
 
@@ -603,6 +633,8 @@ main(int argc, char* argv[])
     for (int i = 0; i < arrlen(m->party); i++)
         char_free(m->party + i);
     UnloadRenderTexture(m->rtex);
+    monster_cleanup(&m->monsters);
+
     ext_deinit(&m->ext);
     RL_FREE(m);
     CloseWindow();

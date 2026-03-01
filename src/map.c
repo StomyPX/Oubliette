@@ -75,6 +75,7 @@ map_generate(Map* map, uint64_t seed)
 {
     util_log(0, "MAP: Loading, seed: %llu", seed);
     PcgRandom_init(&map->rng, seed);
+    map->seed = seed;
     map->wall = LoadModel("data/statics/wall0.glb");
     map->wallTex = LoadTexture("data/textures/walls.png");
     SetMaterialTexture(&map->wall.materials[0], MATERIAL_MAP_DIFFUSE, map->wallTex);

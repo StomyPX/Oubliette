@@ -40,6 +40,7 @@ typedef struct {
 
     // Build Info
     PcgRandom   rng;
+    uint64_t    seed;
     int         chamberCount;
     MapChamber  chambers[MAP_CHAMBERS_MAX];
     int         passageCount;

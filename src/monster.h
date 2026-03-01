@@ -1,0 +1,43 @@
+typedef enum {
+    MonsterFlags_StreetLore = 1 << 0, /* Indicates Thieves know these better than Mages do */
+} MonsterFlags;
+
+typedef struct
+{
+    /* Core Information */
+    Texture texture;
+    char truename[32];
+    char truenamePlural[32]; /* These default to appending an s if not found */
+    char guessname[32]; /* Default to same as truename if common enough */
+    char guessnamePlural[32];
+    uint32_t lore;
+
+    /* Encounter details */
+    int32_t abundance;
+    int32_t danger;
+    uint32_t groupDie;
+    int32_t groupModifier;
+
+    /* Combat stats */
+    int8_t hitDice;
+    uint8_t damageDie;
+    int8_t damageModifier;
+    /* TODO Four slots for attacks/abilities */
+
+    /* Post-combat drops */
+    uint32_t experience;
+    /* TODO Loot */
+} MonsterClass;
+static MonsterClass MonsterClass_init(struct json_object_s* object); // Blank truename indicates failure
+
+typedef struct
+{
+    MonsterClass* compendium;
+    size_t total;
+    size_t capacity;
+} MonstrousCompendium;
+
+static void monster_init(MonstrousCompendium* monstrous);
+static void monster_cleanup(MonstrousCompendium* monstrous);
+static void monster_encounter(MonstrousCompendium* monstrous);
+
