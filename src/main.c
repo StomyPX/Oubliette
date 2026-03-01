@@ -100,6 +100,7 @@ main(int argc, char* argv[])
     #endif
 
     ext_init(&m->ext);
+    PcgRandom_init(&m->rng, util_rdtsc());
 
     m->fonts.text = LoadFontEx("data/fonts/CrimsonText-Regular.ttf", 24, 0, 0);
     m->fonts.textB = LoadFontEx("data/fonts/CrimsonText-Bold.ttf", 24, 0, 0);
@@ -160,6 +161,9 @@ main(int argc, char* argv[])
             if (IsKeyPressed(KEY_F4))
                 m->flags ^= GlobalFlags_ShowMap;
         }
+
+        if (IsKeyPressed(KEY_R))
+            util_log(0, "Have a random number: %u", PcgRandom_randomu(&m->rng));
 
         if (m->flags & GlobalFlags_EditorMode) {
             if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
@@ -236,7 +240,8 @@ main(int argc, char* argv[])
                         targetTile = m->partyX + (m->partyY - 1) * TILE_COUNT;
                         if (targetTile < TILE_COUNT * TILE_COUNT
                             && m->map.tiles[targetTile] & TileFlags_AllowEntry
-                            && m->map.tiles[targetTile] & TileFlags_AllowSouth)
+                            && m->map.tiles[targetTile] & TileFlags_AllowSouth
+                            && m->partyY > 0)
                         {
                             m->partyY -= 1;
                         } else {
@@ -248,7 +253,8 @@ main(int argc, char* argv[])
                         targetTile = m->partyX + 1 + m->partyY * TILE_COUNT;
                         if (targetTile < TILE_COUNT * TILE_COUNT
                             && m->map.tiles[targetTile] & TileFlags_AllowEntry
-                            && m->map.tiles[currentTile] & TileFlags_AllowEast)
+                            && m->map.tiles[currentTile] & TileFlags_AllowEast
+                            && m->partyX + 1 < TILE_COUNT)
                         {
                             m->partyX += 1;
                         } else {
@@ -260,7 +266,8 @@ main(int argc, char* argv[])
                         targetTile = m->partyX + (m->partyY + 1) * TILE_COUNT;
                         if (targetTile < TILE_COUNT * TILE_COUNT
                             && m->map.tiles[targetTile] & TileFlags_AllowEntry
-                            && m->map.tiles[currentTile] & TileFlags_AllowSouth)
+                            && m->map.tiles[currentTile] & TileFlags_AllowSouth
+                            && m->partyY + 1 < TILE_COUNT)
                         {
                             m->partyY += 1;
                         } else {
@@ -272,7 +279,8 @@ main(int argc, char* argv[])
                         targetTile = m->partyX - 1 + m->partyY * TILE_COUNT;
                         if (targetTile < TILE_COUNT * TILE_COUNT
                             && m->map.tiles[targetTile] & TileFlags_AllowEntry
-                            && m->map.tiles[targetTile] & TileFlags_AllowEast)
+                            && m->map.tiles[targetTile] & TileFlags_AllowEast
+                            && m->partyX > 0)
                         {
                             m->partyX -= 1;
                         } else {
@@ -346,7 +354,7 @@ main(int argc, char* argv[])
 
             if (m->map.name[0]) {
                 // TODO Redo lighting to allow multiple sources with different curves
-                map_draw(&m->map, /*BEIGE*/ GLOOM_COLOR, 4.f * TILE_SIDE_LENGTH, 2.0f);
+                map_draw(&m->map, /*BEIGE*/ DARKOLIVEGREEN, 4.f * TILE_SIDE_LENGTH, 2.0f);
             }
 
             rlDisableDepthMask();
@@ -464,7 +472,8 @@ main(int argc, char* argv[])
                 position.y = portrait.y;
                 DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
                 BeginScissorMode(card.x, card.y, card.width, card.height);
-                DrawTextEx(m->fonts.textB, "Edmund", position, m->fonts.textB.baseSize, 0, BLACK);
+                //DrawTextEx(m->fonts.textB, "Edmund", position, m->fonts.textB.baseSize, 0, BLACK);
+                ui_text(m->fonts.textB, "Edmund", position, MINDAROGREEN, 0);
                 EndScissorMode();
                 ui_border(m->border, card, TEXT_COLOR);
                 DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, WHITE);
@@ -477,7 +486,8 @@ main(int argc, char* argv[])
                 position.y = portrait.y;
                 DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
                 BeginScissorMode(card.x, card.y, card.width, card.height);
-                DrawTextEx(m->fonts.textB, "Breydel", position, m->fonts.textB.baseSize, 0, BLACK);
+                //DrawTextEx(m->fonts.textB, "Breydel", position, m->fonts.textB.baseSize, 0, BLACK);
+                ui_text(m->fonts.textB, "Breydel", position, MINDAROGREEN, 0);
                 EndScissorMode();
                 ui_border(m->border, card, TEXT_COLOR);
                 DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, WHITE);
@@ -490,7 +500,8 @@ main(int argc, char* argv[])
                 position.y = portrait.y;
                 DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
                 BeginScissorMode(card.x, card.y, card.width, card.height);
-                DrawTextEx(m->fonts.textB, "Gala", position, m->fonts.textB.baseSize, 0, BLACK);
+                //DrawTextEx(m->fonts.textB, "Gala", position, m->fonts.textB.baseSize, 0, BLACK);
+                ui_text(m->fonts.textB, "Gala", position, MINDAROGREEN, 0);
                 EndScissorMode();
                 ui_border(m->border, card, TEXT_COLOR);
                 DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, WHITE);
@@ -503,7 +514,8 @@ main(int argc, char* argv[])
                 position.y = portrait.y;
                 DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
                 BeginScissorMode(card.x, card.y, card.width, card.height);
-                DrawTextEx(m->fonts.textB, "Faustine", position, m->fonts.textB.baseSize, 0, BLACK);
+                //DrawTextEx(m->fonts.textB, "Faustine", position, m->fonts.textB.baseSize, 0, BLACK);
+                ui_text(m->fonts.textB, "Faustine", position, MINDAROGREEN, 0);
                 EndScissorMode();
                 ui_border(m->border, card, TEXT_COLOR);
                 DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, WHITE);

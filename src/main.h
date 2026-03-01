@@ -5,6 +5,7 @@ typedef struct Memory_ {
     RenderTexture rtex; // Huge overkill, I can't believe Raylib doesn't expose viewport
     int rtexW, rtexH;
     Map map;
+    PcgRandom rng; // Primary RNG
 
     struct { /* Zone of the screen used by the game under extreme aspect ratios */
         int top, left, bottom, right;

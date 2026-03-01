@@ -206,10 +206,10 @@ util_drawLog(void)
     Font font = GetFontDefault();
 
     if (IsKeyDown(KEY_KP_ENTER))
-        deltaTime *= 5.f;
+        deltaTime *= 10.f;
 
-    for (int i = 0; i < UTIL_LOGLINE_COUNT; i++) {
-        int index = (g_util_logLinesCursor - i + UTIL_LOGLINE_COUNT) % UTIL_LOGLINE_COUNT;
+    for (unsigned i = 0; i < UTIL_LOGLINE_COUNT; i++) {
+        unsigned index = (g_util_logLinesCursor + i) % UTIL_LOGLINE_COUNT;
         if (g_util_logLines[index].seconds >= 0.f) {
             if (g_util_logLines[index].channel >= 0) {
                 color = TEXT_COLOR;
@@ -223,7 +223,9 @@ util_drawLog(void)
     }
 
     for (unsigned i = 0; i < UTIL_LOGLINE_COUNT; i++) {
-        g_util_logLines[i].seconds -= deltaTime;
+        unsigned index = (g_util_logLinesCursor + i) % UTIL_LOGLINE_COUNT;
+        g_util_logLines[index].seconds -= deltaTime;
+        deltaTime *= 0.95f;
     }
 }
 
@@ -327,4 +329,12 @@ static bool
 util_writeFileText(const char* filename, char* text)
 {
     return util_writeFileData(filename, text, strlen(text));
+}
+
+static uint64_t
+util_rdtsc(void)
+{
+    uint32_t low, high;
+    __asm__ __volatile__ ("rdtsc" : "=a" (low), "=d" (high));
+    return ((uint64_t) high << 32) | low;
 }

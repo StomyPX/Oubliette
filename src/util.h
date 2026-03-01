@@ -2,7 +2,10 @@
 #define CLEAR_COLOR (Color){6, 0, 3, 255}
 #define TEXT_COLOR (Color){218, 209, 200, 255}
 #define ERROR_COLOR (Color){255, 15, 21, 255}
-#define GLOOM_COLOR (Color){61, 81, 20, 255}
+#define DARKOLIVEGREEN (Color){61, 81, 20, 255}
+#define MOSSGREEN (Color){138,154,91,255}
+#define LIMEPULPGREEN (Color){209,225,137,255}
+#define MINDAROGREEN (Color){227,249,136,255}
 
 static int util_stricmp(char* a, char* b);
 static int util_pseudohex(char c);
@@ -34,5 +37,7 @@ static unsigned char* util_readFileData(const char* filename, int* size);
 static bool util_writeFileData(const char* filename, void* data, int size);
 static char* util_readFileText(const char* filename);
 static bool util_writeFileText(const char* filename, char* text);
+
+static uint64_t util_rdtsc(void);
 
 
