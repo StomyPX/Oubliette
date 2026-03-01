@@ -103,16 +103,33 @@ typedef struct Util_LogLine
 
 static Util_LogLine g_util_logLines[UTIL_LOGLINE_COUNT] = {};
 static unsigned g_util_logLinesCursor = 0;
+static PHYSFS_File* g_util_logFile;
+
+static void
+util_logInit(void)
+{
+    g_util_logFile = PHYSFS_openWrite("console.log");
+    if (!g_util_logFile) {
+        util_err(0, "PHYSFS: Failed to open \"console.log\"! Error: %s",
+                    PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
+    }
+}
+
+static void
+util_logCleanup(void)
+{
+    PHYSFS_close(g_util_logFile);
+}
 
 static int
 util_log(unsigned short channel, char* fmt, ...)
 {
     va_list ap;
-    int count;
     // TODO Handle multiline
     // TODO Split over-long strings into multiple log lines.
 
 #if DEBUG_MODE
+    int count;
     if (channel) {
         for (unsigned i = 0; i < UTIL_LOGLINE_COUNT; i++) {
             if (g_util_logLines[i].channel == channel) {
@@ -124,17 +141,28 @@ util_log(unsigned short channel, char* fmt, ...)
     va_start(ap, fmt);
     count = vsnprintf(g_util_logLines[g_util_logLinesCursor].text, UTIL_LOGLINE_LENGTH, fmt, ap);
     va_end(ap);
+
+    g_util_logLines[g_util_logLinesCursor].seconds
+        = 5.f + 0.2f * (float)(count < UTIL_LOGLINE_LENGTH ? count : UTIL_LOGLINE_LENGTH);
+    g_util_logLines[g_util_logLinesCursor].channel = channel;
+    g_util_logLinesCursor += 1;
+    g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
 #endif
 
     va_start(ap, fmt);
     vfprintf(stdout, fmt, ap);
     va_end(ap);
 
-    g_util_logLines[g_util_logLinesCursor].seconds
-        = 5.f + (float)(count < UTIL_LOGLINE_LENGTH ? count : UTIL_LOGLINE_LENGTH);
-    g_util_logLines[g_util_logLinesCursor].channel = channel;
-    g_util_logLinesCursor += 1;
-    g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
+    if (g_util_logFile) {
+        char line[256] = {};
+
+        va_start(ap, fmt);
+        vsnprintf(line, sizeof(line), fmt, ap);
+        va_end(ap);
+
+        PHYSFS_writeBytes(g_util_logFile, line, strlen(line));
+        PHYSFS_writeBytes(g_util_logFile, "\n", 1);
+    }
     return count;
 }
 
@@ -159,27 +187,33 @@ util_err(unsigned short channel, char* fmt, ...)
     count = vsnprintf(g_util_logLines[g_util_logLinesCursor].text, UTIL_LOGLINE_LENGTH, fmt, ap);
     va_end(ap);
 
+    g_util_logLines[g_util_logLinesCursor].seconds
+        = 5.f + 0.2f * (float)(count < UTIL_LOGLINE_LENGTH ? count : UTIL_LOGLINE_LENGTH);
+    g_util_logLines[g_util_logLinesCursor].channel = errchannel;
+    g_util_logLinesCursor += 1;
+    g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
+
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
     va_end(ap);
 
-    g_util_logLines[g_util_logLinesCursor].seconds
-        = 5.f + (float)(count < UTIL_LOGLINE_LENGTH ? count : UTIL_LOGLINE_LENGTH);
-    g_util_logLines[g_util_logLinesCursor].channel = errchannel;
-    g_util_logLinesCursor += 1;
-    g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
+    if (g_util_logFile) {
+        char* line = g_util_logLines[g_util_logLinesCursor].text;
+        PHYSFS_writeBytes(g_util_logFile, line, strlen(line));
+        PHYSFS_writeBytes(g_util_logFile, "\n", 1);
+    }
     return count;
 }
 
 static void
 util_trace(int loglevel, const char* text, va_list args)
 {
+    int maxLog;
     int count;
     int channel = 0;
-    va_list args2;
+    va_list args2, args3;
     va_copy(args2, args);
-
-    count = vsnprintf(g_util_logLines[g_util_logLinesCursor].text, UTIL_LOGLINE_LENGTH, text, args);
+    va_copy(args3, args);
 
     if (loglevel >= LOG_ERROR) {
         vfprintf(stderr, text, args2);
@@ -190,11 +224,30 @@ util_trace(int loglevel, const char* text, va_list args)
         fprintf(stdout, "\n");
     }
 
-    g_util_logLines[g_util_logLinesCursor].seconds
-        = 5.f + (float)(count < UTIL_LOGLINE_LENGTH ? count : UTIL_LOGLINE_LENGTH);
-    g_util_logLines[g_util_logLinesCursor].channel = channel;
-    g_util_logLinesCursor += 1;
-    g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
+#if DEBUG_MODE
+    maxLog = LOG_DEBUG;
+#else
+    maxLog = LOG_WARNING;
+#endif
+
+    if (loglevel >= maxLog) {
+        count = vsnprintf(g_util_logLines[g_util_logLinesCursor].text, UTIL_LOGLINE_LENGTH, text, args);
+
+        g_util_logLines[g_util_logLinesCursor].seconds
+            = 5.f + 0.2f * (float)(count < UTIL_LOGLINE_LENGTH ? count : UTIL_LOGLINE_LENGTH);
+        g_util_logLines[g_util_logLinesCursor].channel = channel;
+        g_util_logLinesCursor += 1;
+        g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
+    }
+
+    if (g_util_logFile) {
+        char line[256] = {};
+
+        vsnprintf(line, sizeof(line), text, args3);
+
+        PHYSFS_writeBytes(g_util_logFile, line, strlen(line));
+        PHYSFS_writeBytes(g_util_logFile, "\n", 1);
+    }
 }
 
 static void

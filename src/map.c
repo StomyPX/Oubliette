@@ -73,7 +73,7 @@ map_cameraForTile(int x, int y, Facing facing)
 static void
 map_generate(Map* map, uint64_t seed)
 {
-    util_log(0, "MAP: Loading, seed: %llu\n", seed);
+    util_log(0, "MAP: Loading, seed: %llu", seed);
     PcgRandom_init(&map->rng, seed);
     map->wall = LoadModel("data/statics/wall0.glb");
     map->wallTex = LoadTexture("data/textures/walls.png");
@@ -111,6 +111,7 @@ map_generate(Map* map, uint64_t seed)
     // TODO Place features
 
     snprintf(map->name, sizeof(map->name), "Oubliette");
+    map->encounterFreq = 1000; // Hardcoded for now. 3000 is more like typical D&D freq of one roll every 30min
 }
 
 static void
@@ -217,7 +218,7 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
     uint32_t rectD6;
 
     if (map->chamberCount >= MAP_CHAMBERS_MAX) {
-        util_err(0, "MAP: Exceeded maximum chambers!\n");
+        util_err(0, "MAP: Exceeded maximum chambers!");
     }
 
     /* Register new chamber and determine dimensions */
@@ -342,7 +343,7 @@ map_generateChamberRandomPassage(Map* map, MapChamber chamber, Facing facing)
     MapPassage passage = {};
 
     if (map->passageCount >= MAP_PASSAGES_MAX) {
-        util_err(0, "MAP: Exceeded maximum passages!\n");
+        util_err(0, "MAP: Exceeded maximum passages!");
         return;
     }
 

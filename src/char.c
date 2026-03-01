@@ -173,3 +173,10 @@ char_maxStamina(Character c)
     return s;
 }
 
+static int
+char_modifier(int characteristic)
+{
+    int modifier = characteristic / 3 - 3;
+    return modifier;
+}
+

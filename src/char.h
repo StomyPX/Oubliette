@@ -44,3 +44,4 @@ static Character char_random(void); // Roll up an entirely random character, nam
 static void char_free(Character* c);
 static int32_t char_maxHealth(Character c);
 static int32_t char_maxStamina(Character c);
+static int char_modifier(int characteristic);

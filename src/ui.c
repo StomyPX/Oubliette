@@ -115,8 +115,19 @@ ui_characterHudCard(Character c, Rectangle card)
         snprintf(buffer, sizeof(buffer), "HP: %i/%i", c.health, char_maxHealth(c));
         DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
-        position.y += m->fonts.text.baseSize + 2;
+        position.y += m->fonts.text.baseSize;
         snprintf(buffer, sizeof(buffer), "SP: %i/%i", c.stamina, char_maxStamina(c));
+        DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+
+        /* Temporary characteristic display TODO This will be replaced by orders and status symbols */
+        position.y += m->fonts.text.baseSize;
+        position.x = card.x + UI_PADDING;
+        if (position.y < portrait.y + portrait.height + UI_PADDING)
+            position.y = portrait.y + portrait.height + UI_PADDING;
+        snprintf(buffer, sizeof(buffer), "STR: %i DEX: %i CON: %i", c.strength, c.dexterity, c.constitution);
+        DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        position.y += m->fonts.text.baseSize;
+        snprintf(buffer, sizeof(buffer), "INT: %i WIL: %i CHA: %i", c.intellect, c.willpower, c.charisma);
         DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
         EndScissorMode();

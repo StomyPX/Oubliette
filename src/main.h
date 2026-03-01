@@ -25,6 +25,8 @@ typedef struct Memory_ {
     float partyMoveFreq; /* Number of seconds between repeat moves when holding the buttons down */
     Character party[4];
 
+    int encounter; /* Check value ticks up for encounters */
+
     /* UI Resources */
     Texture border;
     Texture marble;

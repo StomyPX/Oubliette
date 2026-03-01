@@ -75,6 +75,8 @@ main(int argc, char* argv[])
     PHYSFS_permitSymbolicLinks(1);
     PHYSFS_setSaneConfig("StomyGame", GAME_NAME, "pk3", 0, 0);
 
+    util_logInit();
+
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
     SetTraceLogCallback(util_trace);
     /* TODO Set Raylib file callbacks */
@@ -84,11 +86,7 @@ main(int argc, char* argv[])
     SetSaveFileTextCallback(util_writeFileText);
     InitWindow(1280, 720, GAME_NAME);
     SetExitKey(KEY_NULL);
-    #if MODE_DEBUG
-        SetTraceLogLevel(LOG_DEBUG);
-    #else
-        SetTraceLogLevel(LOG_WARNING);
-    #endif
+    SetTraceLogLevel(LOG_ALL);
 
     m = RL_MALLOC(sizeof(Memory));
     memset(m, 0, sizeof(Memory));
@@ -119,8 +117,8 @@ main(int argc, char* argv[])
 
         /* Reroll duplicates */
         for (int j = 0; j < i; j++) {
-            for (int k = 0; k < 10 && strcmp(m->party[j].name, m->party[i].name) == 0; k++) {
-                TraceLog(LOG_DEBUG, "Duplicate character %s, rerolling", m->party[j].name);
+            for (int k = 0; k < 10 && util_stricmp(m->party[j].name, m->party[i].name) == 0; k++) {
+                TraceLog(LOG_DEBUG, "CHARACTER: Duplicate random character %s, rerolling", m->party[j].name);
                 char_free(&m->party[i]);
                 m->party[i] = char_random();
             }
@@ -143,7 +141,6 @@ main(int argc, char* argv[])
     SetTargetFPS(200); /* TODO Make configurable, prefer VSync */
 
     while (!WindowShouldClose() && !(m->flags & GlobalFlags_RequestQuit)) {
-
         /* Update */
         m->deltaTime = GetFrameTime();
 
@@ -241,6 +238,8 @@ main(int argc, char* argv[])
              * will have to extract camera movement though */
             if (direction >= 0) {
                 unsigned targetTile, currentTile;
+                bool successful = false;
+
                 currentTile = m->partyX + m->partyY * TILE_COUNT;
                 switch (direction % 4) {
                     case 0: { /* North */
@@ -251,6 +250,7 @@ main(int argc, char* argv[])
                             && m->partyY > 0)
                         {
                             m->partyY -= 1;
+                            successful = true;
                         } else {
                             m->camera.position.z -= 0.1f;
                         }
@@ -264,6 +264,7 @@ main(int argc, char* argv[])
                             && m->partyX + 1 < TILE_COUNT)
                         {
                             m->partyX += 1;
+                            successful = true;
                         } else {
                             m->camera.position.x += 0.1f;
                         }
@@ -277,6 +278,7 @@ main(int argc, char* argv[])
                             && m->partyY + 1 < TILE_COUNT)
                         {
                             m->partyY += 1;
+                            successful = true;
                         } else {
                             m->camera.position.z += 0.1f;
                         }
@@ -290,13 +292,35 @@ main(int argc, char* argv[])
                             && m->partyX > 0)
                         {
                             m->partyX -= 1;
+                            successful = true;
                         } else {
                             m->camera.position.x -= 0.1f;
                         }
                     } break;
                 }
 
-                /* TODO Play different sounds based on if the move is allowed or not */
+                if (successful) {
+                    m->flags |= GlobalFlags_AdvanceTurn;
+
+                    /* TODO Play different sounds based on if the move is allowed or not */
+
+                    /* Tick up encounter accumulator */
+                    int ticks = 20;
+                    for (int i = 0; i < arrlen(m->party); i++) {
+                        if (m->party[i].name[0]) {
+                            if (m->party[i].health > 0) {
+                                ticks += 20 - char_modifier(m->party[i].dexterity) * 2;
+                                // TODO Silent move
+                            } else {
+                                ticks += 30;
+                            }
+                        }
+                    }
+                    m->encounter += ticks;
+                } else {
+                    /* Tick up very slightly */
+                    m->encounter += 1;
+                }
             }
 
             if (IsKeyPressed(KEY_Q)) {
@@ -308,7 +332,25 @@ main(int argc, char* argv[])
                 m->partyFacing += 1;
                 m->partyFacing %= 4;
             }
+        }
 
+        { /* Actual Gameplay */
+
+            if (m->flags & GlobalFlags_AdvanceTurn) {
+                if (m->encounter > m->map.encounterFreq) {
+                    int chance = m->encounter / m->map.encounterFreq;
+                    int die = 4;
+                    m->encounter -= chance * m->map.encounterFreq;
+
+                    if (PcgRandom_roll(&m->rng, 1, die) <= chance) {
+                        util_log(0, "Oh no! An encounter with a hideous and vile creature!");
+                    }
+                }
+
+                m->flags &= ~(GlobalFlags_AdvanceTurn);
+            }
+
+            // TODO if not in a menu or encounter
             Camera intended = map_cameraForTile(m->partyX, m->partyY, m->partyFacing);
             float lerp = Clamp(m->deltaTime * 10.0f, 0.f, 1.f);
             m->camera.position = Vector3Lerp(m->camera.position, intended.position, lerp);
@@ -480,23 +522,18 @@ main(int argc, char* argv[])
 
             if (m->flags & GlobalFlags_PartyStats) {
                 char buf[128] = {0};
-                char* facing = 0;
                 Vector2 position = (Vector2){GetRenderWidth() - 120, 20};
-                switch (m->partyFacing) {
-                    case 0: facing = "North"; break;
-                    case 1: facing = "East"; break;
-                    case 2: facing = "South"; break;
-                    case 3: facing = "West"; break;
-                }
                 snprintf(buf, sizeof(buf),
                         "Debug View: %s\n"
                         "Camera: %4.1f, %4.1f\n"
                         "Tile: %2i, %2i\n"
-                        "Facing: %s",
+                        "Facing: %s\n"
+                        "Enc: %i/%i\n",
                         m->flags & GlobalFlags_EditorMode ? "ON" : "off",
                         m->camera.position.x, m->camera.position.z,
                         m->partyX, m->partyY,
-                        facing);
+                        Facing_toString(m->partyFacing),
+                        m->encounter, m->map.encounterFreq);
                 ui_text(GetFontDefault(), buf, position, GetFontDefault().baseSize, 1, BONE);
             }
 
@@ -569,6 +606,8 @@ main(int argc, char* argv[])
     ext_deinit(&m->ext);
     RL_FREE(m);
     CloseWindow();
+
+    util_logCleanup();
     PHYSFS_deinit();
     return 0;
 }
