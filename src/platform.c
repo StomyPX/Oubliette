@@ -95,6 +95,7 @@ platform_dlclose(DLHandle lib)
     #endif
 }
 
+// TODO Remove this, redundant with callback in util
 static void
 platform_read(char* path, char** outContents, size_t* outSize)
 {

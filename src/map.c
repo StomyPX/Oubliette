@@ -416,7 +416,7 @@ map_draw(Map* map, Color light, float visibility, float power)
                 center.x += TILE_SIDE_LENGTH / 2.f;
                 center.y += TILE_SIDE_LENGTH / 2.f;
                 distance = Vector3Distance(position, center);
-                color = ColorLerp(light, CLEAR_COLOR, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
                 DrawModelEx(map->wall, origin, up, -90.f, one, color);
             }
 
@@ -426,7 +426,7 @@ map_draw(Map* map, Color light, float visibility, float power)
                 center.z += TILE_SIDE_LENGTH / 2.f;
                 center.y += TILE_SIDE_LENGTH / 2.f;
                 distance = Vector3Distance(position, center);
-                color = ColorLerp(light, CLEAR_COLOR, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
                 DrawModel(map->wall, origin, 1.f, color);
             }
 
@@ -436,7 +436,7 @@ map_draw(Map* map, Color light, float visibility, float power)
                 center.x -= TILE_SIDE_LENGTH / 2.f;
                 center.y += TILE_SIDE_LENGTH / 2.f;
                 distance = Vector3Distance(position, center);
-                color = ColorLerp(light, CLEAR_COLOR, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
                 DrawModelEx(map->wall, origin, up, -90.f, one, color);
             }
 
@@ -446,7 +446,7 @@ map_draw(Map* map, Color light, float visibility, float power)
                 center.z += TILE_SIDE_LENGTH / 2.f;
                 center.y += TILE_SIDE_LENGTH / 2.f;
                 distance = Vector3Distance(position, center);
-                color = ColorLerp(light, CLEAR_COLOR, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
                 DrawModel(map->wall, origin, 1.f, color);
             }
 
@@ -454,7 +454,7 @@ map_draw(Map* map, Color light, float visibility, float power)
                 origin = map_tileCorner(x + 1, y + 1);
                 center = map_tileCenter(x, y);
                 distance = Vector3Distance(position, center);
-                color = ColorLerp(light, CLEAR_COLOR, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
                 DrawModel(map->flor, origin, 1.f, color);
             }
 
@@ -463,7 +463,7 @@ map_draw(Map* map, Color light, float visibility, float power)
                 center = map_tileCenter(x, y);
                 center.y += TILE_SIDE_LENGTH;
                 distance = Vector3Distance(position, center);
-                color = ColorLerp(light, CLEAR_COLOR, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
                 DrawModel(map->ceiling, origin, 1.f, color);
             }
         }

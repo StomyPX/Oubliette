@@ -1,5 +1,5 @@
 static void
-ui_text(Font font, const char* text, Vector2 position, Color tint, int spacing)
+ui_text(Font font, const char* text, Vector2 position, float fontSize, int spacing, Color tint)
 {
     Vector2 pos = position;
     Vector4 backColor = ColorNormalize(tint);
@@ -8,10 +8,10 @@ ui_text(Font font, const char* text, Vector2 position, Color tint, int spacing)
     backColor.z = 0.5f / 255.f;
     pos.x += 1.f;
     pos.y += 1.f;
-    DrawTextEx(font, text, pos, font.baseSize, spacing, ColorFromNormalized(backColor));
+    DrawTextEx(font, text, pos, fontSize, spacing, ColorFromNormalized(backColor));
     pos.x -= 1.f;
     pos.y -= 1.f;
-    DrawTextEx(font, text, pos, font.baseSize, spacing, tint);
+    DrawTextEx(font, text, pos, fontSize, spacing, tint);
 }
 
 static void
@@ -85,3 +85,46 @@ ui_border(Texture border, Rectangle rec, Color color)
     src.y -= src.height;
     DrawTexturePro(border, src, dst, origin, 0.f, color);
 }
+
+static void
+ui_characterHudCard(Character c, Rectangle card)
+{
+    Rectangle portrait;
+    Texture ptex;
+    Vector2 zero = {};
+    Vector2 position;
+
+    portrait.x = card.x + UI_PADDING;
+    portrait.y = card.y + UI_PADDING;
+    portrait.width = card.width / 2.f;
+    portrait.height = portrait.width;
+    position.x = portrait.x + portrait.width + UI_PADDING;
+    position.y = portrait.y;
+
+    DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
+
+    { /* Information */
+        char buffer[64];
+
+        BeginScissorMode(card.x, card.y, card.width, card.height);
+        ui_text(m->fonts.textB, c.name, position, m->fonts.textB.baseSize, 0, MINDAROGREEN);
+        position.y += m->fonts.textB.baseSize + 2;
+        DrawTextEx(m->fonts.text, CharacterClass_toString(c.class), position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+
+        position.y += m->fonts.text.baseSize + UI_PADDING;
+        snprintf(buffer, sizeof(buffer), "HP: %i/%i", c.health, char_maxHealth(c));
+        DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+
+        position.y += m->fonts.text.baseSize + 2;
+        snprintf(buffer, sizeof(buffer), "SP: %i/%i", c.stamina, char_maxStamina(c));
+        DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+
+        EndScissorMode();
+        ui_border(m->border, card, BONE);
+    }
+
+    DrawTexturePro(c.portrait, (Rectangle){0, 0, c.portrait.width, c.portrait.height},
+        portrait, zero, 0.f, WHITE);
+    ui_border(m->border, portrait, BONE);
+}
+

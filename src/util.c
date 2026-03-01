@@ -212,12 +212,12 @@ util_drawLog(void)
         unsigned index = (g_util_logLinesCursor + i) % UTIL_LOGLINE_COUNT;
         if (g_util_logLines[index].seconds >= 0.f) {
             if (g_util_logLines[index].channel >= 0) {
-                color = TEXT_COLOR;
+                color = BONE;
             } else {
                 color = ERROR_COLOR;
             }
             color = ColorAlpha(color, Clamp(g_util_logLines[index].seconds, 0.f, 1.f));
-            ui_text(font, g_util_logLines[index].text, position, color, 1);
+            ui_text(font, g_util_logLines[index].text, position, font.baseSize, 1, color);
             position.y += font.baseSize + 2;
         }
     }
@@ -247,7 +247,7 @@ util_readFileData(const char* filename, int* size)
     void* buffer;
 
     if (!PHYSFS_exists(filename)) {
-        TraceLog(LOG_DEBUG, "PHYSFS: [%s] does not exist", filename);
+        TraceLog(LOG_WARNING, "PHYSFS: [%s] does not exist", filename);
         *size = 0;
         return 0;
     }

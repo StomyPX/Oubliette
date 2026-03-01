@@ -23,7 +23,7 @@ typedef struct Memory_ {
     Facing partyFacing; /* 0 is north, increment to spin clockwise 90 degrees */
     float partyMoveTimer;
     float partyMoveFreq; /* Number of seconds between repeat moves when holding the buttons down */
-    Texture portraits[4];
+    Character party[4];
 
     /* UI Resources */
     Texture border;

@@ -1,11 +1,17 @@
 #define CLIP_COLOR (Color){250, 255, 30, 64}
 #define CLEAR_COLOR (Color){6, 0, 3, 255}
-#define TEXT_COLOR (Color){218, 209, 200, 255}
+#define BONE (Color){227, 218, 201, 255}
 #define ERROR_COLOR (Color){255, 15, 21, 255}
 #define DARKOLIVEGREEN (Color){61, 81, 20, 255}
 #define MOSSGREEN (Color){138,154,91,255}
 #define LIMEPULPGREEN (Color){209,225,137,255}
 #define MINDAROGREEN (Color){227,249,136,255}
+#define ZINNWALDITEBROWN (Color){44,22,8,255}
+
+#define KiB(exp) (1024 * exp)
+#define MiB(exp) (1024 * KiB(exp))
+#define GiB(exp) (1024ll * MiB(exp))
+#define arrlen(arr) (sizeof(arr) / sizeof(arr[0]))
 
 static int util_stricmp(char* a, char* b);
 static int util_pseudohex(char c);

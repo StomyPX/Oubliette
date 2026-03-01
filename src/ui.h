@@ -4,5 +4,7 @@
 #define UI_PORTRAIT_FRACTION (1.f / 4.f)
 #define UI_PADDING 10.f
 
-static void ui_text(Font font, const char* text, Vector2 position, Color tint, int spacing);
+static void ui_text(Font font, const char* text, Vector2 position, float fontSize, int spacing, Color tint);
 static void ui_border(Texture border, Rectangle rec, Color color);
+
+static void ui_characterHudCard(Character c, Rectangle r);

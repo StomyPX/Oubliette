@@ -55,12 +55,13 @@
 #include "item.h"
 #include "ent.h"
 #include "map.h"
-#include "party.h"
+#include "char.h"
 #include "ui.h"
 #include "editor.h"
 #include "main.h"
 
 /* Sources (order doesn't matter) */
+#include "char.c"
 #include "ext.c"
 #include "map.c"
 #include "platform.c"
@@ -113,12 +114,18 @@ main(int argc, char* argv[])
     m->marble = LoadTexture("data/textures/Marble023B.png");
     m->vellum = LoadTexture("data/textures/parchment_2.png");
 
-    m->portraits[0] = LoadTexture("data/portraits/edmund.jpg");
-    m->portraits[1] = LoadTexture("data/portraits/breydel.jpg");
-    m->portraits[2] = LoadTexture("data/portraits/gala.jpg");
-    m->portraits[3] = LoadTexture("data/portraits/faustine.jpg");
-    for (int i = 0; i < 4; i++)
-        GenTextureMipmaps(m->portraits + i);
+    for (int i = 0; i < arrlen(m->party); i++) {
+        m->party[i] = char_random();
+
+        /* Reroll duplicates */
+        for (int j = 0; j < i; j++) {
+            for (int k = 0; k < 10 && strcmp(m->party[j].name, m->party[i].name) == 0; k++) {
+                TraceLog(LOG_DEBUG, "Duplicate character %s, rerolling", m->party[j].name);
+                char_free(&m->party[i]);
+                m->party[i] = char_random();
+            }
+        }
+    }
 
     /* TODO Auto-load all zip files found in data/ */
 
@@ -422,15 +429,7 @@ main(int argc, char* argv[])
                 (Rectangle){0, 0, m->rtex.texture.width, -m->rtex.texture.height},
                 (Vector2){viewport.x, viewport.y}, WHITE);
 
-            ui_border(m->border, viewport, TEXT_COLOR);
-
-            /*
-            char* message = "7DRL 2026. Let's Rock!";
-            Vector2 position = MeasureTextEx(m->fonts.text, message, m->fonts.text.baseSize, 0);
-            position.x = m->area.left + m->area.width / 2 - position.x / 2;
-            position.y = m->area.top + m->area.height * 3 / 4 - position.y / 2;
-            ui_text(m->fonts.text, message, position, TEXT_COLOR, 0);
-            */
+            ui_border(m->border, viewport, BONE);
 
             if (m->map.name[0]) {
                 Vector2 position;
@@ -439,7 +438,7 @@ main(int argc, char* argv[])
                 position.x -= m->area.width * UI_SIDE_PANEL_FRACTION / 2.f;
                 position.x -= dimensions.x / 2.f;
                 position.y = m->area.top + UI_SIDE_PANEL_HEADER / 2.f - dimensions.y / 2.f;
-                ui_text(m->fonts.title, m->map.name, position, TEXT_COLOR, 0);
+                ui_text(m->fonts.title, m->map.name, position, m->fonts.title.baseSize, 0, BONE);
             }
 
             { /* Side Panel */
@@ -448,78 +447,35 @@ main(int argc, char* argv[])
                 panel.y = m->area.top + UI_SIDE_PANEL_HEADER + UI_PADDING;
                 panel.width = m->area.width * UI_SIDE_PANEL_FRACTION - UI_PADDING * 2;
                 panel.height = m->area.height - UI_PADDING * 2 - UI_SIDE_PANEL_HEADER - UI_SIDE_PANEL_FOOTER;
-
                 DrawTextureRec(m->vellum, panel, (Vector2){panel.x, panel.y}, WHITE);
-                ui_border(m->border, panel, TEXT_COLOR);
+
+                Vector2 position;
+                char* message = "7DRL 2026. Let's Rock!";
+                Vector2 dims = MeasureTextEx(m->fonts.text, message, m->fonts.text.baseSize, 0);
+                position.x = panel.x + panel.width / 2 - dims.x / 2;
+                position.y = panel.y + UI_PADDING;
+                DrawTextEx(m->fonts.text, message, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+
+                ui_border(m->border, panel, BONE);
             }
 
             { /* Portraits */
-                Rectangle card, portrait;
-                Texture ptex;
-                Vector2 zero = {};
-                Vector2 position;
+                Rectangle card;
 
                 card.x = m->area.left + UI_PADDING;
                 card.y = m->area.top + m->area.height * (1.f - UI_PORTRAIT_FRACTION) + UI_PADDING;
                 card.width = m->area.width * (1.f - UI_SIDE_PANEL_FRACTION) / 4.f - UI_PADDING * 2;
                 card.height = m->area.height * UI_PORTRAIT_FRACTION - UI_PADDING * 2;
-                portrait.x = card.x + UI_PADDING;
-                portrait.y = card.y + UI_PADDING;
-                portrait.width = card.width / 2.f;
-                portrait.height = portrait.width;
-                ptex = m->portraits[0];
-                position.x = portrait.x + portrait.width + UI_PADDING;
-                position.y = portrait.y;
-                DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
-                BeginScissorMode(card.x, card.y, card.width, card.height);
-                //DrawTextEx(m->fonts.textB, "Edmund", position, m->fonts.textB.baseSize, 0, BLACK);
-                ui_text(m->fonts.textB, "Edmund", position, MINDAROGREEN, 0);
-                EndScissorMode();
-                ui_border(m->border, card, TEXT_COLOR);
-                DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, WHITE);
-                ui_border(m->border, portrait, TEXT_COLOR);
+                ui_characterHudCard(m->party[0], card);
 
                 card.x += card.width + UI_PADDING * 2;
-                portrait.x += card.width + UI_PADDING * 2;
-                ptex = m->portraits[1];
-                position.x = portrait.x + portrait.width + UI_PADDING;
-                position.y = portrait.y;
-                DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
-                BeginScissorMode(card.x, card.y, card.width, card.height);
-                //DrawTextEx(m->fonts.textB, "Breydel", position, m->fonts.textB.baseSize, 0, BLACK);
-                ui_text(m->fonts.textB, "Breydel", position, MINDAROGREEN, 0);
-                EndScissorMode();
-                ui_border(m->border, card, TEXT_COLOR);
-                DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, WHITE);
-                ui_border(m->border, portrait, TEXT_COLOR);
+                ui_characterHudCard(m->party[1], card);
 
                 card.x += card.width + UI_PADDING * 2;
-                portrait.x += card.width + UI_PADDING * 2;
-                ptex = m->portraits[2];
-                position.x = portrait.x + portrait.width + UI_PADDING;
-                position.y = portrait.y;
-                DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
-                BeginScissorMode(card.x, card.y, card.width, card.height);
-                //DrawTextEx(m->fonts.textB, "Gala", position, m->fonts.textB.baseSize, 0, BLACK);
-                ui_text(m->fonts.textB, "Gala", position, MINDAROGREEN, 0);
-                EndScissorMode();
-                ui_border(m->border, card, TEXT_COLOR);
-                DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, WHITE);
-                ui_border(m->border, portrait, TEXT_COLOR);
+                ui_characterHudCard(m->party[2], card);
 
                 card.x += card.width + UI_PADDING * 2;
-                portrait.x += card.width + UI_PADDING * 2;
-                ptex = m->portraits[3];
-                position.x = portrait.x + portrait.width + UI_PADDING;
-                position.y = portrait.y;
-                DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
-                BeginScissorMode(card.x, card.y, card.width, card.height);
-                //DrawTextEx(m->fonts.textB, "Faustine", position, m->fonts.textB.baseSize, 0, BLACK);
-                ui_text(m->fonts.textB, "Faustine", position, MINDAROGREEN, 0);
-                EndScissorMode();
-                ui_border(m->border, card, TEXT_COLOR);
-                DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, WHITE);
-                ui_border(m->border, portrait, TEXT_COLOR);
+                ui_characterHudCard(m->party[3], card);
             }
 
             if (m->flags & GlobalFlags_PartyStats) {
@@ -541,7 +497,7 @@ main(int argc, char* argv[])
                         m->camera.position.x, m->camera.position.z,
                         m->partyX, m->partyY,
                         facing);
-                ui_text(GetFontDefault(), buf, position, TEXT_COLOR, 1);
+                ui_text(GetFontDefault(), buf, position, GetFontDefault().baseSize, 1, BONE);
             }
 
             if (m->ext.cimgui.handle && (m->flags & GlobalFlags_EditorModePermitted)) {
@@ -607,8 +563,8 @@ main(int argc, char* argv[])
     UnloadTexture(m->border);
     UnloadTexture(m->marble);
     UnloadTexture(m->vellum);
-    for (int i = 0; i < 4; i++)
-        UnloadTexture(m->portraits[i]);
+    for (int i = 0; i < arrlen(m->party); i++)
+        char_free(m->party + i);
     UnloadRenderTexture(m->rtex);
     ext_deinit(&m->ext);
     RL_FREE(m);
