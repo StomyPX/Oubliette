@@ -51,17 +51,16 @@
 #include "util.h"
 #include "platform.h"
 #include "ext.h"
-#include "effect.h"
-#include "item.h"
-#include "ent.h"
 #include "map.h"
 #include "char.h"
 #include "ui.h"
 #include "monster.h"
+#include "combat.h"
 #include "main.h"
 
 /* Sources (order doesn't matter) */
 #include "char.c"
+#include "combat.c"
 #include "ext.c"
 #include "map.c"
 #include "monster.c"
@@ -86,6 +85,7 @@ main(int argc, char* argv[])
     SetLoadFileTextCallback(util_readFileText);
     SetSaveFileTextCallback(util_writeFileText);
     InitWindow(1280, 720, GAME_NAME);
+    InitAudioDevice();
     SetExitKey(KEY_NULL);
     SetTraceLogLevel(LOG_ALL);
 
@@ -94,7 +94,7 @@ main(int argc, char* argv[])
 
     /* TODO Always on in debug mode, requires cmdline switch "--editor" in release mode */
     #if DEBUG_MODE
-        m->flags |= GlobalFlags_PartyStats;
+        //m->flags |= GlobalFlags_PartyStats;
         m->flags |= GlobalFlags_EditorModePermitted;
         //m->flags |= GlobalFlags_ShowCollision;
     #endif
@@ -110,9 +110,15 @@ main(int argc, char* argv[])
     m->fonts.titleB = LoadFontEx("data/fonts/CoelacanthBold.otf", 64, 0, 0);
     m->fonts.titleI = LoadFontEx("data/fonts/CoelacanthItalic.otf", 64, 0, 0);
 
+    m->encounter.klaxon = LoadSound("data/sounds/encounter_bell.wav");
+
     m->border = LoadTexture("data/textures/panel-border.png");
     m->marble = LoadTexture("data/textures/Marble023B.png");
     m->vellum = LoadTexture("data/textures/parchment_2.png");
+    m->dead = LoadTexture("data/textures/dead.jpg");
+    m->hover = LoadSound("data/sounds/button_hover.wav");
+    m->click = LoadSound("data/sounds/button_click.wav");
+    m->click2 = LoadSound("data/sounds/button_click2.wav");
 
     for (int i = 0; i < arrlen(m->party); i++) {
         m->party[i] = char_random();
@@ -142,9 +148,11 @@ main(int argc, char* argv[])
 
     SetTargetFPS(200); /* TODO Make configurable, prefer VSync */
 
+    bool lastHover = false;;
     while (!WindowShouldClose() && !(m->flags & GlobalFlags_RequestQuit)) {
         /* Update */
         m->deltaTime = GetFrameTime();
+        bool anyHover = false;
 
         if (IsKeyPressed(KEY_F4) && (IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT)))
             m->flags |= GlobalFlags_RequestQuit;
@@ -191,32 +199,9 @@ main(int argc, char* argv[])
                 EnableCursor();
                 SetMousePosition(dragStart.x, dragStart.y);
             }
+        } else if (m->flags & GlobalFlags_Encounter) {
         } else {
             int direction = -1;
-
-            if (IsKeyPressed(KEY_R)) {
-                ui_log(ZINNWALDITEBROWN, "Resting...");
-                m->encounter += 300;
-                m->flags |= GlobalFlags_AdvanceTurn;
-
-                for (int i = 0; i < arrlen(m->party); i++) {
-                    Character* c = m->party + i;
-                    if (!c->name[0] || c->health < 1)
-                        continue;
-
-                    if (c->stamina < char_maxStamina(*c)) {
-                        int die = (c->constitution + c->willpower) / 10 + 2;
-                        c->stamina += PcgRandom_roll(&m->rng, 1, die);
-                        if (c->stamina > char_maxStamina(*c))
-                            c->stamina = char_maxStamina(*c);
-                    } else if (c->health < char_maxHealth(*c)) {
-                        int die = c->constitution / 20 + 2;
-                        c->health += PcgRandom_roll(&m->rng, 1, die) - 1;
-                        if (c->health > char_maxHealth(*c))
-                            c->health = char_maxHealth(*c);
-                    }
-                }
-            }
 
             if (IsKeyPressed(KEY_W)) {
                 direction = m->partyFacing + 0;
@@ -344,10 +329,10 @@ main(int argc, char* argv[])
 
                     if (ticks < 50)
                         ticks = 50;
-                    m->encounter += ticks;
+                    m->encounter.ticks += ticks;
                 } else {
                     /* Tick up very slightly */
-                    m->encounter += 1;
+                    m->encounter.ticks += 1;
                 }
             }
 
@@ -362,32 +347,9 @@ main(int argc, char* argv[])
             }
         }
 
-        { /* Actual Gameplay */
-
-            if (m->flags & GlobalFlags_AdvanceTurn) {
-                if (m->encounter > m->map.encounterFreq) {
-                    int chance = m->encounter / m->map.encounterFreq + 1;
-                    int die = 6;
-                    m->encounter %= m->map.encounterFreq;
-
-                    if (PcgRandom_roll(&m->rng, 1, die) <= chance) {
-                        monster_encounter(&m->monsters);
-                    }
-                }
-
-                m->flags &= ~(GlobalFlags_AdvanceTurn);
-            }
-
-            // TODO if not in a menu or encounter
-            Camera intended = map_cameraForTile(m->partyX, m->partyY, m->partyFacing);
-            float lerp = Clamp(m->deltaTime * 10.0f, 0.f, 1.f);
-            m->camera.position = Vector3Lerp(m->camera.position, intended.position, lerp);
-            m->camera.target = Vector3Lerp(m->camera.target, intended.target, lerp);
-        }
-
         /* Rendering */
 
-        { /* Determine active play area */
+        { /* Determine GUI layout proportions */
             float aspect = (float)GetRenderWidth() / (float)GetRenderHeight();
 
             if (aspect > 2.f) {
@@ -416,7 +378,8 @@ main(int argc, char* argv[])
         viewport.width = m->area.width * (1.f - UI_SIDE_PANEL_FRACTION) - UI_PADDING * 2;
         viewport.height = m->area.height * (1.f - UI_PORTRAIT_FRACTION) - UI_PADDING * 2;
 
-        { /* Draw map to a render texture. Incredibly, raylib doesn't do viewports */
+        if (!(m->flags & GlobalFlags_Encounter)) {
+            /* Draw map to a render texture. Incredibly, raylib doesn't do viewports */
             if (m->rtexW != viewport.width || m->rtexH != viewport.height) {
                 if (IsRenderTextureValid(m->rtex))
                     UnloadRenderTexture(m->rtex);
@@ -494,10 +457,131 @@ main(int argc, char* argv[])
         {
             DrawTextureRec(m->marble, (Rectangle){0, 0, GetRenderWidth(), GetRenderHeight()}, (Vector2){0, 0}, DARKBROWN);
 
-            /* Because OpenGL's origin is in the bottom left, this has to be inverted */
-            DrawTextureRec(m->rtex.texture,
-                (Rectangle){0, 0, m->rtex.texture.width, -m->rtex.texture.height},
-                (Vector2){viewport.x, viewport.y}, WHITE);
+            if (m->flags & GlobalFlags_Encounter) {
+                Texture* tex;
+                Rectangle portrait = {};
+                char buffer[128];
+                Unit* unit;
+
+                unit = &m->encounter.unit;
+                tex = &m->encounter.unit.class.texture;
+
+                portrait.width = tex->width;
+                portrait.height = tex->height;
+                DrawRectangleRec(viewport, BLACK);
+
+                { /* Aspect Correction */
+                    float vpAspect, rtAspect;
+                    vpAspect = (float)viewport.width / (float)viewport.height;
+                    rtAspect = (float)tex->width / (float)tex->height;
+
+                    if (fabsf(vpAspect - rtAspect) > 0.001f) {
+                        float diff = rtAspect - vpAspect;
+                        Vector2 anchor = (Vector2){0.5f, 0.5f}; /* TODO Make customizable */
+                        if (diff > 0.f) {
+                            int cut = (float)tex->width * diff / 2.f;
+                            portrait.x = cut * anchor.x;
+                            portrait.width -= cut;
+                        } else {
+                            int cut = (float)tex->height * -diff / 2.f;
+                            portrait.y = cut * anchor.y;
+                            portrait.height -= cut;
+                        }
+                    }
+                }
+
+                DrawTexturePro(*tex, portrait, viewport, (Vector2){0,0}, 0.f, WHITE);
+
+                { /* Combat UI */
+                    Vector2 position;
+                    Rectangle button;
+                    int result;
+                    bool active = !(m->flags & GlobalFlags_GameOver);
+
+                    position.x = viewport.x + UI_PADDING;
+                    position.y = viewport.y + UI_PADDING;
+                    if (unit->alive == 1) {
+                        snprintf(buffer, sizeof(buffer), unit->class.truename);
+                    } else {
+                        snprintf(buffer, sizeof(buffer), "%u %s", unit->alive, unit->class.truenamePlural);
+                    }
+                    ui_text(m->fonts.title, buffer, position, m->fonts.title.baseSize, 0, MINDAROGREEN);
+
+                    button.width = 120;
+                    button.height = 48;
+                    button.x = viewport.x + viewport.width - UI_PADDING - button.width;
+                    button.y = viewport.y + viewport.height - UI_PADDING - button.height;
+                    result = ui_button(button, "FLEE", m->fonts.textB.baseSize, KEY_R, active);
+                    if (result > 0) {
+                        PlaySound(m->click);
+                        combat_flee();
+                    } else if (result < 0) {
+                        anyHover = true;
+                    }
+
+                    /* FIGHT! */
+                    button.x = viewport.x + UI_PADDING;
+                    result = ui_button(button, "FIGHT", m->fonts.textB.baseSize, KEY_F, active);
+                    if (result > 0) {
+                        PlaySound(m->click);
+                        combat_fight();
+                    } else if (result < 0) {
+                        anyHover = true;
+                    }
+                }
+
+            } else {
+                Rectangle button;
+                int result;
+
+                /* Map viewport. Because OpenGL's origin is in the bottom left, this has to be inverted */
+                DrawTextureRec(m->rtex.texture,
+                    (Rectangle){0, 0, m->rtex.texture.width, -m->rtex.texture.height},
+                    (Vector2){viewport.x, viewport.y}, WHITE);
+
+                button.width = 120;
+                button.height = 48;
+                button.x = viewport.x + viewport.width - UI_PADDING - button.width;
+                button.y = viewport.y + viewport.height - UI_PADDING - button.height;
+                result = ui_button(button, "REST", m->fonts.textB.baseSize, KEY_R, true);
+                if (result > 0) {
+                    ui_log(ZINNWALDITEBROWN, "Resting...");
+                    m->encounter.ticks += 300;
+                    m->flags |= GlobalFlags_AdvanceTurn;
+
+                    for (int i = 0; i < arrlen(m->party); i++) {
+                        Character* c = m->party + i;
+                        if (!c->name[0] || c->health < 1)
+                            continue;
+
+                        if (c->stamina < char_maxStamina(*c)) {
+                            int die = (c->constitution + c->willpower) / 10 + 2;
+                            c->stamina += PcgRandom_roll(&m->rng, 1, die);
+                            if (c->stamina > char_maxStamina(*c))
+                                c->stamina = char_maxStamina(*c);
+                        } else if (c->health < char_maxHealth(*c)) {
+                            int die = c->constitution / 20 + 2;
+                            c->health += PcgRandom_roll(&m->rng, 1, die) - 1;
+                            if (c->health > char_maxHealth(*c))
+                                c->health = char_maxHealth(*c);
+                        }
+                    }
+
+                    PlaySound(m->click);
+                } else if (result < 0) {
+                    anyHover = true;
+                }
+            }
+
+            if (m->flags & GlobalFlags_GameOver) {
+                Vector2 position;
+                Vector2 measure;
+
+                measure = MeasureTextEx(m->fonts.titleB, "GAME OVER", m->fonts.titleB.baseSize, 0);
+                position.x = viewport.x + viewport.width / 2 - measure.x / 2;
+                position.y = viewport.y + viewport.height / 2 - measure.y / 2;
+                ui_text(m->fonts.titleB, "GAME OVER", position, m->fonts.titleB.baseSize, 0, MAROON);
+            }
 
             ui_border(m->border, viewport, BONE);
 
@@ -529,7 +613,7 @@ main(int argc, char* argv[])
                 DrawTextureRec(m->vellum, panel, (Vector2){panel.x, panel.y}, WHITE);
                 BeginScissorMode(panel.x, panel.y, panel.width, panel.height);
 
-                /* Find scroll point first */
+                /* TODO Find scroll point first */
                 /* TODO Rescale font to fit horizontally */
                 for (unsigned i = 0; i < UI_LOGLINE_COUNT; i++) {
                     unsigned index = (i + m->logCursor + 1) % UI_LOGLINE_COUNT;
@@ -546,7 +630,7 @@ main(int argc, char* argv[])
                 }
 
                 for (unsigned i = 0; i < UI_LOGLINE_COUNT; i++) {
-                    unsigned index = (i + m->logCursor + 1) % UI_LOGLINE_COUNT;
+                    unsigned index = (i + m->logCursor) % UI_LOGLINE_COUNT;
                     if (m->logs[index].text[0]) {
                         DrawTextEx(m->fonts.text, m->logs[index].text, position,
                                     m->fonts.text.baseSize, 0, m->logs[index].color);
@@ -591,7 +675,7 @@ main(int argc, char* argv[])
                         m->camera.position.x, m->camera.position.z,
                         m->partyX, m->partyY,
                         Facing_toString(m->partyFacing),
-                        m->encounter, m->map.encounterFreq,
+                        m->encounter.ticks, m->map.encounterFreq,
                         m->map.seed);
                 ui_text(GetFontDefault(), buf, position, GetFontDefault().baseSize, 1, BONE);
             }
@@ -648,6 +732,33 @@ main(int argc, char* argv[])
             util_drawLog();
         }
         EndDrawing();
+
+        /* Encounter Checks */
+        if (!(m->flags & GlobalFlags_Encounter)) {
+            if (m->flags & GlobalFlags_AdvanceTurn) {
+                if (m->encounter.ticks > m->map.encounterFreq) {
+                    int chance = m->encounter.ticks / m->map.encounterFreq + 1;
+                    int die = 6;
+                    m->encounter.ticks %= m->map.encounterFreq;
+
+                    if (PcgRandom_roll(&m->rng, 1, die) <= chance) {
+                        monster_encounter(&m->monsters);
+                    }
+                }
+
+                m->flags &= ~(GlobalFlags_AdvanceTurn);
+            }
+
+            // TODO if not in a menu or encounter
+            Camera intended = map_cameraForTile(m->partyX, m->partyY, m->partyFacing);
+            float lerp = Clamp(m->deltaTime * 10.0f, 0.f, 1.f);
+            m->camera.position = Vector3Lerp(m->camera.position, intended.position, lerp);
+            m->camera.target = Vector3Lerp(m->camera.target, intended.target, lerp);
+        }
+
+        if (!lastHover && anyHover)
+            PlaySound(m->hover);
+        lastHover = anyHover;
     }
 
     UnloadFont(m->fonts.text);
@@ -656,9 +767,13 @@ main(int argc, char* argv[])
     UnloadFont(m->fonts.title);
     UnloadFont(m->fonts.titleB);
     UnloadFont(m->fonts.titleI);
+    UnloadSound(m->encounter.klaxon);
     UnloadTexture(m->border);
     UnloadTexture(m->marble);
     UnloadTexture(m->vellum);
+    UnloadSound(m->hover);
+    UnloadSound(m->click);
+    UnloadSound(m->click2);
     for (int i = 0; i < arrlen(m->party); i++)
         char_free(m->party + i);
     UnloadRenderTexture(m->rtex);
@@ -666,6 +781,7 @@ main(int argc, char* argv[])
 
     ext_deinit(&m->ext);
     RL_FREE(m);
+    CloseAudioDevice();
     CloseWindow();
 
     util_logCleanup();

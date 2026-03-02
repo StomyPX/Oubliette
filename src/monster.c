@@ -72,13 +72,12 @@ monster_encounter(MonstrousCompendium* monstrous)
     size_t count = 0;
     size_t count2 = 0;
     size_t pick;
-    MonsterClass* encounter = 0;
-    int num;
+    MonsterClass* monster = 0;
 
     /* TODO Traverse the compendium and total up all picks, then roll and loop again */
     for (int i = 0; i < monstrous->total; i++) {
         int contrib;
-        MonsterClass* monster = monstrous->compendium + i;
+        monster = monstrous->compendium + i;
 
         contrib = monster->abundance - monster->danger;
         if (contrib > 0)
@@ -88,30 +87,66 @@ monster_encounter(MonstrousCompendium* monstrous)
     pick = PcgRandom_randomu(&m->rng) % count;
     for (int i = 0; i < monstrous->total; i++) {
         int contrib;
-        MonsterClass* monster = monstrous->compendium + i;
+        monster = monstrous->compendium + i;
 
         contrib = monster->abundance - monster->danger;
         if (contrib > 0)
             count2 += contrib;
 
         if (count2 >= pick) {
-            encounter = monster;
             break;
         }
     }
-    /* TODO Set as current encounter */
+
+    if (!monster) {
+        monster = monstrous->compendium;
+        TraceLog(LOG_WARNING, "MONSTER: Could not pick a monster to encounter, "
+                "this shouldn't ever happen. Defaulting to %s",
+                monster->truename);
+    }
+
+    /* Set as current encounter */
     m->flags |= GlobalFlags_Encounter;
-    num = PcgRandom_roll(&m->rng, 1, encounter->groupDie);
-    num += encounter->groupModifier;
-    if (num < 1)
-        num = 1;
+    m->encounter.unit.class = *monster;
+    m->encounter.unit.total = PcgRandom_roll(&m->rng, 1, monster->groupDie);
+    m->encounter.unit.total += monster->groupModifier;
+    if (m->encounter.unit.total < 1)
+        m->encounter.unit.total = 1;
+    if (m->encounter.unit.total > MONSTER_UNIT_MAX)
+        m->encounter.unit.total = MONSTER_UNIT_MAX;
+    m->encounter.unit.alive = m->encounter.unit.total;
 
     /* Encounter message */
-    if (num == 1) {
-        ui_log(ZINNWALDITEBROWN, "You encounter a %s!", encounter->truename);
+    if (m->encounter.unit.total == 1) {
+        ui_log(ZINNWALDITEBROWN, "You encounter a %s!", monster->truename);
     } else {
-        ui_log(ZINNWALDITEBROWN, "You encounter %i %s!", num, encounter->truenamePlural);
+        ui_log(ZINNWALDITEBROWN, "You encounter %i %s!", m->encounter.unit.total, monster->truenamePlural);
     }
+
+    { /* Init health for every monster in the unit */
+        int dieFace;
+        int dieNum = 1;
+
+        if (monster->hitDice >= 1) {
+            dieFace = 8;
+            dieNum = monster->hitDice;
+        } else if (monster->hitDice == 0) {
+            dieFace = 6;
+        } else if (monster->hitDice == -1) {
+            dieFace = 5;
+        } else {
+            dieFace = 8 / monster->hitDice;
+            if (dieFace < 1)
+                dieFace = 1;
+        }
+
+        for (unsigned i = 0; i < m->encounter.unit.total; i++) {
+            m->encounter.unit.health[i] = PcgRandom_roll(&m->rng, dieNum, dieFace);
+            TraceLog(LOG_TRACE, "MONSTER: %s, HP: %lli", monster->truename, m->encounter.unit.health[i]);
+        }
+    }
+
+    PlaySound(m->encounter.klaxon);
 }
 
 static MonsterClass
@@ -120,6 +155,7 @@ MonsterClass_init(struct json_object_s* object)
     MonsterClass mc = {};
     char texture[64] = {};
     int64_t integer;
+    bool defaultAttack = true;
 
     for (struct json_object_element_s* element = object->start; element; element = element->next) {
 
@@ -145,10 +181,17 @@ MonsterClass_init(struct json_object_s* object)
         /* Combat stats */
         } else if (util_jsonParseInteger(element, "hitDice", &integer)) {
             mc.hitDice = integer;
+        } else if (util_jsonParseInteger(element, "attack", &integer)) {
+            mc.attack = integer;
+            defaultAttack = false;
+        } else if (util_jsonParseInteger(element, "defense", &integer)) {
+            mc.defense = integer;
         } else if (util_jsonParseInteger(element, "damageDie", &integer)) {
             mc.damageDie = integer;
         } else if (util_jsonParseInteger(element, "damageModifier", &integer)) {
-            mc.damageDie = integer;
+            mc.damageModifier = integer;
+        } else if (util_jsonParseInteger(element, "initiative", &integer)) {
+            mc.initiative = integer;
 
         /* Post-combat drops */
         } else if (util_jsonParseInteger(element, "experience", &integer)) {
@@ -169,6 +212,8 @@ MonsterClass_init(struct json_object_s* object)
             snprintf(mc.guessname, sizeof(mc.guessname), "%ss", mc.truename);
         if (!mc.guessnamePlural[0])
             snprintf(mc.guessnamePlural, sizeof(mc.guessnamePlural), "%ss", mc.guessname);
+        if (defaultAttack && mc.hitDice > 0)
+            mc.attack = mc.hitDice / 2;
 
         TraceLog(LOG_INFO, "MONSTERS: Class successfully parsed: %s", mc.truename);
     }

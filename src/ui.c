@@ -152,8 +152,71 @@ ui_characterHudCard(Character c, Rectangle card)
         ui_border(m->border, card, BONE);
     }
 
-    DrawTexturePro(c.portrait, (Rectangle){0, 0, c.portrait.width, c.portrait.height},
+    DrawTexturePro(c.health > 0 ? c.portrait : m->dead,
+        (Rectangle){0, 0, c.portrait.width, c.portrait.height},
         portrait, zero, 0.f, WHITE);
     ui_border(m->border, portrait, BONE);
 }
 
+static int
+ui_button(Rectangle rect, char* text, float fontSize, int hotkey, bool enabled)
+{
+    int result = 0;
+    Vector2 measure;
+    Vector2 position;
+
+    { /* Input Checks */
+        Vector2 mouse;
+
+        if (!enabled)
+            goto draw;
+
+        mouse = GetMousePosition();
+        if (mouse.x < 0 || mouse.y < 0 || mouse.x > GetScreenWidth() || mouse.y > GetScreenHeight())
+            goto draw;
+
+        if (IsKeyPressed(hotkey)) {
+            result = 1;
+            goto draw;
+        } else if (IsKeyDown(hotkey)) {
+            result = -1;
+        }
+
+        if (mouse.x < rect.x || mouse.y < rect.y || mouse.x > rect.x + rect.width || mouse.y > rect.y + rect.height)
+            goto draw;
+
+        result = -1;
+
+        if (IsMouseButtonPressed(0)) {
+            result = 1;
+        }
+    }
+
+draw:
+    measure = MeasureTextEx(m->fonts.textB, text, fontSize, 0);
+    position.x = rect.x + rect.width / 2 - measure.x / 2;
+    position.y = rect.y + rect.height / 2 - measure.y / 2;
+    if (result && (IsMouseButtonDown(0) || IsKeyDown(hotkey))) { // Down
+        Color fade = ColorLerp(MAROON, BLACK, 0.6f);
+        position.y += 1;
+        DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, fade);
+        BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
+        ui_text(m->fonts.textB, text, position, fontSize, 0, MOSSGREEN);
+        EndScissorMode();
+        ui_border(m->border, rect, MINDAROGREEN);
+    } else if (result < 0) { // Hover
+        DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, MAROON);
+        BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
+        ui_text(m->fonts.textB, text, position, fontSize, 0, MINDAROGREEN);
+        EndScissorMode();
+        ui_border(m->border, rect, MINDAROGREEN);
+    } else { // Normal
+        DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, MAROON);
+        BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
+        ui_text(m->fonts.textB, text, position, fontSize, 0, BONE);
+        EndScissorMode();
+        ui_border(m->border, rect, BONE);
+    }
+
+    return result;
+}

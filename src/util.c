@@ -91,7 +91,7 @@ util_facingNorthSouth(Facing facing)
     }
 }
 
-#define UTIL_LOGLINE_COUNT 32
+#define UTIL_LOGLINE_COUNT 64
 #define UTIL_LOGLINE_LENGTH 128
 
 typedef struct Util_LogLine
@@ -130,6 +130,8 @@ util_log(unsigned short channel, char* fmt, ...)
 
 #if DEBUG_MODE
     int count;
+    bool safe = false;
+
     if (channel) {
         for (unsigned i = 0; i < UTIL_LOGLINE_COUNT; i++) {
             if (g_util_logLines[i].channel == channel) {
@@ -137,6 +139,21 @@ util_log(unsigned short channel, char* fmt, ...)
             }
         }
     }
+
+    // Don't overwrite error messages
+    for (int i = 0; i < UTIL_LOGLINE_COUNT && !safe; i++) {
+        Util_LogLine* line = g_util_logLines + g_util_logLinesCursor;
+        if (line->channel >= 0 || line->seconds <= 0.f) {
+            safe = true;
+            break;
+        } else {
+            g_util_logLinesCursor += 1;
+            g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
+        }
+    }
+
+    if (!safe)
+        goto skip;
 
     va_start(ap, fmt);
     count = vsnprintf(g_util_logLines[g_util_logLinesCursor].text, UTIL_LOGLINE_LENGTH, fmt, ap);
@@ -147,6 +164,7 @@ util_log(unsigned short channel, char* fmt, ...)
     g_util_logLines[g_util_logLinesCursor].channel = channel;
     g_util_logLinesCursor += 1;
     g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
+skip:
 #endif
 
     va_start(ap, fmt);
@@ -230,7 +248,24 @@ util_trace(int loglevel, const char* text, va_list args)
     maxLog = LOG_WARNING;
 #endif
 
-    if (loglevel >= maxLog) {
+    if (loglevel >= maxLog) { // Don't overwrite error messages
+        if (channel >= 0) {
+            bool safe = false;
+            for (int i = 0; i < UTIL_LOGLINE_COUNT && !safe; i++) {
+                Util_LogLine* line = g_util_logLines + g_util_logLinesCursor;
+                if (line->channel >= 0 || line->seconds <= 0.f) {
+                    safe = true;
+                    break;
+                } else {
+                    g_util_logLinesCursor += 1;
+                    g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
+                }
+            }
+
+            if (!safe)
+                goto skip;
+        }
+
         count = vsnprintf(g_util_logLines[g_util_logLinesCursor].text, UTIL_LOGLINE_LENGTH, text, args);
 
         g_util_logLines[g_util_logLinesCursor].seconds
@@ -238,6 +273,8 @@ util_trace(int loglevel, const char* text, va_list args)
         g_util_logLines[g_util_logLinesCursor].channel = channel;
         g_util_logLinesCursor += 1;
         g_util_logLinesCursor %= UTIL_LOGLINE_COUNT;
+
+        skip:
     }
 
     if (g_util_logFile) {
@@ -278,7 +315,7 @@ util_drawLog(void)
     for (unsigned i = 0; i < UTIL_LOGLINE_COUNT; i++) {
         unsigned index = (g_util_logLinesCursor + i) % UTIL_LOGLINE_COUNT;
         g_util_logLines[index].seconds -= deltaTime;
-        deltaTime *= 0.95f;
+        deltaTime *= 0.99f;
     }
 }
 
@@ -390,6 +427,32 @@ util_rdtsc(void)
     uint32_t low, high;
     __asm__ __volatile__ ("rdtsc" : "=a" (low), "=d" (high));
     return ((uint64_t) high << 32) | low;
+}
+
+static int
+util_intmin(int val, int min)
+{
+    if (val > min)
+        val = min;
+    return val;
+}
+
+static int
+util_intmax(int val, int max)
+{
+    if (val < max)
+        val = max;
+    return val;
+}
+
+static int
+util_intclamp(int val, int min, int max)
+{
+    if (val < min)
+        val = min;
+    if (val > max)
+        val = max;
+    return val;
 }
 
 static bool

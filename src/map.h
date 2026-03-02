@@ -48,7 +48,7 @@ typedef struct {
 
     int         entryX, entryY;
     int         exitX, exitY;
-    int         encounterFreq;  /* Multiple of encounter points before rolling */
+    int         encounterFreq;  /* Multiple of encounter ticks before rolling. 100 ticks is roughly one minute */
 } Map;
 
 static Vector3 map_tileCenter(int x, int y);

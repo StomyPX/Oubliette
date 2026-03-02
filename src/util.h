@@ -7,6 +7,10 @@
 #define LIMEPULPGREEN (Color){209,225,137,255}
 #define MINDAROGREEN (Color){227,249,136,255}
 #define ZINNWALDITEBROWN (Color){44,22,8,255}
+#ifdef MAROON
+#undef MAROON
+#endif
+#define MAROON (Color){128,0,0,255}
 
 #define KiB(exp) (1024 * exp)
 #define MiB(exp) (1024 * KiB(exp))
@@ -45,6 +49,9 @@ static char* util_readFileText(const char* filename);
 static bool util_writeFileText(const char* filename, char* text);
 
 static uint64_t util_rdtsc(void);
+static int util_intmin(int a, int b);
+static int util_intmax(int a, int b);
+static int util_intclamp(int val, int min, int max);
 
 /* JSON Parsing Helpers */
 static bool util_jsonParseString(struct json_object_element_s* element, char* key, char* target, size_t size);

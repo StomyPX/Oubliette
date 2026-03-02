@@ -13,6 +13,7 @@ static char* CharacterClass_toString(CharacterClass c);
 typedef struct {
     int32_t health;
     int32_t stamina;
+    int32_t initiative;
 
     CharacterFlags flags;
     CharacterClass class;

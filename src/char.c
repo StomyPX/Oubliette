@@ -127,6 +127,7 @@ char_random(void)
     /* Final Init */
     c.health = char_maxHealth(c);
     c.stamina = char_maxStamina(c);
+    c.level = 1;
 
     return c;
 }

@@ -4,7 +4,7 @@
 #define UI_PORTRAIT_FRACTION (1.f / 4.f)
 #define UI_PADDING 10.f
 #define UI_LOGLINE_COUNT 256
-#define UI_LOGLINE_LENGTH 41
+#define UI_LOGLINE_LENGTH 80
 
 typedef struct
 {
@@ -18,3 +18,5 @@ static void ui_border(Texture border, Rectangle rec, Color color);
 /* Default color: ZINNWALDITEBROWN */
 static void ui_log(Color color, char* fmt, ...);
 static void ui_characterHudCard(Character c, Rectangle r);
+/* -1 on hover, 1 on LMB down, 2 on RMB down */
+static int ui_button(Rectangle rect, char* text, float fontSize, int hotkey, bool enabled);

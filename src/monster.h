@@ -1,3 +1,5 @@
+#define MONSTER_UNIT_MAX 20
+
 typedef enum {
     MonsterFlags_StreetLore = 1 << 0, /* Indicates Thieves know these better than Mages do */
 } MonsterFlags;
@@ -20,8 +22,11 @@ typedef struct
 
     /* Combat stats */
     int8_t hitDice;
+    int8_t defense;
+    int8_t attack;
     uint8_t damageDie;
     int8_t damageModifier;
+    int8_t initiative;
     /* TODO Four slots for attacks/abilities */
 
     /* Post-combat drops */
@@ -36,6 +41,15 @@ typedef struct
     size_t total;
     size_t capacity;
 } MonstrousCompendium;
+
+typedef struct
+{
+    MonsterClass class;
+    uint32_t alive;
+    uint32_t total;
+    int64_t health[MONSTER_UNIT_MAX];
+    int32_t initiative[MONSTER_UNIT_MAX];
+} Unit;
 
 static void monster_init(MonstrousCompendium* monstrous);
 static void monster_cleanup(MonstrousCompendium* monstrous);

@@ -10,5 +10,7 @@ typedef enum {
     GlobalFlags_ShowMap             = 1 << 5,
     GlobalFlags_AdvanceTurn         = 1 << 6, // Whether time should be treated as advancing
     GlobalFlags_Encounter           = 1 << 7,
+    GlobalFlags_GameOver            = 1 << 8,
+    GlobalFlags_TheEnd              = 1 << 9,
 } GlobalFlags_t; /* Need to append Type to avoid clash with symbols on windows */
 
