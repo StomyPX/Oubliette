@@ -114,7 +114,6 @@ ui_characterHudCard(Character c, Rectangle card)
     Color color;
 
     ptex = c.health > 0 ? c.portrait : m->dead;
-    color = c.health > 0 ? WHITE : MAROON;
     portrait.x = card.x + UI_PADDING;
     portrait.y = card.y + UI_PADDING;
     portrait.width = card.width / 2.f;
@@ -154,6 +153,10 @@ ui_characterHudCard(Character c, Rectangle card)
         EndScissorMode();
         ui_border(m->border, card, BONE);
     }
+
+    /* Color lerping */
+    color = ColorLerp(YELLOW, WHITE, Clamp((c.health * 1.3f) / (float)char_maxHealth(c), 0.f, 1.f));
+    color = ColorLerp(MAROON, color, Clamp((c.health * 2.f) / (float)char_maxHealth(c), 0.f, 1.f));
 
     DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, color);
     ui_border(m->border, portrait, BONE);

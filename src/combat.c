@@ -144,11 +144,11 @@ combat_fight(void)
                     }
                     damage = util_intmax(0, damage);
                     if (damage >= ch->health) {
-                        ui_log(ZINNWALDITEBROWN, "A %s strikes %s for %i damage and kills %s!",
+                        ui_log(BLACK, "A %s strikes %s for %i damage and kills %s!",
                                 unit->class.truename, ch->name, damage,
                                 (ch->flags & CharacterFlags_Female) ? "her" : "him");
                     } else if (damage > 0) {
-                        ui_log(ZINNWALDITEBROWN, "A %s strikes %s for %i damage",
+                        ui_log(MAROON, "A %s strikes %s for %i damage",
                                 unit->class.truename, ch->name, damage);
                     }
                     ch->health -= damage;
@@ -218,11 +218,11 @@ combat_flee(void)
                 damage = 0;
             c->health -= damage;
             if (c->health <= 0) {
-                ui_log(ZINNWALDITEBROWN, "%s is hit with a parting shot from a %s for %i damage, killing %s!",
+                ui_log(BLACK, "%s is hit with a parting shot from a %s for %i damage, killing %s!",
                         c->name, monster->truename, damage,
                         (c->flags & CharacterFlags_Female) ? "her" : "him");
             } else if (damage > 0) {
-                ui_log(ZINNWALDITEBROWN, "%s is hit with a parting shot from a %s for %i damage",
+                ui_log(MAROON, "%s is hit with a parting shot from a %s for %i damage",
                         c->name, monster->truename, damage);
             }
         }
@@ -237,7 +237,7 @@ combat_flee(void)
         }
 
         if (survivors < 1) {
-            ui_log(ZINNWALDITEBROWN, "GAME OVER!");
+            ui_log(BLACK, "GAME OVER!");
             m->flags |= GlobalFlags_GameOver;
         } else {
             ui_log(ZINNWALDITEBROWN, "The party escapes");

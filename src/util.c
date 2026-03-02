@@ -448,6 +448,12 @@ util_intmax(int val, int max)
 static int
 util_intclamp(int val, int min, int max)
 {
+    if (min > max) {
+        int temp = max;
+        max = min;
+        min = temp;
+    }
+
     if (val < min)
         val = min;
     if (val > max)
