@@ -29,6 +29,10 @@ typedef struct Memory_ {
     int encounter; /* Check value ticks up for encounters */
 
     /* UI Resources */
+    LogLine logs[UI_LOGLINE_COUNT];
+    uint32_t logCursor;
+    uint32_t logScroll;
+    float logScrollSmooth;
     Texture border;
     Texture marble;
     Texture vellum;

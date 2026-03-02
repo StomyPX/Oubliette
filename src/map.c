@@ -19,6 +19,14 @@ map_tileCorner(int x, int y)
     return v;
 }
 
+static int
+map_tileIndex(int x, int y)
+{
+    if (x < 0 || x >= TILE_COUNT || y < 0 || y >= TILE_COUNT)
+        return -1;
+    return x + y * TILE_COUNT;
+}
+
 static Rectangle
 map_subImageUV(int num)
 {
@@ -89,7 +97,7 @@ map_generate(Map* map, uint64_t seed)
     SetMaterialTexture(&map->ceiling.materials[0], MATERIAL_MAP_DIFFUSE, map->ceilingTex);
 
     // Starting location
-    map->entryX = PcgRandom_randomu(&map->rng) % (TILE_COUNT - 6) + 3;
+    map->entryX = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 2) + TILE_COUNT / 4;
     map->entryY = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 4);
     map->tiles[map->entryX + map->entryY * TILE_COUNT] = TileFlags_Filled;
 
@@ -112,7 +120,7 @@ map_generate(Map* map, uint64_t seed)
     // TODO Place features
 
     snprintf(map->name, sizeof(map->name), "Oubliette");
-    map->encounterFreq = 1000; // Hardcoded for now. 3000 is more like typical D&D freq of one roll every 30min
+    map->encounterFreq = 600; // Hardcoded for now. 3000 is more like typical D&D freq of one roll every 30min
 }
 
 static void
@@ -342,6 +350,8 @@ static void
 map_generateChamberRandomPassage(Map* map, MapChamber chamber, Facing facing)
 {
     MapPassage passage = {};
+    int index;
+    int next, nx, ny;
 
     if (map->passageCount >= MAP_PASSAGES_MAX) {
         util_err(0, "MAP: Exceeded maximum passages!");
@@ -368,8 +378,13 @@ map_generateChamberRandomPassage(Map* map, MapChamber chamber, Facing facing)
         } break;
     }
 
-    if (passage.x >= 0 && passage.x < TILE_COUNT && passage.y >= 0 && passage.y < TILE_COUNT)
+    index = map_tileIndex(passage.x, passage.y);
+    util_traverse(facing, passage.x, passage.y, 1, 0, &nx, &ny);
+    next = map_tileIndex(nx, ny);
+
+    if (index >= 0 && next >= 0 && !(map->tiles[next] & TileFlags_Chamber)) {
         map->passages[map->passageCount++] = passage;
+    }
 }
 
 static void
@@ -452,7 +467,7 @@ map_draw(Map* map, Color light, float visibility, float power)
                 DrawModel(map->wall, origin, 1.f, color);
             }
 
-            if (map->tiles[index] & TileFlags_AllowEntry) {
+            if (map->tiles[index] & (TileFlags_AllowEntry | TileFlags_Filled)) {
                 origin = map_tileCorner(x + 1, y + 1);
                 center = map_tileCenter(x, y);
                 distance = Vector3Distance(position, center);

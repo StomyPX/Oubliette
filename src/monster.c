@@ -73,6 +73,7 @@ monster_encounter(MonstrousCompendium* monstrous)
     size_t count2 = 0;
     size_t pick;
     MonsterClass* encounter = 0;
+    int num;
 
     /* TODO Traverse the compendium and total up all picks, then roll and loop again */
     for (int i = 0; i < monstrous->total; i++) {
@@ -98,12 +99,19 @@ monster_encounter(MonstrousCompendium* monstrous)
             break;
         }
     }
-
-    /* TODO Encounter message */
-    util_log(0, "You encounter a %s!", encounter->truename);
-
     /* TODO Set as current encounter */
     m->flags |= GlobalFlags_Encounter;
+    num = PcgRandom_roll(&m->rng, 1, encounter->groupDie);
+    num += encounter->groupModifier;
+    if (num < 1)
+        num = 1;
+
+    /* Encounter message */
+    if (num == 1) {
+        ui_log(ZINNWALDITEBROWN, "You encounter a %s!", encounter->truename);
+    } else {
+        ui_log(ZINNWALDITEBROWN, "You encounter %i %s!", num, encounter->truenamePlural);
+    }
 }
 
 static MonsterClass
@@ -154,7 +162,13 @@ MonsterClass_init(struct json_object_s* object)
         mc.texture = LoadTexture(path);
         GenTextureMipmaps(&mc.texture);
 
-        /* TODO Other initialization (plurals, derived defaults etc) */
+        /* Other initialization (plurals, derived defaults etc) */
+        if (!mc.truenamePlural[0])
+            snprintf(mc.truenamePlural, sizeof(mc.truenamePlural), "%ss", mc.truename);
+        if (!mc.guessname[0])
+            snprintf(mc.guessname, sizeof(mc.guessname), "%ss", mc.truename);
+        if (!mc.guessnamePlural[0])
+            snprintf(mc.guessnamePlural, sizeof(mc.guessnamePlural), "%ss", mc.guessname);
 
         TraceLog(LOG_INFO, "MONSTERS: Class successfully parsed: %s", mc.truename);
     }

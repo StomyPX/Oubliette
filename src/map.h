@@ -1,4 +1,4 @@
-#define TILE_COUNT 48
+#define TILE_COUNT 128
 #define TILE_SIDE_LENGTH 3.f
 #define MAP_ATLAS_SUBIMAGE_COUNT 16
 #define CAMERA_HEIGHT 1.6f
@@ -53,6 +53,7 @@ typedef struct {
 
 static Vector3 map_tileCenter(int x, int y);
 static Vector3 map_tileCorner(int x, int y);
+static int map_tileIndex(int x, int y); // Negative indicates invalid
 static Rectangle map_subImageUV(int num); /* Starts at 1 */
 
 static Camera3D map_cameraForTile(int x, int y, Facing facing);

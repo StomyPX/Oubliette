@@ -131,7 +131,7 @@ main(int argc, char* argv[])
 
     Vector2 dragStart;
 
-    map_generate(&m->map, 1);
+    map_generate(&m->map, util_rdtsc());
 
     m->partyFacing = 2; // Party always enters facing South
     m->partyX = m->map.entryX;
@@ -194,8 +194,8 @@ main(int argc, char* argv[])
         } else {
             int direction = -1;
 
-            if (IsKeyPressed(KEY_R)) { // Resting
-                util_log(0, "Resting...");
+            if (IsKeyPressed(KEY_R)) {
+                ui_log(ZINNWALDITEBROWN, "Resting...");
                 m->encounter += 300;
                 m->flags |= GlobalFlags_AdvanceTurn;
 
@@ -366,9 +366,9 @@ main(int argc, char* argv[])
 
             if (m->flags & GlobalFlags_AdvanceTurn) {
                 if (m->encounter > m->map.encounterFreq) {
-                    int chance = m->encounter / m->map.encounterFreq;
-                    int die = 4;
-                    m->encounter -= chance * m->map.encounterFreq;
+                    int chance = m->encounter / m->map.encounterFreq + 1;
+                    int die = 6;
+                    m->encounter %= m->map.encounterFreq;
 
                     if (PcgRandom_roll(&m->rng, 1, die) <= chance) {
                         monster_encounter(&m->monsters);
@@ -513,19 +513,48 @@ main(int argc, char* argv[])
 
             { /* Side Panel */
                 Rectangle panel;
+                Vector2 position;
+                int count = 0;
+                int scrollMax = 0;
+                int visible;
+
                 panel.x = m->area.left + m->area.width * (1.f - UI_SIDE_PANEL_FRACTION) + UI_PADDING;
                 panel.y = m->area.top + UI_SIDE_PANEL_HEADER + UI_PADDING;
                 panel.width = m->area.width * UI_SIDE_PANEL_FRACTION - UI_PADDING * 2;
                 panel.height = m->area.height - UI_PADDING * 2 - UI_SIDE_PANEL_HEADER - UI_SIDE_PANEL_FOOTER;
-                DrawTextureRec(m->vellum, panel, (Vector2){panel.x, panel.y}, WHITE);
-
-                Vector2 position;
-                char* message = "7DRL 2026. Let's Rock!";
-                Vector2 dims = MeasureTextEx(m->fonts.text, message, m->fonts.text.baseSize, 0);
-                position.x = panel.x + panel.width / 2 - dims.x / 2;
+                position.x = panel.x + UI_PADDING;
                 position.y = panel.y + UI_PADDING;
-                DrawTextEx(m->fonts.text, message, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+                visible = panel.height / m->fonts.text.baseSize;
 
+                DrawTextureRec(m->vellum, panel, (Vector2){panel.x, panel.y}, WHITE);
+                BeginScissorMode(panel.x, panel.y, panel.width, panel.height);
+
+                /* Find scroll point first */
+                /* TODO Rescale font to fit horizontally */
+                for (unsigned i = 0; i < UI_LOGLINE_COUNT; i++) {
+                    unsigned index = (i + m->logCursor + 1) % UI_LOGLINE_COUNT;
+                    if (m->logs[index].text[0]) {
+                        count++;
+                    }
+                }
+
+                scrollMax = count - visible;
+                if (scrollMax < 0) {
+                    scrollMax = 0;
+                } else {
+                    position.y -= scrollMax * m->fonts.text.baseSize;
+                }
+
+                for (unsigned i = 0; i < UI_LOGLINE_COUNT; i++) {
+                    unsigned index = (i + m->logCursor + 1) % UI_LOGLINE_COUNT;
+                    if (m->logs[index].text[0]) {
+                        DrawTextEx(m->fonts.text, m->logs[index].text, position,
+                                    m->fonts.text.baseSize, 0, m->logs[index].color);
+                        position.y += m->fonts.text.baseSize;
+                    }
+                }
+                EndScissorMode();
+                // TODO scrollbar
                 ui_border(m->border, panel, BONE);
             }
 

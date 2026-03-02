@@ -87,6 +87,24 @@ ui_border(Texture border, Rectangle rec, Color color)
 }
 
 static void
+ui_log(Color color, char* fmt, ...)
+{
+    va_list args;
+    uint32_t i = m->logCursor;
+
+    m->logs[i].color = color;
+    va_start(args, fmt);
+    vsnprintf(m->logs[i].text, sizeof(m->logs[i].text), fmt, args);
+    va_end(args);
+
+    TraceLog(LOG_TRACE, "LOG: %s", m->logs[i].text);
+
+    m->logCursor += 1;
+    m->logCursor %= UI_LOGLINE_COUNT;
+    m->logScroll = 0;
+}
+
+static void
 ui_characterHudCard(Character c, Rectangle card)
 {
     Rectangle portrait;
