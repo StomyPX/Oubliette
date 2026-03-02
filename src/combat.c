@@ -34,7 +34,7 @@ combat_fight(void)
     int weightTotal = 0;
     for (int i = 0; i < arrlen(m->party); i++) {
         if (m->party[i].health > 0) {
-            weights[i] = util_intmax(1, 30 - m->party[i].charisma);
+            weights[i] = util_intmax(1, 24 - m->party[i].charisma);
             weightTotal += weights[i];
         }
     }
@@ -110,11 +110,13 @@ combat_fight(void)
             }
         }
 
+        /* Monster attacks */
         for (int i = 0; i < unit->alive; i++) {
             if (unit->initiative[i] == step) {
                 /* Select target based on weighting */
                 int targetRoll = PcgRandom_randomu(&m->rng) % weightTotal;
                 int target;
+                int tohit;
 
                 for (target = 0; target < arrlen(m->party) - 1; target++) {
                     if (m->party[target].health < 1)
@@ -126,8 +128,11 @@ combat_fight(void)
                     }
                 }
 
-                int tohit = PcgRandom_roll(&m->rng, 1, 20);
                 ch = m->party + target;
+                if (ch->health <= 0)
+                    continue; /* Stop, he's already dead! */
+
+                tohit = PcgRandom_roll(&m->rng, 1, 20);
                 if (tohit == 20 || (tohit + unit->class.attack > 10 + char_modifier(ch->dexterity) && tohit != 1)) {
                     int damage = PcgRandom_roll(&m->rng, 1, unit->class.damageDie) + unit->class.damageModifier;
                     damage = util_intmax(1, damage);
