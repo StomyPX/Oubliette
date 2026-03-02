@@ -111,7 +111,10 @@ ui_characterHudCard(Character c, Rectangle card)
     Texture ptex;
     Vector2 zero = {};
     Vector2 position;
+    Color color;
 
+    ptex = c.health > 0 ? c.portrait : m->dead;
+    color = c.health > 0 ? WHITE : MAROON;
     portrait.x = card.x + UI_PADDING;
     portrait.y = card.y + UI_PADDING;
     portrait.width = card.width / 2.f;
@@ -152,9 +155,7 @@ ui_characterHudCard(Character c, Rectangle card)
         ui_border(m->border, card, BONE);
     }
 
-    DrawTexturePro(c.health > 0 ? c.portrait : m->dead,
-        (Rectangle){0, 0, c.portrait.width, c.portrait.height},
-        portrait, zero, 0.f, WHITE);
+    DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, color);
     ui_border(m->border, portrait, BONE);
 }
 
@@ -169,6 +170,9 @@ ui_button(Rectangle rect, char* text, float fontSize, int hotkey, bool enabled)
         Vector2 mouse;
 
         if (!enabled)
+            goto draw;
+
+        if (m->ext.cimgui.handle && m->ext.cimgui.IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
             goto draw;
 
         mouse = GetMousePosition();

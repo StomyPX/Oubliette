@@ -19,6 +19,7 @@ typedef struct CImgui_ {
     // 2676
     bool            (*Begin)(const char* name, bool* p_open, ImGuiWindowFlags flags);
     void            (*End)(void);
+    bool            (*IsWindowHovered)(ImGuiHoveredFlags flags);
 
     // 2741
     ImU32           (*GetColorU32_Vec4)(const ImVec4 col);

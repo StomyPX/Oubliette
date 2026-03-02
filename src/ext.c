@@ -17,6 +17,7 @@ ext_init(External* ext)
 
         ext->cimgui.Begin            = platform_dlsym(ext->cimgui.handle, "igBegin");
         ext->cimgui.End              = platform_dlsym(ext->cimgui.handle, "igEnd");
+        ext->cimgui.IsWindowHovered  = platform_dlsym(ext->cimgui.handle, "igIsWindowHovered");
 
         ext->cimgui.GetColorU32_Vec4 = platform_dlsym(ext->cimgui.handle, "igGetColorU32_Vec4");
         ext->cimgui.SameLine         = platform_dlsym(ext->cimgui.handle, "igSameLine");

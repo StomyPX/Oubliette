@@ -85,7 +85,7 @@ combat_fight(void)
                         int damage = PcgRandom_roll(&m->rng, 1, damageDie) + damageMod;
                         damage = util_intmax(1, damage);
                         if (damage < unit->health[target]) {
-                            ui_log(ZINNWALDITEBROWN, "%s strikes a %s for %i damage.",
+                            ui_log(ZINNWALDITEBROWN, "%s strikes a %s for %i damage",
                                     ch->name, unit->class.truename, damage);
                         } else {
                             ui_log(ZINNWALDITEBROWN, "%s strikes a %s for %i damage, killing it!",
@@ -148,7 +148,7 @@ combat_fight(void)
                                 unit->class.truename, ch->name, damage,
                                 (ch->flags & CharacterFlags_Female) ? "her" : "him");
                     } else if (damage > 0) {
-                        ui_log(ZINNWALDITEBROWN, "A %s strikes %s for %i damage.",
+                        ui_log(ZINNWALDITEBROWN, "A %s strikes %s for %i damage",
                                 unit->class.truename, ch->name, damage);
                     }
                     ch->health -= damage;
@@ -240,7 +240,7 @@ combat_flee(void)
             ui_log(ZINNWALDITEBROWN, "GAME OVER!");
             m->flags |= GlobalFlags_GameOver;
         } else {
-            ui_log(ZINNWALDITEBROWN, "The party escapes.");
+            ui_log(ZINNWALDITEBROWN, "The party escapes");
             m->flags &= ~(GlobalFlags_Encounter);
         }
     }
