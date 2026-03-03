@@ -126,6 +126,18 @@ char_random(void)
 
     /* Final Init */
     c.level = 1;
+    switch (c.class) {
+        case CharacterClass_Thief: {
+            c.pickpocket = PcgRandom_roll(&m->rng, 1, 10);
+            c.openlock = PcgRandom_roll(&m->rng, 1, 10);
+            c.movesilent = PcgRandom_roll(&m->rng, 1, 10);
+            c.removetrap = PcgRandom_roll(&m->rng, 1, 10);
+            c.hide = PcgRandom_roll(&m->rng, 1, 10);
+            c.detectsound = PcgRandom_roll(&m->rng, 1, 10);
+            c.findsecret = PcgRandom_roll(&m->rng, 1, 10);
+        } break;
+        default: break;
+    }
     c.health = char_maxHealth(c);
     c.stamina = char_maxStamina(c);
 
@@ -149,13 +161,13 @@ char_maxHealth(Character c)
 
     switch (c.class) {
         case CharacterClass_Warrior: {
-            h += ((int)c.level - 1) * 2;
+            h += util_intmax(0, ((int)c.level - 1) * 2);
         } break;
         case CharacterClass_Mage: {
-            h += ((int)c.level - 1) / 2;
+            h += util_intmax(0, ((int)c.level - 1) / 2);
         } break;
         default: {
-            h += (int)c.level - 1;
+            h += util_intmax(0, (int)c.level - 1);
         } break;
     }
 
@@ -193,10 +205,24 @@ char_exp(Character* c, int xp)
     for (int i = 0; c->level < level && i < UINT8_MAX; i++) {
         c->level++;
         ui_log(ORANGE, "%s advances to level %u!", c->name, c->level);
+        switch (c->class) {
+            case CharacterClass_Thief: {
+                c->pickpocket += PcgRandom_roll(&m->rng, 1, 4);
+                c->openlock += PcgRandom_roll(&m->rng, 1, 4);
+                c->movesilent += PcgRandom_roll(&m->rng, 1, 4);
+                c->removetrap += PcgRandom_roll(&m->rng, 1, 4);
+                c->hide += PcgRandom_roll(&m->rng, 1, 4);
+                c->detectsound += PcgRandom_roll(&m->rng, 1, 4);
+                c->findsecret += PcgRandom_roll(&m->rng, 1, 4);
+            } break;
+            default: break;
+        }
     }
     c->health += char_maxHealth(*c) - health;
     c->stamina += char_maxStamina(*c) - stamina;
 }
+
+#define CHAR_LEVEL_SOFTCAP 12
 
 static uint8_t
 char_level(CharacterClass class, int64_t xp)
@@ -226,8 +252,8 @@ char_level(CharacterClass class, int64_t xp)
     }
 
     req = base;
-    for (level = 1; level < UINT8_MAX && xp > req; level++) {
-        if (level < 8) {
+    for (level = 1; level < UINT8_MAX && xp >= req; level++) {
+        if (level < CHAR_LEVEL_SOFTCAP - 1) {
             req += base * level;
             highbase = req;
         } else {
@@ -236,4 +262,48 @@ char_level(CharacterClass class, int64_t xp)
     }
 
     return level;
+}
+
+static int64_t
+char_levelRequirement(CharacterClass class, uint8_t target)
+{
+    uint8_t level;
+    int64_t base;
+    int64_t req;
+    int64_t highbase;
+
+    if (target == 0) {
+        return INT64_MIN;
+    } else if (target == 1) {
+        return 0;
+    }
+
+    switch (class) {
+        case CharacterClass_Warrior: {
+            base = 2000;
+        } break;
+        case CharacterClass_Mage: {
+            base = 2500;
+        } break;
+        case CharacterClass_Thief: {
+            base = 1250;
+        } break;
+        default: {
+            TraceLog(LOG_WARNING, "Unknown class ID: %i", class);
+            base = 1000;
+        } break;
+    }
+
+
+    req = base;
+    for (level = 1; level < target - 1; level++) {
+        if (level < CHAR_LEVEL_SOFTCAP - 1) {
+            req += base * level;
+            highbase = req;
+        } else {
+            req += highbase;
+        }
+    }
+
+    return req;
 }

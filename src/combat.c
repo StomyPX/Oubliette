@@ -191,7 +191,7 @@ combat_fight(void)
 
         /* Loot and XP */
         xp = unit->total * unit->class.experience / survivors;
-        ui_log(ZINNWALDITEBROWN, "Everybody gains %i experience points", xp);
+        ui_log(ZINNWALDITEBROWN, "Survivors gain %i experience points", xp);
         for (int i = 0; i < arrlen(m->party); i++) {
             if (m->party[i].health > 0) {
                 char_exp(m->party + i, xp);

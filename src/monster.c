@@ -115,9 +115,9 @@ monster_encounter(MonstrousCompendium* monstrous)
 
     /* Encounter message */
     if (m->encounter.unit.total == 1) {
-        ui_log(ZINNWALDITEBROWN, "You encounter a %s!", monster->truename);
+        ui_log(BLACK, "You encounter a %s!", monster->truename);
     } else {
-        ui_log(ZINNWALDITEBROWN, "You encounter %i %s!", m->encounter.unit.total, monster->truenamePlural);
+        ui_log(BLACK, "You encounter %i %s!", m->encounter.unit.total, monster->truenamePlural);
     }
 
     { /* Init health for every monster in the unit */

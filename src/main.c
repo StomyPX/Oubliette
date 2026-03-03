@@ -336,7 +336,7 @@ main(int argc, char* argv[])
                                 contrib -= char_modifier(m->party[i].dexterity) * 2;
                                 contrib -= char_modifier(m->party[i].intellect);
                                 contrib += char_modifier(m->party[i].strength);
-                                // TODO Silent move
+                                contrib -= m->party[i].movesilent / 10;
                                 ticks += contrib;
                             }
                         }
@@ -768,6 +768,13 @@ main(int argc, char* argv[])
 
                     if (PcgRandom_roll(&m->rng, 1, die) <= chance) {
                         monster_encounter(&m->monsters);
+                    }
+
+                    /* Dead characters decompose, losing more HP */
+                    for (int i = 0; i < arrlen(m->party); i++) {
+                        if (m->party[i].health < 1 && PcgRandom_roll(&m->rng, 1, 6) == 1) {
+                            m->party[i].health -= 1;
+                        }
                     }
                 }
 

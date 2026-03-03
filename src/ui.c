@@ -150,6 +150,14 @@ ui_characterHudCard(Character c, Rectangle card)
         position.y += m->fonts.text.baseSize;
         snprintf(buffer, sizeof(buffer), "INT: %i WIL: %i CHA: %i", c.intellect, c.willpower, c.charisma);
         DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        position.y += m->fonts.text.baseSize;
+        if (c.level < UINT8_MAX) {
+            snprintf(buffer, sizeof(buffer), "XP: %llu/%llu", c.experience,
+                    char_levelRequirement(c.class, c.level + 1));
+        } else {
+            snprintf(buffer, sizeof(buffer), "XP: %llu", c.experience);
+        }
+        DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
         EndScissorMode();
         ui_border(m->border, card, BONE);
