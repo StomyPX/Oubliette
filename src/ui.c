@@ -129,7 +129,8 @@ ui_characterHudCard(Character c, Rectangle card)
         BeginScissorMode(card.x, card.y, card.width, card.height);
         ui_text(m->fonts.textB, c.name, position, m->fonts.textB.baseSize, 0, MINDAROGREEN);
         position.y += m->fonts.textB.baseSize + 2;
-        DrawTextEx(m->fonts.text, CharacterClass_toString(c.class), position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        snprintf(buffer, sizeof(buffer), "%s %u", CharacterClass_toString(c.class), c.level);
+        DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
         position.y += m->fonts.text.baseSize + UI_PADDING;
         snprintf(buffer, sizeof(buffer), "HP: %i/%i", c.health, char_maxHealth(c));

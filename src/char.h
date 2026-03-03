@@ -43,6 +43,9 @@ typedef struct {
 
 static Character char_random(void); // Roll up an entirely random character, name will be blank on failure
 static void char_free(Character* c);
+
 static int32_t char_maxHealth(Character c);
 static int32_t char_maxStamina(Character c);
 static int char_modifier(int characteristic);
+static void char_exp(Character* c, int xp);
+static uint8_t char_level(CharacterClass class, int64_t xp);

@@ -140,7 +140,7 @@ map_generatePassage(Map* map, MapPassage u)
         uint32_t result;
         result = PcgRandom_roll(&map->rng, 1, 3);
 
-        if (result <= 1) {
+        if (map->chamberCount < 3 || result <= 1) {
             map_generateChamber(map, u.x, u.y, u.facing);
         } else {
             uint32_t turn = PcgRandom_roll(&map->rng, 1, 6);
@@ -303,6 +303,8 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
 
     /* Generate exits */
     exitD6 = PcgRandom_roll(&map->rng, 1, 6);
+    if (map->chamberCount > 1 && map->chamberCount <= 4)
+        exitD6 += 3;
     if (map->chamberCount > MAP_CHAMBERS_MAX / 4)
         exitD6 -= 1;
     if (map->chamberCount > MAP_CHAMBERS_MAX / 2)

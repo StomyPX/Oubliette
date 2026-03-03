@@ -181,3 +181,59 @@ char_modifier(int characteristic)
     return modifier;
 }
 
+static void
+char_exp(Character* c, int xp)
+{
+    uint8_t level;
+    c->experience += xp;
+    int32_t health = char_maxHealth(*c);
+    int32_t stamina = char_maxStamina(*c);
+
+    level = char_level(c->class, c->experience);
+    for (int i = 0; c->level < level && i < UINT8_MAX; i++) {
+        c->level++;
+        ui_log(ORANGE, "%s advances to level %u!", c->name, c->level);
+    }
+    c->health += char_maxHealth(*c) - health;
+    c->stamina += char_maxStamina(*c) - stamina;
+}
+
+static uint8_t
+char_level(CharacterClass class, int64_t xp)
+{
+    uint8_t level;
+    int64_t base;
+    int64_t req;
+    int64_t highbase;
+
+    if (xp < 0)
+        return 0;
+
+    switch (class) {
+        case CharacterClass_Warrior: {
+            base = 2000;
+        } break;
+        case CharacterClass_Mage: {
+            base = 2500;
+        } break;
+        case CharacterClass_Thief: {
+            base = 1250;
+        } break;
+        default: {
+            TraceLog(LOG_WARNING, "Unknown class ID: %i", class);
+            base = 1000;
+        } break;
+    }
+
+    req = base;
+    for (level = 1; level < UINT8_MAX && xp > req; level++) {
+        if (level < 8) {
+            req += base * level;
+            highbase = req;
+        } else {
+            req += highbase;
+        }
+    }
+
+    return level;
+}

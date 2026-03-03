@@ -155,11 +155,11 @@ main(int argc, char* argv[])
 
     SetTargetFPS(200); /* TODO Make configurable, prefer VSync */
 
-    bool lastHover = false;;
+    int lastHover = 0;
     while (!WindowShouldClose() && !(m->flags & GlobalFlags_RequestQuit)) {
         /* Update */
         m->deltaTime = GetFrameTime();
-        bool anyHover = false;
+        int anyHover = 0;
 
         if (IsKeyPressed(KEY_F4) && (IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT)))
             m->flags |= GlobalFlags_RequestQuit;
@@ -403,7 +403,7 @@ main(int argc, char* argv[])
                 m->rtex = LoadRenderTexture(viewport.width, viewport.height);
                 m->rtexW = viewport.width;
                 m->rtexH = viewport.height;
-                util_err(0, "W: %4i %4i H: %4i %4i", m->rtexW, viewport.width, m->rtexH, viewport.height);
+                TraceLog(LOG_DEBUG, "Viewport Resize W: %4i->%4i H: %4i->%4i", m->rtexW, (int)viewport.width, m->rtexH, (int)viewport.height);
             }
 
             BeginTextureMode(m->rtex);
@@ -534,7 +534,7 @@ main(int argc, char* argv[])
                         PlaySound(m->click);
                         combat_flee();
                     } else if (result < 0) {
-                        anyHover = true;
+                        anyHover = 1;
                     }
 
                     /* FIGHT! */
@@ -544,7 +544,7 @@ main(int argc, char* argv[])
                         PlaySound(m->click);
                         combat_fight();
                     } else if (result < 0) {
-                        anyHover = true;
+                        anyHover = 2;
                     }
                 }
 
@@ -587,7 +587,7 @@ main(int argc, char* argv[])
 
                     PlaySound(m->click);
                 } else if (result < 0) {
-                    anyHover = true;
+                    anyHover = 3;
                 }
             }
 
@@ -683,12 +683,14 @@ main(int argc, char* argv[])
                 char buf[128] = {0};
                 Vector2 position = (Vector2){GetRenderWidth() - 120, 20};
                 snprintf(buf, sizeof(buf),
+                        "FPS: %3i\n"
                         "Debug View: %s\n"
                         "Camera: %4.1f, %4.1f\n"
                         "Tile: %2i, %2i\n"
                         "Facing: %s\n"
                         "Enc: %i/%i\n"
                         "Seed: %llu\n",
+                        GetFPS(),
                         m->flags & GlobalFlags_EditorMode ? "ON" : "off",
                         m->camera.position.x, m->camera.position.z,
                         m->partyX, m->partyY,
@@ -704,7 +706,12 @@ main(int argc, char* argv[])
                     bool show = 1;
                     char buffer[TILE_COUNT * 2 + 1] = {};
 
-                    m->ext.cimgui.Begin("Map Overview", &show, ImGuiWindowFlags_AlwaysAutoResize);
+                    {
+                        ImGuiWindowFlags flags = 0;
+                        flags |= ImGuiWindowFlags_AlwaysVerticalScrollbar;
+                        flags |= ImGuiWindowFlags_AlwaysHorizontalScrollbar;
+                        m->ext.cimgui.Begin("Map Overview", &show, flags);
+                    }
 
                     for (int y = 0; y < TILE_COUNT; y++) {
                         for (int x = 0; x < TILE_COUNT; x++) {
@@ -774,7 +781,7 @@ main(int argc, char* argv[])
             m->camera.target = Vector3Lerp(m->camera.target, intended.target, lerp);
         }
 
-        if (!lastHover && anyHover)
+        if (anyHover && lastHover != anyHover)
             PlaySound(m->hover);
         lastHover = anyHover;
     }

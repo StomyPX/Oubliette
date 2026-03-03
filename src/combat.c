@@ -172,23 +172,31 @@ combat_fight(void)
         }
     }
 
-    { /* Check if the party is still alive */
-        int survivors = 0;
-        for (int i = 0; i < arrlen(m->party); i++) {
-            if (m->party[i].health > 0)
-                survivors += 1;
-        }
-
-        if (survivors < 1) {
-            ui_log(ZINNWALDITEBROWN, "GAME OVER!");
-            m->flags |= GlobalFlags_GameOver;
-        }
+    /* Check if the party is still alive */
+    int survivors = 0;
+    for (int i = 0; i < arrlen(m->party); i++) {
+        if (m->party[i].health > 0)
+            survivors += 1;
     }
 
-    if (unit->alive < 1) {
-        /* TODO Loot and XP */
+    if (survivors < 1) {
+        ui_log(MAROON, "GAME OVER!");
+        m->flags |= GlobalFlags_GameOver;
+
+    } else if (unit->alive < 1) {
+        int xp;
+
         m->flags &= ~(GlobalFlags_Encounter);
-        ui_log(ZINNWALDITEBROWN, "Victory!");
+        ui_log(ORANGE, "Victory!");
+
+        /* Loot and XP */
+        xp = unit->total * unit->class.experience / survivors;
+        ui_log(ZINNWALDITEBROWN, "Everybody gains %i experience points", xp);
+        for (int i = 0; i < arrlen(m->party); i++) {
+            if (m->party[i].health > 0) {
+                char_exp(m->party + i, xp);
+            }
+        }
     }
 }
 
