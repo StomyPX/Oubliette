@@ -101,7 +101,14 @@ main(int argc, char* argv[])
 
     ext_init(&m->ext);
     PcgRandom_init(&m->rng, util_rdtsc());
+    PcgRandom_init(&m->rng2, util_rdtsc());
     monster_init(&m->monsters);
+
+    for (unsigned i = 0; i < arrlen(m->footstep); i++) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "data/sounds/footstep_%02u.wav", i);
+        m->footstep[i] = LoadSound(buf);
+    }
 
     m->fonts.text = LoadFontEx("data/fonts/CrimsonText-Regular.ttf", 24, 0, 0);
     m->fonts.textB = LoadFontEx("data/fonts/CrimsonText-Bold.ttf", 24, 0, 0);
@@ -310,7 +317,15 @@ main(int argc, char* argv[])
                 if (successful) {
                     m->flags |= GlobalFlags_AdvanceTurn;
 
-                    /* TODO Play different sounds based on if the move is allowed or not */
+                    /* Footsteps */
+                    int advance = PcgRandom_roll(&m->rng2, 1, 4);
+                    int first = PcgRandom_randomu(&m->rng2) % arrlen(m->footstep);
+                    for (int i = 0; i < arrlen(m->party); i++) {
+                        if (m->party[i].health > 0) {
+                            int index = (first + i * advance) % arrlen(m->footstep);
+                            PlaySound(m->footstep[index]);
+                        }
+                    }
 
                     /* Tick up encounter accumulator */
                     int ticks = 20;
@@ -333,6 +348,8 @@ main(int argc, char* argv[])
                 } else {
                     /* Tick up very slightly */
                     m->encounter.ticks += 1;
+
+                    /* TODO Play a different sound for a failed move */
                 }
             }
 
@@ -761,6 +778,9 @@ main(int argc, char* argv[])
         lastHover = anyHover;
     }
 
+    for (unsigned i = 0; i < arrlen(m->footstep); i++) {
+        UnloadSound(m->footstep[i]);
+    }
     UnloadFont(m->fonts.text);
     UnloadFont(m->fonts.textB);
     UnloadFont(m->fonts.textI);

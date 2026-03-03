@@ -6,6 +6,7 @@ typedef struct Memory_ {
     int rtexW, rtexH;
     Map map;
     PcgRandom rng; // Primary RNG
+    PcgRandom rng2; // Secondary RNG used only for non-mechanical effects
     MonstrousCompendium monsters;
 
     struct { /* Zone of the screen used by the game under extreme aspect ratios */
@@ -25,6 +26,7 @@ typedef struct Memory_ {
     float partyMoveTimer;
     float partyMoveFreq; /* Number of seconds between repeat moves when holding the buttons down */
     Character party[4];
+    Sound footstep[11];
 
     struct {
         int ticks;
