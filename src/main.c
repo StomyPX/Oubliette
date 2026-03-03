@@ -367,14 +367,14 @@ main(int argc, char* argv[])
         /* Rendering */
 
         { /* Determine GUI layout proportions */
-            float aspect = (float)GetRenderWidth() / (float)GetRenderHeight();
+            int aspect = (float)GetRenderWidth() / (float)GetRenderHeight() * 100;
 
-            if (aspect > 2.f) {
+            if (aspect > 200) {
                 m->area.width = GetRenderHeight() * 2;
                 m->area.height = GetRenderHeight();
                 m->area.top = 0;
                 m->area.left = (GetRenderWidth() - m->area.width) / 2;
-            } else if (aspect < 1.f) {
+            } else if (aspect < 100) {
                 m->area.width = GetRenderWidth();
                 m->area.height = GetRenderWidth();
                 m->area.top = (GetRenderHeight() - m->area.height) / 2;
@@ -390,10 +390,10 @@ main(int argc, char* argv[])
         }
 
         Rectangle viewport;
-        viewport.x = m->area.left + UI_PADDING;
-        viewport.y = m->area.top + UI_PADDING;
-        viewport.width = m->area.width * (1.f - UI_SIDE_PANEL_FRACTION) - UI_PADDING * 2;
-        viewport.height = m->area.height * (1.f - UI_PORTRAIT_FRACTION) - UI_PADDING * 2;
+        viewport.x = floorf(m->area.left + UI_PADDING);
+        viewport.y = floorf(m->area.top + UI_PADDING);
+        viewport.width = floorf(m->area.width * (1.f - UI_SIDE_PANEL_FRACTION) - UI_PADDING * 2);
+        viewport.height = floorf(m->area.height * (1.f - UI_PORTRAIT_FRACTION) - UI_PADDING * 2);
 
         if (!(m->flags & GlobalFlags_Encounter)) {
             /* Draw map to a render texture. Incredibly, raylib doesn't do viewports */
@@ -403,6 +403,7 @@ main(int argc, char* argv[])
                 m->rtex = LoadRenderTexture(viewport.width, viewport.height);
                 m->rtexW = viewport.width;
                 m->rtexH = viewport.height;
+                util_err(0, "W: %4i %4i H: %4i %4i", m->rtexW, viewport.width, m->rtexH, viewport.height);
             }
 
             BeginTextureMode(m->rtex);
