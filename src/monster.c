@@ -73,13 +73,21 @@ monster_encounter(MonstrousCompendium* monstrous)
     size_t count2 = 0;
     size_t pick;
     MonsterClass* monster = 0;
+    int danger = -1;
 
-    /* TODO Traverse the compendium and total up all picks, then roll and loop again */
+    if (m->flags & GlobalFlags_MissionAccomplished) {
+        danger = 1;
+    } else if (abs(m->partyX - m->map.entryX) + abs(m->partyY - m->map.entryY) > TILE_COUNT / 3) {
+        danger = 0;
+    }
+    TraceLog(LOG_TRACE, "MONSTER: Encounter danger: %i", danger);
+
+    /* Traverse the compendium and total up all picks, then roll and loop again */
     for (int i = 0; i < monstrous->total; i++) {
         int contrib;
         monster = monstrous->compendium + i;
 
-        contrib = monster->abundance - monster->danger;
+        contrib = monster->abundance + monster->danger * danger;
         if (contrib > 0)
             count += contrib;
     }
@@ -89,7 +97,7 @@ monster_encounter(MonstrousCompendium* monstrous)
         int contrib;
         monster = monstrous->compendium + i;
 
-        contrib = monster->abundance - monster->danger;
+        contrib = monster->abundance + monster->danger * danger;
         if (contrib > 0)
             count2 += contrib;
 
@@ -142,6 +150,8 @@ monster_encounter(MonstrousCompendium* monstrous)
             TraceLog(LOG_TRACE, "MONSTER: %s, HP: %lli", monster->truename, m->encounter.unit.health[i]);
         }
     }
+
+    /* TODO Ambush/Surprise */
 
     PlaySound(m->encounter.klaxon);
 }

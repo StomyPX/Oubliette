@@ -12,5 +12,6 @@ typedef enum {
     GlobalFlags_Encounter           = 1 << 7,
     GlobalFlags_GameOver            = 1 << 8,
     GlobalFlags_TheEnd              = 1 << 9,
+    GlobalFlags_MissionAccomplished = 1 << 10,
 } GlobalFlags_t; /* Need to append Type to avoid clash with symbols on windows */
 
