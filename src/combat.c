@@ -34,7 +34,16 @@ combat_fight(void)
     int weightTotal = 0;
     for (int i = 0; i < arrlen(m->party); i++) {
         if (m->party[i].health > 0) {
-            weights[i] = util_intmax(1, 24 - m->party[i].charisma);
+            ch = m->party + i;
+            weights[i] = 24;
+            weights[i] -= ch->charisma;
+            switch (ch->class) {
+                default:                        weights[i] += 2; break;
+                case CharacterClass_Warrior:    weights[i] += 4; break;
+                case CharacterClass_Mage:       break;
+            }
+            // TODO Using a melee weapon increases by a further +6
+            weights[i] = util_intmax(1, weights[i]);
             weightTotal += weights[i];
         }
     }
@@ -133,6 +142,7 @@ combat_fight(void)
                     continue; /* Stop, he's already dead! */
 
                 tohit = PcgRandom_roll(&m->rng, 1, 20);
+                tohit -= util_intmax(0, char_modifier(ch->charisma)); // Only creatures of average intelligence should acknowledge this
                 if (tohit == 20 || (tohit + unit->class.attack > 10 + char_modifier(ch->dexterity) && tohit != 1)) {
                     int damage = PcgRandom_roll(&m->rng, 1, unit->class.damageDie) + unit->class.damageModifier;
                     damage = util_intmax(1, damage);

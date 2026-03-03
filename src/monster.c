@@ -110,10 +110,7 @@ monster_encounter(MonstrousCompendium* monstrous)
     m->encounter.unit.class = *monster;
     m->encounter.unit.total = PcgRandom_roll(&m->rng, 1, monster->groupDie);
     m->encounter.unit.total += monster->groupModifier;
-    if (m->encounter.unit.total < 1)
-        m->encounter.unit.total = 1;
-    if (m->encounter.unit.total > MONSTER_UNIT_MAX)
-        m->encounter.unit.total = MONSTER_UNIT_MAX;
+    m->encounter.unit.total = util_intclamp(m->encounter.unit.total, 1, MONSTER_UNIT_MAX);
     m->encounter.unit.alive = m->encounter.unit.total;
 
     /* Encounter message */
