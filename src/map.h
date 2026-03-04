@@ -36,6 +36,8 @@ typedef struct {
     Texture     florTex;
     Model       ceiling;
     Texture     ceilingTex;
+    Model       goal;
+    Texture     goalTex;
     // TODO decorations (models/sprites)
 
     // Build Info
@@ -47,7 +49,7 @@ typedef struct {
     MapPassage  passages[MAP_PASSAGES_MAX];
 
     int         entryX, entryY;
-    int         exitX, exitY;
+    int         goalX, goalY;
     int         encounterFreq;  /* Multiple of encounter ticks before rolling. 100 ticks is roughly one minute */
 } Map;
 

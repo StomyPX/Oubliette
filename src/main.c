@@ -153,6 +153,12 @@ main(int argc, char* argv[])
 
     SetTargetFPS(200); /* TODO Make configurable, prefer VSync */
 
+    /* Clear out all of Raylib's noise */
+    for (unsigned i = 0; i < UTIL_LOGLINE_COUNT; i++) {
+        if (g_util_logLines[i].seconds > 0.f && g_util_logLines[i].channel >= 0)
+            g_util_logLines[i].seconds = 0.f;
+    }
+
     int lastHover = 0;
     while (!WindowShouldClose() && !(m->flags & GlobalFlags_RequestQuit)) {
         /* Update */
@@ -171,7 +177,9 @@ main(int argc, char* argv[])
         if (IsKeyPressed(KEY_KP_ENTER))
             util_clearLog();
 
-        if (m->flags & GlobalFlags_EditorModePermitted) {
+        if (m->flags & GlobalFlags_EditorModePermitted
+            && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)))
+        {
             if (IsKeyPressed(KEY_F1))
                 m->flags ^= GlobalFlags_EditorMode;
             if (IsKeyPressed(KEY_F2))
@@ -180,6 +188,17 @@ main(int argc, char* argv[])
                 m->flags ^= GlobalFlags_ShowCollision;
             if (IsKeyPressed(KEY_F4))
                 m->flags ^= GlobalFlags_ShowMap;
+            if (IsKeyPressed(KEY_F5)) {
+                for (int i = 0; i < arrlen(m->party); i++) {
+                    m->party[i].health = char_maxHealth(m->party[i]);
+                    m->party[i].stamina = char_maxStamina(m->party[i]);
+                }
+            }
+            if (IsKeyPressed(KEY_F6)) {
+                for (int i = 0; i < arrlen(m->party); i++) {
+                    char_exp(m->party + i, 1000);
+                }
+            }
         }
 
         if (m->flags & GlobalFlags_EditorMode) {
@@ -568,7 +587,7 @@ main(int argc, char* argv[])
                 button.height = 48;
                 button.x = viewport.x + viewport.width - UI_PADDING - button.width;
                 button.y = viewport.y + viewport.height - UI_PADDING - button.height;
-                result = ui_button(button, "REST", KEY_R, true);
+                result = ui_button(button, "WAIT", KEY_R, true);
                 if (result > 0) {
                     ui_log(ZINNWALDITEBROWN, "Resting...");
                     m->encounter.ticks += 300;
@@ -596,23 +615,6 @@ main(int argc, char* argv[])
                 } else if (result < 0) {
                     anyHover = 3;
                 }
-            }
-
-            if (m->flags & GlobalFlags_GameOver) {
-                Vector2 position;
-                Vector2 measure;
-                Rectangle frame;
-
-                measure = MeasureTextEx(m->fonts.big, "GAME OVER", m->fonts.big.baseSize, 0);
-                frame.x = viewport.x + viewport.width / 2 - measure.x / 2 - UI_PADDING * 2;
-                frame.y = viewport.y + viewport.height / 2 - measure.y / 2 - UI_PADDING;
-                frame.width = measure.x + UI_PADDING * 4;
-                frame.height = measure.y + UI_PADDING * 2;
-                DrawRectangleRec(frame, ColorAlpha(BLACK, 0.8f));
-                ui_border(m->border, frame, BONE);
-                position.x = frame.x + UI_PADDING * 2;
-                position.y = frame.y + UI_PADDING;
-                ui_text(m->fonts.big, "GAME OVER", position, m->fonts.big.baseSize, 0, MAROON);
             }
 
             ui_border(m->border, viewport, BONE);
@@ -646,8 +648,7 @@ main(int argc, char* argv[])
                 DrawTextureRec(m->vellum, panel, (Vector2){panel.x, panel.y}, WHITE);
                 BeginScissorMode(panel.x, panel.y, panel.width, panel.height);
 
-                /* TODO Find scroll point first */
-                /* TODO Rescale font to fit horizontally */
+                /* Find scroll point first */
                 for (unsigned i = 0; i < UI_LOGLINE_COUNT; i++) {
                     unsigned index = (i + m->logCursor + 1) % UI_LOGLINE_COUNT;
                     if (m->logs[index].text[0]) {
@@ -688,16 +689,52 @@ main(int argc, char* argv[])
                 card.y = m->area.top + m->area.height * (1.f - UI_PORTRAIT_FRACTION) + UI_PADDING;
                 card.width = m->area.width * (1.f - UI_SIDE_PANEL_FRACTION) / 4.f - UI_PADDING * 2;
                 card.height = m->area.height * UI_PORTRAIT_FRACTION - UI_PADDING * 2;
-                ui_characterHudCard(m->party[0], card);
+                if (ui_characterHudCard(m->party[0], card, 0))
+                    anyHover = 4;
 
                 card.x += card.width + UI_PADDING * 2;
-                ui_characterHudCard(m->party[1], card);
+                if (ui_characterHudCard(m->party[1], card, 1))
+                    anyHover = 5;
 
                 card.x += card.width + UI_PADDING * 2;
-                ui_characterHudCard(m->party[2], card);
+                if (ui_characterHudCard(m->party[2], card, 2))
+                    anyHover = 6;
 
                 card.x += card.width + UI_PADDING * 2;
-                ui_characterHudCard(m->party[3], card);
+                if (ui_characterHudCard(m->party[3], card, 3))
+                    anyHover = 7;
+            }
+
+            if (m->flags & GlobalFlags_GameOver) {
+                Vector2 position;
+                Vector2 measure;
+                Rectangle frame;
+
+                measure = MeasureTextEx(m->fonts.big, "GAME OVER", m->fonts.big.baseSize, 0);
+                frame.x = viewport.x + viewport.width / 2 - measure.x / 2 - UI_PADDING * 2;
+                frame.y = viewport.y + viewport.height / 2 - measure.y / 2 - UI_PADDING;
+                frame.width = measure.x + UI_PADDING * 4;
+                frame.height = measure.y + UI_PADDING * 2;
+                DrawRectangleRec(frame, ColorAlpha(BLACK, 0.8f));
+                ui_border(m->border, frame, BONE);
+                position.x = frame.x + UI_PADDING * 2;
+                position.y = frame.y + UI_PADDING;
+                ui_text(m->fonts.big, "GAME OVER", position, m->fonts.big.baseSize, 0, MAROON);
+            } else if (m->flags & GlobalFlags_TheEnd) {
+                Vector2 position;
+                Vector2 measure;
+                Rectangle frame;
+
+                measure = MeasureTextEx(m->fonts.big, "THE END", m->fonts.big.baseSize, 0);
+                frame.x = viewport.x + viewport.width / 2 - measure.x / 2 - UI_PADDING * 2;
+                frame.y = viewport.y + viewport.height / 2 - measure.y / 2 - UI_PADDING;
+                frame.width = measure.x + UI_PADDING * 4;
+                frame.height = measure.y + UI_PADDING * 2;
+                DrawRectangleRec(frame, ColorAlpha(BLACK, 0.8f));
+                ui_border(m->border, frame, BONE);
+                position.x = frame.x + UI_PADDING * 2;
+                position.y = frame.y + UI_PADDING;
+                ui_text(m->fonts.big, "THE END", position, m->fonts.big.baseSize, 0, MINDAROGREEN);
             }
 
             if (m->flags & GlobalFlags_PartyStats) {
@@ -754,6 +791,8 @@ main(int argc, char* argv[])
                                     case Facing_South: buffer[x * 2] = 'v'; break;
                                     case Facing_West: buffer[x * 2] = '<'; break;
                                 }
+                            } else if (m->map.goalX == x && m->map.goalY == y) {
+                                buffer[x * 2] = 'X';
                             } else if (t & TileFlags_Feature) {
                                 buffer[x * 2] = '?';
                             } else if (t & TileFlags_Filled) {

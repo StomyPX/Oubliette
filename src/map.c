@@ -96,6 +96,10 @@ map_generate(Map* map, uint64_t seed)
     map->ceilingTex = LoadTexture("data/textures/dlv_metalstr1c.png");
     SetMaterialTexture(&map->ceiling.materials[0], MATERIAL_MAP_DIFFUSE, map->ceilingTex);
 
+    map->goal = LoadModel("data/statics/tomb.glb");
+    map->goalTex = LoadTexture("data/textures/tomb.png");
+    SetMaterialTexture(&map->goal.materials[0], MATERIAL_MAP_DIFFUSE, map->goalTex);
+
     // Starting location
     map->entryX = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 2) + TILE_COUNT / 4;
     map->entryY = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 4);
@@ -115,8 +119,23 @@ map_generate(Map* map, uint64_t seed)
         map_generatePassage(map, p);
     }
 
-    /* TODO Flood fill chambers from the end of the list until we find one far enough away from the entrance
-     * to add the exit to. */
+    /* Place the tomb in the farthest chamber from the exit. */
+    int farthest = 0;
+    for (int i = 0; i < map->chamberCount; i++) {
+        MapChamber mc = map->chambers[i];
+        int x = mc.x + mc.w / 2;
+        int y = mc.y + mc.h / 2;
+        int index = map_tileIndex(x, y);
+        if (index >= 0) {
+            int distance = abs(x - map->entryX) + abs(y - map->entryY);
+            if (distance > farthest) {
+                map->goalX = x;
+                map->goalY = y;
+                farthest = distance;
+            }
+        }
+    } /* TODO Instead, try walking backwards through the chamber list to find an appropriate one */
+
     // TODO Place features
 
     snprintf(map->name, sizeof(map->name), "Oubliette");
@@ -419,6 +438,7 @@ map_draw(Map* map, Color light, float visibility, float power)
     } else {
         position = m->camera.position;
     }
+
     // TODO Draw outward in a spiral pattern, skip walls between solid cells
     for (int i = 0; i < total; i++) {
         int x = m->partyX - radius - 1 + i;
@@ -484,6 +504,15 @@ map_draw(Map* map, Color light, float visibility, float power)
                 distance = Vector3Distance(position, center);
                 color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
                 DrawModel(map->ceiling, origin, 1.f, color);
+            }
+
+            if (x == map->goalX && y == map->goalY) {
+                origin = map_tileCorner(x + 1, y + 1);
+                center = map_tileCenter(x, y);
+                center.y += TILE_SIDE_LENGTH;
+                distance = Vector3Distance(position, center);
+                color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                DrawModel(map->goal, origin, 1.f, color);
             }
         }
     }

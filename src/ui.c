@@ -105,14 +105,15 @@ ui_log(Color color, char* fmt, ...)
     m->logScroll = 0;
 }
 
-static void
-ui_characterHudCard(Character c, Rectangle card)
+static int
+ui_characterHudCard(Character c, Rectangle card, int index)
 {
     Rectangle portrait;
     Texture ptex;
     Vector2 zero = {};
     Vector2 position;
     Color color;
+    int result;
 
     ptex = c.health > 0 ? c.portrait : m->dead;
     portrait.x = card.x + UI_PADDING;
@@ -144,6 +145,7 @@ ui_characterHudCard(Character c, Rectangle card)
         snprintf(buffer, sizeof(buffer), "SP: %i/%i", c.stamina, char_maxStamina(c));
         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
+    #if 0
         /* Temporary characteristic display TODO This will be replaced by orders and status symbols */
         position.y += m->fonts.text.baseSize;
         position.x = card.x + UI_PADDING;
@@ -162,17 +164,52 @@ ui_characterHudCard(Character c, Rectangle card)
             snprintf(buffer, sizeof(buffer), "XP: %llu", c.experience);
         }
         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+    #endif
 
         EndScissorMode();
         ui_border(m->border, card, BONE);
     }
 
-    /* Color lerping */
-    color = ColorLerp(YELLOW, WHITE, Clamp((c.health * 1.3f) / (float)char_maxHealth(c), 0.f, 1.f));
-    color = ColorLerp(MAROON, color, Clamp((c.health * 2.f) / (float)char_maxHealth(c), 0.f, 1.f));
+    { /* Action selection button */
+        Rectangle button;
+        Vector2 measure;
+        char buffer[32];
+        int prefix;
 
-    DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, color);
-    ui_border(m->border, portrait, BONE);
+        button.x = portrait.x;
+        button.width = card.width - UI_PADDING * 2;
+        button.height = util_intmin(48, card.height - portrait.height - UI_PADDING * 3);
+        button.y = card.y + card.height - UI_PADDING - button.height;
+
+        if (m->flags & GlobalFlags_Encounter) {
+            prefix = 8;
+            if (c.class == CharacterClass_Warrior) {
+                snprintf(buffer, sizeof(buffer), "Action: Multi-Attack");
+            } else {
+                snprintf(buffer, sizeof(buffer), "Action: Attack");
+            }
+        } else {
+            prefix = 6;
+            snprintf(buffer, sizeof(buffer), "Wait: Rest");
+        }
+        measure = MeasureTextEx(m->fonts.heading, buffer, m->fonts.heading.baseSize, 0);
+        if (measure.x > button.width - UI_PADDING) {
+            memmove(buffer, buffer + 7, sizeof(buffer) - 7);
+        }
+
+        result = ui_button(button, buffer, index >= 0 ? KEY_F1 + index : KEY_NULL, index >= 0);
+    }
+
+    { /* Portrait */
+        /* Color lerping TODO More colors for status effects */
+        color = ColorLerp(YELLOW, WHITE, Clamp((c.health * 1.1f) / (float)char_maxHealth(c), 0.f, 1.f));
+        color = ColorLerp(MAROON, color, Clamp((c.health * 2.f) / (float)char_maxHealth(c), 0.f, 1.f));
+        DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, color);
+        /* TODO Write status effects over the portrait */
+        ui_border(m->border, portrait, BONE);
+    }
+
+    return result;
 }
 
 static int
