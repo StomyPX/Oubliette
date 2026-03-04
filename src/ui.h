@@ -19,4 +19,4 @@ static void ui_border(Texture border, Rectangle rec, Color color);
 static void ui_log(Color color, char* fmt, ...);
 static void ui_characterHudCard(Character c, Rectangle r);
 /* -1 on hover, 1 on LMB down, 2 on RMB down */
-static int ui_button(Rectangle rect, char* text, float fontSize, int hotkey, bool enabled);
+static int ui_button(Rectangle rect, char* text, int hotkey, bool enabled);

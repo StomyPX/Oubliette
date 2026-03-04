@@ -56,5 +56,10 @@ static int util_intclamp(int val, int min, int max);
 /* JSON Parsing Helpers */
 static bool util_jsonParseString(struct json_object_element_s* element, char* key, char* target, size_t size);
 static bool util_jsonParseInteger(struct json_object_element_s* element, char* key, int64_t* target);
+static bool util_jsonParseFloat(struct json_object_element_s* element, char* key, double* target);
+
+/* Math helpers */
+static Vector2 Vector2Floor(Vector2 v);
+static Rectangle RectangleFloor(Rectangle r);
 
 

@@ -19,6 +19,7 @@ typedef struct
     int32_t danger;
     uint32_t groupDie;
     int32_t groupModifier;
+    int8_t level;
 
     /* Combat stats */
     int8_t hitDice;
@@ -32,6 +33,9 @@ typedef struct
     /* Post-combat drops */
     uint32_t experience;
     /* TODO Loot */
+
+    /* Misc */
+    Vector2 anchor;
 } MonsterClass;
 static MonsterClass MonsterClass_init(struct json_object_s* object); // Blank truename indicates failure
 

@@ -162,7 +162,11 @@ MonsterClass_init(struct json_object_s* object)
     MonsterClass mc = {};
     char texture[64] = {};
     int64_t integer;
+    double floating;
     bool defaultAttack = true;
+    bool defaultLevel = true;
+    mc.anchor.x = -1.f;
+    mc.anchor.y = -1.f;
 
     for (struct json_object_element_s* element = object->start; element; element = element->next) {
 
@@ -176,6 +180,9 @@ MonsterClass_init(struct json_object_s* object)
             mc.lore = integer;
 
         /* Encounter details */
+        } else if (util_jsonParseInteger(element, "level", &integer)) {
+            mc.level = integer;
+            defaultLevel = false;
         } else if (util_jsonParseInteger(element, "abundance", &integer)) {
             mc.abundance = integer;
         } else if (util_jsonParseInteger(element, "danger", &integer)) {
@@ -203,6 +210,12 @@ MonsterClass_init(struct json_object_s* object)
         /* Post-combat drops */
         } else if (util_jsonParseInteger(element, "experience", &integer)) {
             mc.experience = integer;
+
+        /* Misc */
+        } else if (util_jsonParseFloat(element, "anchor_x", &floating)) {
+            mc.anchor.x = floating;
+        } else if (util_jsonParseFloat(element, "anchor_y", &floating)) {
+            mc.anchor.y = floating;
         }
     }
 
@@ -221,6 +234,31 @@ MonsterClass_init(struct json_object_s* object)
             snprintf(mc.guessnamePlural, sizeof(mc.guessnamePlural), "%ss", mc.guessname);
         if (defaultAttack && mc.hitDice > 0)
             mc.attack = mc.hitDice / 2;
+        if (defaultLevel)
+            mc.level = mc.hitDice;
+        if (mc.groupDie < 1)
+            mc.groupDie = 1;
+        if (mc.experience < 1) {
+            if (mc.level > 0) {
+                mc.experience = mc.level * 100;
+            } else if (mc.level == 0) {
+                mc.experience = 75;
+            } else {
+                mc.experience = util_intmax(1, 100 / -mc.level);
+            }
+        }
+
+        if (mc.anchor.x < -0.0001f || mc.anchor.x > 1.0001f) {
+            mc.anchor.x = 0.5f;
+        } else {
+            mc.anchor.x = Clamp(mc.anchor.x, 0.f, 1.f);
+        }
+
+        if (mc.anchor.y < -0.0001f || mc.anchor.y > 1.0001f) {
+            mc.anchor.y = 0.5f;
+        } else {
+            mc.anchor.y = Clamp(mc.anchor.y, 0.f, 1.f);
+        }
 
         TraceLog(LOG_INFO, "MONSTERS: Class successfully parsed: %s", mc.truename);
     }

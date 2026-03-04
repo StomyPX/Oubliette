@@ -15,11 +15,14 @@ typedef struct Memory_ {
     } area;
 
     struct {
-        Font text, textB, textI;
-        Font title, titleB, titleI;
+        Font text;
+        Font heading;
+        Font title;
+        Font big;
     } fonts;
 
     float deltaTime;
+    float second;
     int partyX;
     int partyY;
     Facing partyFacing; /* 0 is north, increment to spin clockwise 90 degrees */

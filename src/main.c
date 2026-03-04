@@ -94,7 +94,7 @@ main(int argc, char* argv[])
 
     /* TODO Always on in debug mode, requires cmdline switch "--editor" in release mode */
     #if DEBUG_MODE
-        //m->flags |= GlobalFlags_PartyStats;
+        m->flags |= GlobalFlags_PartyStats;
         m->flags |= GlobalFlags_EditorModePermitted;
         //m->flags |= GlobalFlags_ShowCollision;
     #endif
@@ -110,12 +110,10 @@ main(int argc, char* argv[])
         m->footstep[i] = LoadSound(buf);
     }
 
-    m->fonts.text = LoadFontEx("data/fonts/CrimsonText-Regular.ttf", 24, 0, 0);
-    m->fonts.textB = LoadFontEx("data/fonts/CrimsonText-Bold.ttf", 24, 0, 0);
-    m->fonts.textI = LoadFontEx("data/fonts/CrimsonText-Italic.ttf", 24, 0, 0);
+    m->fonts.text = LoadFontEx("data/fonts/CrimsonText-Bold.ttf", 24, 0, 0);
+    m->fonts.heading = LoadFontEx("data/fonts/CoelacanthBold.otf", 30, 0, 0);
     m->fonts.title = LoadFontEx("data/fonts/Coelacanth.otf", 64, 0, 0);
-    m->fonts.titleB = LoadFontEx("data/fonts/CoelacanthBold.otf", 64, 0, 0);
-    m->fonts.titleI = LoadFontEx("data/fonts/CoelacanthItalic.otf", 64, 0, 0);
+    m->fonts.big = LoadFontEx("data/fonts/Coelacanth.otf", 120, 0, 0);
 
     m->encounter.klaxon = LoadSound("data/sounds/encounter_bell.wav");
 
@@ -159,6 +157,7 @@ main(int argc, char* argv[])
     while (!WindowShouldClose() && !(m->flags & GlobalFlags_RequestQuit)) {
         /* Update */
         m->deltaTime = GetFrameTime();
+        m->second += m->deltaTime;
         int anyHover = 0;
 
         if (IsKeyPressed(KEY_F4) && (IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT)))
@@ -495,7 +494,7 @@ main(int argc, char* argv[])
 
                     if (fabsf(vpAspect - rtAspect) > 0.001f) {
                         float diff = rtAspect - vpAspect;
-                        Vector2 anchor = (Vector2){0.5f, 0.5f}; /* TODO Make customizable */
+                        Vector2 anchor = unit->class.anchor;
                         if (diff > 0.f) {
                             int cut = (float)tex->width * diff / 2.f;
                             portrait.x = cut * anchor.x;
@@ -537,7 +536,7 @@ main(int argc, char* argv[])
                     button.height = 48;
                     button.x = viewport.x + viewport.width - UI_PADDING - button.width;
                     button.y = viewport.y + viewport.height - UI_PADDING - button.height;
-                    result = ui_button(button, "FLEE", m->fonts.textB.baseSize, KEY_R, active);
+                    result = ui_button(button, "FLEE", KEY_R, active);
                     if (result > 0) {
                         PlaySound(m->click);
                         combat_flee();
@@ -547,7 +546,7 @@ main(int argc, char* argv[])
 
                     /* FIGHT! */
                     button.x = viewport.x + UI_PADDING;
-                    result = ui_button(button, "FIGHT", m->fonts.textB.baseSize, KEY_F, active);
+                    result = ui_button(button, "FIGHT", KEY_F, active);
                     if (result > 0) {
                         PlaySound(m->click);
                         combat_fight();
@@ -569,7 +568,7 @@ main(int argc, char* argv[])
                 button.height = 48;
                 button.x = viewport.x + viewport.width - UI_PADDING - button.width;
                 button.y = viewport.y + viewport.height - UI_PADDING - button.height;
-                result = ui_button(button, "REST", m->fonts.textB.baseSize, KEY_R, true);
+                result = ui_button(button, "REST", KEY_R, true);
                 if (result > 0) {
                     ui_log(ZINNWALDITEBROWN, "Resting...");
                     m->encounter.ticks += 300;
@@ -602,11 +601,18 @@ main(int argc, char* argv[])
             if (m->flags & GlobalFlags_GameOver) {
                 Vector2 position;
                 Vector2 measure;
+                Rectangle frame;
 
-                measure = MeasureTextEx(m->fonts.titleB, "GAME OVER", m->fonts.titleB.baseSize, 0);
-                position.x = viewport.x + viewport.width / 2 - measure.x / 2;
-                position.y = viewport.y + viewport.height / 2 - measure.y / 2;
-                ui_text(m->fonts.titleB, "GAME OVER", position, m->fonts.titleB.baseSize, 0, MAROON);
+                measure = MeasureTextEx(m->fonts.big, "GAME OVER", m->fonts.big.baseSize, 0);
+                frame.x = viewport.x + viewport.width / 2 - measure.x / 2 - UI_PADDING * 2;
+                frame.y = viewport.y + viewport.height / 2 - measure.y / 2 - UI_PADDING;
+                frame.width = measure.x + UI_PADDING * 4;
+                frame.height = measure.y + UI_PADDING * 2;
+                DrawRectangleRec(frame, ColorAlpha(BLACK, 0.8f));
+                ui_border(m->border, frame, BONE);
+                position.x = frame.x + UI_PADDING * 2;
+                position.y = frame.y + UI_PADDING;
+                ui_text(m->fonts.big, "GAME OVER", position, m->fonts.big.baseSize, 0, MAROON);
             }
 
             ui_border(m->border, viewport, BONE);
@@ -618,7 +624,7 @@ main(int argc, char* argv[])
                 position.x -= m->area.width * UI_SIDE_PANEL_FRACTION / 2.f;
                 position.x -= dimensions.x / 2.f;
                 position.y = m->area.top + UI_SIDE_PANEL_HEADER / 2.f - dimensions.y / 2.f;
-                ui_text(m->fonts.title, m->map.name, position, m->fonts.title.baseSize, 0, BONE);
+                ui_text(m->fonts.title, m->map.name, Vector2Floor(position), m->fonts.title.baseSize, 0, BONE);
             }
 
             { /* Side Panel */
@@ -632,6 +638,7 @@ main(int argc, char* argv[])
                 panel.y = m->area.top + UI_SIDE_PANEL_HEADER + UI_PADDING;
                 panel.width = m->area.width * UI_SIDE_PANEL_FRACTION - UI_PADDING * 2;
                 panel.height = m->area.height - UI_PADDING * 2 - UI_SIDE_PANEL_HEADER - UI_SIDE_PANEL_FOOTER;
+                panel = RectangleFloor(panel);
                 position.x = panel.x + UI_PADDING;
                 position.y = panel.y + UI_PADDING;
                 visible = panel.height / m->fonts.text.baseSize;
@@ -660,11 +667,11 @@ main(int argc, char* argv[])
                     if (m->logs[index].text[0]) {
                         Color color = m->logs[index].color;
                         if (color.r > 100 || color.g > 100 | color.b > 150) {
-                            ui_text(m->fonts.textB, m->logs[index].text, position,
-                                        m->fonts.textB.baseSize, 0, color);
+                            ui_text(m->fonts.text, m->logs[index].text, position,
+                                        m->fonts.text.baseSize, 0, color);
                         } else {
-                            DrawTextEx(m->fonts.textB, m->logs[index].text, position,
-                                        m->fonts.textB.baseSize, 0, color);
+                            DrawTextEx(m->fonts.text, m->logs[index].text, position,
+                                        m->fonts.text.baseSize, 0, color);
                         }
                         position.y += m->fonts.text.baseSize;
                     }
@@ -694,22 +701,31 @@ main(int argc, char* argv[])
             }
 
             if (m->flags & GlobalFlags_PartyStats) {
-                char buf[128] = {0};
-                Vector2 position = (Vector2){GetRenderWidth() - 120, 20};
+                char buf[160] = {0};
+                Vector2 position = (Vector2){GetRenderWidth() - 120, 10};
+                int danger = -1;
+                if (m->flags & GlobalFlags_MissionAccomplished) {
+                    danger = 1;
+                } else if (abs(m->partyX - m->map.entryX) + abs(m->partyY - m->map.entryY) > TILE_COUNT / 3) {
+                    danger = 0;
+                }
+
                 snprintf(buf, sizeof(buf),
                         "FPS: %3i\n"
                         "Debug View: %s\n"
                         "Camera: %4.1f, %4.1f\n"
-                        "Tile: %2i, %2i\n"
+                        "Tile: %2i, %2i [%i]\n"
                         "Facing: %s\n"
-                        "Enc: %i/%i\n"
+                        "Enc. Ticks: %i/%i\n"
+                        "Dungeon Level: %i\n"
                         "Seed: %llu\n",
                         GetFPS(),
                         m->flags & GlobalFlags_EditorMode ? "ON" : "off",
                         m->camera.position.x, m->camera.position.z,
-                        m->partyX, m->partyY,
+                        m->partyX, m->partyY, m->partyX + m->partyY * TILE_COUNT,
                         Facing_toString(m->partyFacing),
                         m->encounter.ticks, m->map.encounterFreq,
+                        danger + 2,
                         m->map.seed);
                 ui_text(GetFontDefault(), buf, position, GetFontDefault().baseSize, 1, BONE);
             }
@@ -774,7 +790,7 @@ main(int argc, char* argv[])
 
         /* Encounter Checks */
         if (!(m->flags & GlobalFlags_Encounter)) {
-            if (m->flags & GlobalFlags_AdvanceTurn) {
+            if ((m->flags & GlobalFlags_AdvanceTurn)) {
                 if (m->encounter.ticks > m->map.encounterFreq) {
                     int chance = m->encounter.ticks / m->map.encounterFreq + 1;
                     int die = 6;
@@ -811,11 +827,9 @@ main(int argc, char* argv[])
         UnloadSound(m->footstep[i]);
     }
     UnloadFont(m->fonts.text);
-    UnloadFont(m->fonts.textB);
-    UnloadFont(m->fonts.textI);
+    UnloadFont(m->fonts.heading);
     UnloadFont(m->fonts.title);
-    UnloadFont(m->fonts.titleB);
-    UnloadFont(m->fonts.titleI);
+    UnloadFont(m->fonts.big);
     UnloadSound(m->encounter.klaxon);
     UnloadTexture(m->border);
     UnloadTexture(m->marble);

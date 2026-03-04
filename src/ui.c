@@ -23,6 +23,7 @@ ui_border(Texture border, Rectangle rec, Color color)
     int inside = 1;
     int corner;
 
+    rec = RectangleFloor(rec);
     corner = border.width / 2 - inside;
 
     /* Top Left */
@@ -121,25 +122,27 @@ ui_characterHudCard(Character c, Rectangle card)
     position.x = portrait.x + portrait.width + UI_PADDING;
     position.y = portrait.y;
 
+    card = RectangleFloor(card);
+    portrait = RectangleFloor(portrait);
     DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
 
     { /* Information */
         char buffer[64];
 
         BeginScissorMode(card.x, card.y, card.width, card.height);
-        ui_text(m->fonts.textB, c.name, position, m->fonts.textB.baseSize, 0, MINDAROGREEN);
+        ui_text(m->fonts.heading, c.name, Vector2Floor(position), m->fonts.heading.baseSize, 0, MINDAROGREEN);
+        position.y += m->fonts.heading.baseSize + 2;
 
-        position.y += m->fonts.textB.baseSize + 2;
         snprintf(buffer, sizeof(buffer), "%s %u", CharacterClass_toString(c.class), c.level);
-        DrawTextEx(m->fonts.textB, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
-
+        DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         position.y += m->fonts.text.baseSize + UI_PADDING;
-        snprintf(buffer, sizeof(buffer), "HP: %i/%i", c.health, char_maxHealth(c));
-        DrawTextEx(m->fonts.textB, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
+        snprintf(buffer, sizeof(buffer), "HP: %i/%i", c.health, char_maxHealth(c));
+        DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         position.y += m->fonts.text.baseSize;
+
         snprintf(buffer, sizeof(buffer), "SP: %i/%i", c.stamina, char_maxStamina(c));
-        DrawTextEx(m->fonts.textB, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
         /* Temporary characteristic display TODO This will be replaced by orders and status symbols */
         position.y += m->fonts.text.baseSize;
@@ -147,10 +150,10 @@ ui_characterHudCard(Character c, Rectangle card)
         if (position.y < portrait.y + portrait.height + UI_PADDING)
             position.y = portrait.y + portrait.height + UI_PADDING;
         snprintf(buffer, sizeof(buffer), "STR: %i DEX: %i CON: %i", c.strength, c.dexterity, c.constitution);
-        DrawTextEx(m->fonts.textB, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         position.y += m->fonts.text.baseSize;
         snprintf(buffer, sizeof(buffer), "INT: %i WIL: %i CHA: %i", c.intellect, c.willpower, c.charisma);
-        DrawTextEx(m->fonts.textB, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         position.y += m->fonts.text.baseSize;
         if (c.level < UINT8_MAX) {
             snprintf(buffer, sizeof(buffer), "XP: %llu/%llu", c.experience,
@@ -158,7 +161,7 @@ ui_characterHudCard(Character c, Rectangle card)
         } else {
             snprintf(buffer, sizeof(buffer), "XP: %llu", c.experience);
         }
-        DrawTextEx(m->fonts.textB, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
         EndScissorMode();
         ui_border(m->border, card, BONE);
@@ -173,7 +176,7 @@ ui_characterHudCard(Character c, Rectangle card)
 }
 
 static int
-ui_button(Rectangle rect, char* text, float fontSize, int hotkey, bool enabled)
+ui_button(Rectangle rect, char* text, int hotkey, bool enabled)
 {
     int result = 0;
     Vector2 measure;
@@ -210,27 +213,28 @@ ui_button(Rectangle rect, char* text, float fontSize, int hotkey, bool enabled)
     }
 
 draw:
-    measure = MeasureTextEx(m->fonts.textB, text, fontSize, 0);
-    position.x = rect.x + rect.width / 2 - measure.x / 2;
-    position.y = rect.y + rect.height / 2 - measure.y / 2;
+    rect = RectangleFloor(rect);
+    measure = MeasureTextEx(m->fonts.heading, text, m->fonts.heading.baseSize, 0);
+    position.x = floorf(rect.x + rect.width / 2 - measure.x / 2);
+    position.y = floorf(rect.y + rect.height / 2 - measure.y / 2);
     if (result && (IsMouseButtonDown(0) || IsKeyDown(hotkey))) { // Down
         Color fade = ColorLerp(MAROON, BLACK, 0.6f);
         position.y += 1;
         DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, fade);
         BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
-        ui_text(m->fonts.textB, text, position, fontSize, 0, MOSSGREEN);
+        ui_text(m->fonts.heading, text, position, m->fonts.heading.baseSize, 0, MOSSGREEN);
         EndScissorMode();
         ui_border(m->border, rect, MINDAROGREEN);
     } else if (result < 0) { // Hover
         DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, MAROON);
         BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
-        ui_text(m->fonts.textB, text, position, fontSize, 0, MINDAROGREEN);
+        ui_text(m->fonts.heading, text, position, m->fonts.heading.baseSize, 0, MINDAROGREEN);
         EndScissorMode();
         ui_border(m->border, rect, MINDAROGREEN);
     } else { // Normal
         DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, MAROON);
         BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
-        ui_text(m->fonts.textB, text, position, fontSize, 0, BONE);
+        ui_text(m->fonts.heading, text, position, m->fonts.heading.baseSize, 0, BONE);
         EndScissorMode();
         ui_border(m->border, rect, BONE);
     }

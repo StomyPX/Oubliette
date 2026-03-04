@@ -493,3 +493,36 @@ util_jsonParseInteger(struct json_object_element_s* element, char* key, int64_t*
     return true;
 }
 
+static bool
+util_jsonParseFloat(struct json_object_element_s* element, char* key, double* target)
+{
+    if (util_stricmp((char*)element->name->string, key) != 0)
+        return false;
+
+    if (element->value->type == json_type_number) {
+        *target = strtod(json_value_as_number(element->value)->number, 0);
+    } else {
+        TraceLog(LOG_DEBUG, "MONSTERS: Element for %s was expected to be a number but was a %s",
+                key, json_type_toString(element->value->type));
+    }
+
+    return true;
+}
+
+static Vector2
+Vector2Floor(Vector2 v)
+{
+    v.x = floorf(v.x);
+    v.y = floorf(v.y);
+    return v;
+}
+
+static Rectangle
+RectangleFloor(Rectangle v)
+{
+    v.x = floorf(v.x);
+    v.y = floorf(v.y);
+    v.width = floorf(v.width);
+    v.height = floorf(v.height);
+    return v;
+};
