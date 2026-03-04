@@ -165,8 +165,14 @@ combat_fight(void)
                     } else if (damage > 0) {
                         ui_log(BLACK, "A %s strikes %s for %i damage",
                                 unit->class.truename, ch->name, damage);
+                    } else {
+                        TraceLog(LOG_TRACE, "LOG: A %s swings at %s but %s armor deflects all damage",
+                                unit->class.truename, ch->name,
+                                ch->flags & CharacterFlags_Female ? "her" : "his");
                     }
                     ch->health -= damage;
+                } else {
+                    TraceLog(LOG_TRACE, "LOG: A %s swings at %s but misses", unit->class.truename, ch->name);
                 }
             }
         }
@@ -197,6 +203,8 @@ combat_fight(void)
                 char_exp(m->party + i, xp);
             }
         }
+    } else {
+        TraceLog(LOG_TRACE, "COMBAT: New Round");
     }
 }
 

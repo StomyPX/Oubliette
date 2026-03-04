@@ -197,7 +197,7 @@ map_generateStepForward(Map* map, int* x, int* y, Facing facing)
         return false;
 
     switch (facing) {
-        default: {
+        default: /* North */ {
             if (*y <= 0) return false; // Edge of the map
             wall = util_traverse(facing, *x, *y, 1, 0, 0, 0);
             if (wall > TILE_COUNT * TILE_COUNT)
@@ -231,11 +231,12 @@ map_generateStepForward(Map* map, int* x, int* y, Facing facing)
         } break;
     }
 
-    map->tiles[target] |= TileFlags_AllowEntry;
-    if (map->tiles[target] & TileFlags_Chamber)
+    if (map->tiles[target] & TileFlags_Chamber) {
         return false;
-
-    return true;
+    } else {
+        map->tiles[target] |= TileFlags_AllowEntry;
+        return true;
+    }
 }
 
 static void
