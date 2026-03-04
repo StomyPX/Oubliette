@@ -103,7 +103,7 @@ map_generate(Map* map, uint64_t seed)
     // Starting location
     map->entryX = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 2) + TILE_COUNT / 4;
     map->entryY = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 4);
-    map->tiles[map->entryX + map->entryY * TILE_COUNT] = TileFlags_Filled;
+    map->tiles[map->entryX + map->entryY * TILE_COUNT] = TileFlags_Filled | TileFlags_AllowEntry;
 
     map_generateChamber(map, map->entryX, map->entryY, Facing_South);
     // Build out the map, recursively resolving passages
@@ -489,6 +489,7 @@ map_draw(Map* map, Color light, float visibility, float power)
                 DrawModel(map->wall, origin, 1.f, color);
             }
 
+            /* floor */
             if (map->tiles[index] & (TileFlags_AllowEntry | TileFlags_Filled)) {
                 origin = map_tileCorner(x + 1, y + 1);
                 center = map_tileCenter(x, y);
@@ -497,7 +498,8 @@ map_draw(Map* map, Color light, float visibility, float power)
                 DrawModel(map->flor, origin, 1.f, color);
             }
 
-            if (map->tiles[index] & TileFlags_AllowEntry) {
+            /* ceiling */
+            if ((map->tiles[index] & TileFlags_AllowEntry) && !(map->tiles[index] & TileFlags_Filled)) {
                 origin = map_tileCorner(x + 1, y + 1);
                 center = map_tileCenter(x, y);
                 center.y += TILE_SIDE_LENGTH;

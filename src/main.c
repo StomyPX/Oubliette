@@ -113,7 +113,7 @@ main(int argc, char* argv[])
     m->fonts.text = LoadFontEx("data/fonts/CrimsonText-Bold.ttf", 24, 0, 0);
     m->fonts.heading = LoadFontEx("data/fonts/CoelacanthBold.otf", 30, 0, 0);
     m->fonts.title = LoadFontEx("data/fonts/Coelacanth.otf", 64, 0, 0);
-    m->fonts.big = LoadFontEx("data/fonts/Coelacanth.otf", 120, 0, 0);
+    m->fonts.big = LoadFontEx("data/fonts/Coelacanth.otf", 200, 0, 0);
 
     m->encounter.klaxon = LoadSound("data/sounds/encounter_bell.wav");
 
@@ -225,6 +225,7 @@ main(int argc, char* argv[])
                 SetMousePosition(dragStart.x, dragStart.y);
             }
         } else if (m->flags & GlobalFlags_Encounter) {
+        } else if (m->flags & GlobalFlags_TheEnd) {
         } else {
             int direction = -1;
 
@@ -363,6 +364,19 @@ main(int argc, char* argv[])
                     if (ticks < 50)
                         ticks = 50;
                     m->encounter.ticks += ticks;
+
+                    /* TODO Check for interactables, for now just the entry and exit */
+                    if (m->partyX == m->map.goalX && m->partyY == m->map.goalY) {
+                        m->flags |= GlobalFlags_MissionAccomplished;
+                        ui_log(MINDAROGREEN, "Dread fills your heart as you open the tomb of the Last King");
+                        ui_log(ZINNWALDITEBROWN, "The deed is done, return to the entrance");
+                    } else if ((m->flags & GlobalFlags_MissionAccomplished)
+                                && m->partyX == m->map.entryX && m->partyY == m->map.entryY)
+                    {
+                        m->flags |= GlobalFlags_TheEnd;
+                        m->encounter.ticks = 0;
+                        ui_log(MINDAROGREEN, "You climb out of the Oubliette, to a new and uncertain future...");
+                    }
                 } else {
                     /* Tick up very slightly */
                     m->encounter.ticks += 1;
@@ -587,7 +601,7 @@ main(int argc, char* argv[])
                 button.height = 48;
                 button.x = viewport.x + viewport.width - UI_PADDING - button.width;
                 button.y = viewport.y + viewport.height - UI_PADDING - button.height;
-                result = ui_button(button, "WAIT", KEY_R, true);
+                result = ui_button(button, "WAIT", KEY_R, !(m->flags & GlobalFlags_TheEnd));
                 if (result > 0) {
                     ui_log(ZINNWALDITEBROWN, "Resting...");
                     m->encounter.ticks += 300;
@@ -711,25 +725,27 @@ main(int argc, char* argv[])
                 Rectangle frame;
 
                 measure = MeasureTextEx(m->fonts.big, "GAME OVER", m->fonts.big.baseSize, 0);
-                frame.x = viewport.x + viewport.width / 2 - measure.x / 2 - UI_PADDING * 2;
-                frame.y = viewport.y + viewport.height / 2 - measure.y / 2 - UI_PADDING;
+                frame.x = GetRenderWidth() / 2 - measure.x / 2 - UI_PADDING * 2;
+                frame.y = GetRenderHeight() / 2 - measure.y / 2 - UI_PADDING;
                 frame.width = measure.x + UI_PADDING * 4;
                 frame.height = measure.y + UI_PADDING * 2;
+                frame = RectangleFloor(frame);
                 DrawRectangleRec(frame, ColorAlpha(BLACK, 0.8f));
                 ui_border(m->border, frame, BONE);
                 position.x = frame.x + UI_PADDING * 2;
                 position.y = frame.y + UI_PADDING;
-                ui_text(m->fonts.big, "GAME OVER", position, m->fonts.big.baseSize, 0, MAROON);
+                ui_text(m->fonts.big, "GAME OVER", Vector2Floor(position), m->fonts.big.baseSize, 0, MAROON);
             } else if (m->flags & GlobalFlags_TheEnd) {
                 Vector2 position;
                 Vector2 measure;
                 Rectangle frame;
 
                 measure = MeasureTextEx(m->fonts.big, "THE END", m->fonts.big.baseSize, 0);
-                frame.x = viewport.x + viewport.width / 2 - measure.x / 2 - UI_PADDING * 2;
-                frame.y = viewport.y + viewport.height / 2 - measure.y / 2 - UI_PADDING;
+                frame.x = GetRenderWidth() / 2 - measure.x / 2 - UI_PADDING * 2;
+                frame.y = GetRenderHeight() / 2 - measure.y / 2 - UI_PADDING;
                 frame.width = measure.x + UI_PADDING * 4;
                 frame.height = measure.y + UI_PADDING * 2;
+                frame = RectangleFloor(frame);
                 DrawRectangleRec(frame, ColorAlpha(BLACK, 0.8f));
                 ui_border(m->border, frame, BONE);
                 position.x = frame.x + UI_PADDING * 2;

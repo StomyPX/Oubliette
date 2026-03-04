@@ -197,7 +197,8 @@ ui_characterHudCard(Character c, Rectangle card, int index)
             memmove(buffer, buffer + 7, sizeof(buffer) - 7);
         }
 
-        result = ui_button(button, buffer, index >= 0 ? KEY_F1 + index : KEY_NULL, index >= 0);
+        result = ui_button(button, buffer, index >= 0 ? KEY_F1 + index : KEY_NULL,
+                            index >= 0 && !(m->flags & GlobalFlags_TheEnd));
     }
 
     { /* Portrait */
