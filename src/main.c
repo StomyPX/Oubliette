@@ -511,18 +511,26 @@ main(int argc, char* argv[])
                 DrawTexturePro(*tex, portrait, viewport, (Vector2){0,0}, 0.f, WHITE);
 
                 { /* Combat UI */
-                    Vector2 position;
-                    Rectangle button;
+                    Vector2 position, dims;
+                    Rectangle button, frame;
                     int result;
                     bool active = !(m->flags & GlobalFlags_GameOver);
 
-                    position.x = viewport.x + UI_PADDING;
-                    position.y = viewport.y + UI_PADDING;
                     if (unit->alive == 1) {
                         snprintf(buffer, sizeof(buffer), unit->class.truename);
                     } else {
                         snprintf(buffer, sizeof(buffer), "%u %s", unit->alive, unit->class.truenamePlural);
                     }
+                    dims = MeasureTextEx(m->fonts.title, buffer, m->fonts.title.baseSize, 0);
+                    frame.x = viewport.x + UI_PADDING;
+                    frame.y = viewport.y + UI_PADDING;
+                    frame.width = dims.x + UI_PADDING * 4;
+                    frame.height = dims.y + UI_PADDING * 2;
+                    DrawRectangleRec(frame, ColorAlpha(BLACK, 0.5f));
+                    ui_border(m->border, frame, BONE);
+
+                    position.x = frame.x + UI_PADDING * 2;
+                    position.y = frame.y + UI_PADDING;
                     ui_text(m->fonts.title, buffer, position, m->fonts.title.baseSize, 0, MINDAROGREEN);
 
                     button.width = 120;
@@ -650,8 +658,14 @@ main(int argc, char* argv[])
                 for (unsigned i = 0; i < UI_LOGLINE_COUNT; i++) {
                     unsigned index = (i + m->logCursor) % UI_LOGLINE_COUNT;
                     if (m->logs[index].text[0]) {
-                        DrawTextEx(m->fonts.text, m->logs[index].text, position,
-                                    m->fonts.text.baseSize, 0, m->logs[index].color);
+                        Color color = m->logs[index].color;
+                        if (color.r > 100 || color.g > 100 | color.b > 150) {
+                            ui_text(m->fonts.textB, m->logs[index].text, position,
+                                        m->fonts.textB.baseSize, 0, color);
+                        } else {
+                            DrawTextEx(m->fonts.textB, m->logs[index].text, position,
+                                        m->fonts.textB.baseSize, 0, color);
+                        }
                         position.y += m->fonts.text.baseSize;
                     }
                 }
@@ -772,7 +786,7 @@ main(int argc, char* argv[])
 
                     /* Dead characters decompose, losing more HP */
                     for (int i = 0; i < arrlen(m->party); i++) {
-                        if (m->party[i].health < 1 && PcgRandom_roll(&m->rng, 1, 6) == 1) {
+                        if (m->party[i].health < 0 && PcgRandom_roll(&m->rng, 1, 6) == 1) {
                             m->party[i].health -= 1;
                         }
                     }

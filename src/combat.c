@@ -48,12 +48,12 @@ combat_fight(void)
         }
     }
 
-    for (int step = initHigh; step >= initLow; step--) {
+    for (int segment = initHigh; segment >= initLow; segment--) {
         /* Player Actions */
         for (int i = 0; i < arrlen(m->party); i++) {
             ch = m->party + i;
 
-            if (ch->initiative == step && ch->health > 0 && unit->alive > 0) {
+            if (ch->initiative == segment && ch->health > 0 && unit->alive > 0) {
                 int target = PcgRandom_randomu(&m->rng) % unit->alive;
                 int attacks = 1;
                 int damageDie = 6;
@@ -121,7 +121,7 @@ combat_fight(void)
 
         /* Monster attacks */
         for (int i = 0; i < unit->alive; i++) {
-            if (unit->initiative[i] == step) {
+            if (unit->initiative[i] == segment) {
                 /* Select target based on weighting */
                 int targetRoll = PcgRandom_randomu(&m->rng) % weightTotal;
                 int target;

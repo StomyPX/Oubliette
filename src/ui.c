@@ -128,17 +128,18 @@ ui_characterHudCard(Character c, Rectangle card)
 
         BeginScissorMode(card.x, card.y, card.width, card.height);
         ui_text(m->fonts.textB, c.name, position, m->fonts.textB.baseSize, 0, MINDAROGREEN);
+
         position.y += m->fonts.textB.baseSize + 2;
         snprintf(buffer, sizeof(buffer), "%s %u", CharacterClass_toString(c.class), c.level);
-        DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        DrawTextEx(m->fonts.textB, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
         position.y += m->fonts.text.baseSize + UI_PADDING;
         snprintf(buffer, sizeof(buffer), "HP: %i/%i", c.health, char_maxHealth(c));
-        DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        DrawTextEx(m->fonts.textB, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
         position.y += m->fonts.text.baseSize;
         snprintf(buffer, sizeof(buffer), "SP: %i/%i", c.stamina, char_maxStamina(c));
-        DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        DrawTextEx(m->fonts.textB, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
         /* Temporary characteristic display TODO This will be replaced by orders and status symbols */
         position.y += m->fonts.text.baseSize;
@@ -146,10 +147,10 @@ ui_characterHudCard(Character c, Rectangle card)
         if (position.y < portrait.y + portrait.height + UI_PADDING)
             position.y = portrait.y + portrait.height + UI_PADDING;
         snprintf(buffer, sizeof(buffer), "STR: %i DEX: %i CON: %i", c.strength, c.dexterity, c.constitution);
-        DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        DrawTextEx(m->fonts.textB, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         position.y += m->fonts.text.baseSize;
         snprintf(buffer, sizeof(buffer), "INT: %i WIL: %i CHA: %i", c.intellect, c.willpower, c.charisma);
-        DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        DrawTextEx(m->fonts.textB, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         position.y += m->fonts.text.baseSize;
         if (c.level < UINT8_MAX) {
             snprintf(buffer, sizeof(buffer), "XP: %llu/%llu", c.experience,
@@ -157,7 +158,7 @@ ui_characterHudCard(Character c, Rectangle card)
         } else {
             snprintf(buffer, sizeof(buffer), "XP: %llu", c.experience);
         }
-        DrawTextEx(m->fonts.text, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        DrawTextEx(m->fonts.textB, buffer, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
         EndScissorMode();
         ui_border(m->border, card, BONE);
