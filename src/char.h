@@ -1,5 +1,6 @@
 typedef enum: uint32_t {
     CharacterFlags_Female = 1 << 0,
+    CharacterFlags_Hidden = 1 << 1,
 } CharacterFlags;
 
 typedef enum: uint8_t {
@@ -10,6 +11,29 @@ typedef enum: uint8_t {
 } CharacterClass;
 static char* CharacterClass_toString(CharacterClass c);
 
+typedef enum {
+    CombatAction_Attack = 0,
+    CombatAction_MultiAttack, // Warriors only
+    CombatAction_DefendSelf,
+    CombatAction_GuardOthers, // Inverts Charisma effect on attack weight, minimum of +1. Requires proficiency
+    CombatAction_Hide,
+    CombatAction_UseItem,
+    CombatAction_CastSpell,
+    // TODO Taunt?
+} CombatAction;
+static char* CombatAction_toStringFancy(CombatAction c);
+
+typedef enum {
+    DowntimeActivity_Rest = 0,
+    DowntimeActivity_Guard,
+    DowntimeActivity_Hide,
+} DowntimeActivity;
+static char* DowntimeActivity_toStringFancy(DowntimeActivity c);
+
+typedef enum {
+    InstantAction_UseItem = 0,
+} InstantAction;
+
 typedef struct {
     int32_t health;
     int32_t stamina;
@@ -19,6 +43,10 @@ typedef struct {
     CharacterClass class;
     char name[32];
     Texture portrait;
+
+    // Action Selection
+    CombatAction action;
+    DowntimeActivity activity;
 
     // Base characteristics
     uint8_t strength;

@@ -11,6 +11,34 @@ CharacterClass_toString(CharacterClass c)
     }
 }
 
+static char*
+CombatAction_toStringFancy(CombatAction c)
+{
+    switch (c) {
+        default:
+            TraceLog(LOG_ERROR, "CHARACTER: Unknown combat action, id: %i", c);
+        case CombatAction_Attack: return "Attack";
+        case CombatAction_MultiAttack: return "Multi-Attack";
+        case CombatAction_DefendSelf: return "Defend Self";
+        case CombatAction_GuardOthers: return "Guard Others";
+        case CombatAction_Hide: return "Hide Self";
+        case CombatAction_UseItem: return "Use Item";
+        case CombatAction_CastSpell: return "Cast Spell";
+    }
+}
+
+static char*
+DowntimeActivity_toStringFancy(DowntimeActivity a)
+{
+    switch (a) {
+        default:
+            TraceLog(LOG_ERROR, "CHARACTER: Unknown downtime activity, id: %i", a);
+        case DowntimeActivity_Rest: return "Rest";
+        case DowntimeActivity_Guard: return "Stand Guard";
+        case DowntimeActivity_Hide: return "Hide";
+    }
+}
+
 static Character
 char_random(void)
 {
@@ -39,6 +67,7 @@ char_random(void)
         c.class = CharacterClass_Thief;
     } else {
         c.class = CharacterClass_Warrior;
+        c.action = CombatAction_MultiAttack;
     }
 
     { // Scan through portraits and pick an appropriate one

@@ -54,67 +54,24 @@ combat_fight(void)
             ch = m->party + i;
 
             if (ch->initiative == segment && ch->health > 0 && unit->alive > 0) {
-                int target = PcgRandom_randomu(&m->rng) % unit->alive;
-                int attacks = 1;
-                int damageDie = 6;
-                int accuracy = char_modifier(ch->strength);
-                int damageMod = char_modifier(ch->strength);
-
-                if (ch->class == CharacterClass_Warrior) {
-                    damageDie = 8;
-                    if (ch->level > unit->class.hitDice) {
-                        int cl = ch->level;
-                        int ml = unit->class.hitDice;
-
-                        if (unit->class.hitDice == 0) {
-                            cl *= 4;
-                            ml = 3;
-                        } else if (unit->class.hitDice == -1) {
-                            cl *= 3;
-                            ml = 2;
-                        } else if (unit->class.hitDice < -1) {
-                            cl *= -unit->class.hitDice;
-                            ml = 1;
-                        }
-
-                        attacks = util_intclamp(cl / ml, attacks, unit->alive);
-                    }
-                    accuracy += ch->level / 2;
-                } else if (ch->class == CharacterClass_Mage) {
-                    damageDie = 4;
-                    accuracy += ch->level / 4;
-                } else {
-                    accuracy += ch->level / 3;
+                switch (ch->action) {
+                    default:
+                        TraceLog(LOG_ERROR, "Unknown combat action id: %i, defaulting to attack", ch->action);
+                    case CombatAction_Attack: combat_attack(ch, unit); break;
+                    case CombatAction_MultiAttack: combat_multiAttack(ch, unit); break;
                 }
+            }
 
-                for (int attack = 0; attack < attacks; attack++) {
-                    int tohit = PcgRandom_roll(&m->rng, 1, 20);
+            /* Stamina Check */
+            if (ch->stamina < 0) {
+                int multiple = 3;
+                int loss = -ch->stamina / multiple;
+                ch->stamina %= multiple;
+                ch->health -= loss;
 
-                    if (tohit == 20 || (tohit + accuracy >= 10 + unit->class.defense && tohit != 1)) {
-                        int damage = PcgRandom_roll(&m->rng, 1, damageDie) + damageMod;
-                        damage = util_intmax(1, damage);
-                        if (damage < unit->health[target]) {
-                            ui_log(ZINNWALDITEBROWN, "%s strikes a %s for %i damage",
-                                    ch->name, unit->class.truename, damage);
-                        } else {
-                            ui_log(ZINNWALDITEBROWN, "%s strikes a %s for %i damage, killing it!",
-                                    ch->name, unit->class.truename, damage);
-                        }
-                        unit->health[target] -= damage;
-                    } else {
-                        ui_log(ZINNWALDITEBROWN, "%s swings but misses", ch->name);
-                    }
-
-                    if (unit->health[target] > 0) {
-                        target += 1;
-                        target %= unit->alive;
-                    } else if (unit->alive > 1) {
-                        unit->alive -= 1;
-                        unit->health[target] = unit->health[unit->alive];
-                        unit->initiative[target] = unit->initiative[unit->alive];
-                    } else {
-                        unit->alive = 0;
-                    }
+                if (ch->health <= 0) {
+                    ch->health = 0;
+                    ui_log(MAROON, "%s collapses from exhaustion!", ch->name);
                 }
             }
         }
@@ -143,7 +100,7 @@ combat_fight(void)
 
                 tohit = PcgRandom_roll(&m->rng, 1, 20);
                 tohit -= util_intmax(0, char_modifier(ch->charisma)); // Only creatures of average intelligence should acknowledge this
-                if (tohit == 20 || (tohit + unit->class.attack > 10 + char_modifier(ch->dexterity) && tohit != 1)) {
+                if (tohit == 20 || (tohit + unit->class.attack > COMBAT_BASE_DEFENSE + char_modifier(ch->dexterity) && tohit != 1)) {
                     int damage = PcgRandom_roll(&m->rng, 1, unit->class.damageDie) + unit->class.damageModifier;
                     damage = util_intmax(1, damage);
                     switch (ch->class) {
@@ -162,6 +119,7 @@ combat_fight(void)
                         ui_log(MAROON, "A %s strikes %s for %i damage and kills %s!",
                                 unit->class.truename, ch->name, damage,
                                 (ch->flags & CharacterFlags_Female) ? "her" : "him");
+                        ch->stamina = 0;
                     } else if (damage > 0) {
                         ui_log(BLACK, "A %s strikes %s for %i damage",
                                 unit->class.truename, ch->name, damage);
@@ -274,5 +232,122 @@ combat_flee(void)
             ui_log(ZINNWALDITEBROWN, "The party escapes");
             m->flags &= ~(GlobalFlags_Encounter);
         }
+    }
+}
+
+static void
+combat_attack(Character* ch, Unit* unit)
+{
+    int target = PcgRandom_randomu(&m->rng) % unit->alive;
+    int damageDie = 6; // TODO Determined by weapon
+    int accuracy = char_modifier(ch->strength);
+    int damageMod = char_modifier(ch->strength);
+
+    if (ch->class == CharacterClass_Warrior) {
+        accuracy += 1 + ch->level / 2;
+    } else if (ch->class == CharacterClass_Mage) {
+        accuracy += ch->level / 4;
+    } else {
+        accuracy += ch->level / 3;
+    }
+
+    if (ch->stamina < 1) {
+        accuracy -= 2;
+    }
+
+    {
+        int tohit = 0;
+
+        { /* Explosive Roll */
+            int roll;
+            int i = 0;
+            do {
+                roll = PcgRandom_roll(&m->rng, 1, 20);
+                tohit += roll;
+                i++;
+            } while (roll == 20 && i < 3);
+        }
+
+        if (tohit != 1 && tohit + accuracy >= COMBAT_BASE_DEFENSE + unit->class.defense) {
+            int damage = damageMod;
+            int critRange = 20;
+            char* verb = "strikes";
+            Color color = ZINNWALDITEBROWN;
+
+            damage += PcgRandom_roll(&m->rng, 1, damageDie);
+
+            { /* check for critical hit */
+                if (ch->class == CharacterClass_Thief) {
+                    if (ch->flags & CharacterFlags_Hidden) {
+                        critRange = 0;
+                    } else {
+                        critRange -= 2;
+                    }
+                }
+
+                if (tohit + accuracy >= COMBAT_BASE_DEFENSE + critRange + unit->class.defense) {
+                    damage += PcgRandom_roll(&m->rng, 1, damageDie);
+                    verb = "critically hits";
+                    color = WHITE;
+                }
+            }
+
+            damage = util_intmax(1, damage);
+            if (damage < unit->health[target]) {
+                ui_log(color, "%s %s a %s for %i damage",
+                        ch->name, verb, unit->class.truename, damage);
+                // TODO lose hidden status
+            } else {
+                ui_log(color, "%s %s a %s for %i damage, killing it!",
+                        ch->name, verb, unit->class.truename, damage);
+                // TODO lose hidden status if not a thief
+            }
+            unit->health[target] -= damage;
+        } else {
+            ui_log(ZINNWALDITEBROWN, "%s swings but misses", ch->name);
+        }
+    }
+
+    if (unit->health[target] > 0) {
+        target += 1;
+        target %= unit->alive;
+    } else if (unit->alive > 1) {
+        unit->alive -= 1;
+        unit->health[target] = unit->health[unit->alive];
+        unit->initiative[target] = unit->initiative[unit->alive];
+    } else {
+        unit->alive = 0;
+    }
+
+    /* Stamina Expenditure */
+    if (PcgRandom_roll(&m->rng, 1, 3) == 1) {
+        ch->stamina -= 1;
+    }
+}
+
+static void
+combat_multiAttack(Character* ch, Unit* unit)
+{
+    int attacks = 1;
+    if (ch->level > unit->class.hitDice) {
+        int cl = ch->level;
+        int ml = unit->class.hitDice;
+
+        if (unit->class.hitDice == 0) {
+            cl *= 4;
+            ml = 3;
+        } else if (unit->class.hitDice == -1) {
+            cl *= 3;
+            ml = 2;
+        } else if (unit->class.hitDice < -1) {
+            cl *= -unit->class.hitDice;
+            ml = 1;
+        }
+
+        attacks = util_intclamp(cl / ml, attacks, unit->alive);
+    }
+
+    for (int i = 0; i < attacks; i++) {
+        combat_attack(ch, unit);
     }
 }

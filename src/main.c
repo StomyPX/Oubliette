@@ -851,15 +851,26 @@ main(int argc, char* argv[])
                     int die = 6;
                     m->encounter.ticks %= m->map.encounterFreq;
 
-                    if (PcgRandom_roll(&m->rng, 1, die) <= chance) {
-                        monster_encounter(&m->monsters);
+                    /* Per-check events TODO Use a separate, fixed accumulator */
+                    for (int i = 0; i < arrlen(m->party); i++) {
+                        Character* ch = m->party + i;
+
+                        /* Passive stamina recovery */
+                        if (ch->health > 0 && ch->stamina < char_maxStamina(*ch)) {
+                            int die = (ch->constitution + ch->willpower) / 20 + 1;
+                            ch->stamina += PcgRandom_roll(&m->rng, 1, die) - 1;
+                            if (ch->stamina > char_maxStamina(*ch))
+                                ch->stamina = char_maxStamina(*ch);
+                        }
+
+                        /* Dead characters decompose, losing more HP */
+                        if (ch->health < 0 && PcgRandom_roll(&m->rng, 1, 6) == 1) {
+                            ch->health -= 1;
+                        }
                     }
 
-                    /* Dead characters decompose, losing more HP */
-                    for (int i = 0; i < arrlen(m->party); i++) {
-                        if (m->party[i].health < 0 && PcgRandom_roll(&m->rng, 1, 6) == 1) {
-                            m->party[i].health -= 1;
-                        }
+                    if (PcgRandom_roll(&m->rng, 1, die) <= chance) {
+                        monster_encounter(&m->monsters);
                     }
                 }
 

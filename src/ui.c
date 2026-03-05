@@ -142,21 +142,11 @@ ui_characterHudCard(Character c, Rectangle card, int index)
         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         position.y += m->fonts.text.baseSize;
 
-        snprintf(buffer, sizeof(buffer), "SP: %i/%i", c.stamina, char_maxStamina(c));
+        snprintf(buffer, sizeof(buffer), "SP: %i/%i", util_intmax(0, c.stamina), char_maxStamina(c));
         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        position.y += m->fonts.text.baseSize;
 
-    #if 0
-        /* Temporary characteristic display TODO This will be replaced by orders and status symbols */
-        position.y += m->fonts.text.baseSize;
-        position.x = card.x + UI_PADDING;
-        if (position.y < portrait.y + portrait.height + UI_PADDING)
-            position.y = portrait.y + portrait.height + UI_PADDING;
-        snprintf(buffer, sizeof(buffer), "STR: %i DEX: %i CON: %i", c.strength, c.dexterity, c.constitution);
-        DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
-        position.y += m->fonts.text.baseSize;
-        snprintf(buffer, sizeof(buffer), "INT: %i WIL: %i CHA: %i", c.intellect, c.willpower, c.charisma);
-        DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
-        position.y += m->fonts.text.baseSize;
+        /* Characteristic display */
         if (c.level < UINT8_MAX) {
             snprintf(buffer, sizeof(buffer), "XP: %llu/%llu", c.experience,
                     char_levelRequirement(c.class, c.level + 1));
@@ -164,7 +154,19 @@ ui_characterHudCard(Character c, Rectangle card, int index)
             snprintf(buffer, sizeof(buffer), "XP: %llu", c.experience);
         }
         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
-    #endif
+        position.y += m->fonts.text.baseSize;
+
+        snprintf(buffer, sizeof(buffer), "STR: %i DEX: %i", c.strength, c.dexterity);
+        DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+
+        position.y += m->fonts.text.baseSize;
+        snprintf(buffer, sizeof(buffer), "CON: %i INT: %i", c.constitution, c.intellect);
+        DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+
+        position.y += m->fonts.text.baseSize;
+        snprintf(buffer, sizeof(buffer), "WIL: %i CHA: %i", c.willpower, c.charisma);
+        DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        position.y += m->fonts.text.baseSize;
 
         EndScissorMode();
         ui_border(m->border, card, BONE);
@@ -173,12 +175,13 @@ ui_characterHudCard(Character c, Rectangle card, int index)
     { /* Action selection button */
         Rectangle button;
         Vector2 measure;
+        Vector2 position;
         char buffer[32];
         int prefix;
 
         button.x = portrait.x;
+        button.y = portrait.y + portrait.height + UI_PADDING;
         button.height = util_intmin(48, card.height - portrait.height - UI_PADDING * 3);
-        button.y = card.y + card.height - UI_PADDING - button.height;
 
         #if 0
         button.width = card.width - UI_PADDING * 2;
@@ -199,7 +202,7 @@ ui_characterHudCard(Character c, Rectangle card, int index)
             memmove(buffer, buffer + prefix, sizeof(buffer) - prefix);
         }
         #else
-        button.width = util_intmin(120, (card.width - UI_PADDING * 3) / 2);
+        button.width = util_intmin(120, portrait.width);
         prefix = 0;
         snprintf(buffer, sizeof(buffer), "ACTION");
 
@@ -211,6 +214,16 @@ ui_characterHudCard(Character c, Rectangle card, int index)
 
         result = ui_button(button, buffer, index >= 0 ? KEY_F1 + index : KEY_NULL,
                             index >= 0 && !(m->flags & GlobalFlags_TheEnd));
+
+        position.x = button.x;
+        position.y = button.y + button.height + UI_PADDING;
+        if (m->flags & GlobalFlags_Encounter) {
+            DrawTextEx(m->fonts.text, CombatAction_toStringFancy(c.action), Vector2Floor(position),
+                        m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        } else {
+            DrawTextEx(m->fonts.text, DowntimeActivity_toStringFancy(c.activity), Vector2Floor(position),
+                        m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+        }
     }
 
     { /* Portrait */
