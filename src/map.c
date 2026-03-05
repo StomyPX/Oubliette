@@ -100,6 +100,12 @@ map_generate(Map* map, uint64_t seed)
     map->goalTex = LoadTexture("data/textures/tomb.png");
     SetMaterialTexture(&map->goal.materials[0], MATERIAL_MAP_DIFFUSE, map->goalTex);
 
+    map->entry = LoadModel("data/statics/ladderUp.glb");
+    map->entryTex = LoadTexture("data/textures/dlv_woodstp2b.png");
+    // There's an unused material in the first slot? Probably from the blender export
+    SetMaterialTexture(&map->entry.materials[1], MATERIAL_MAP_DIFFUSE, map->ceilingTex);
+    SetMaterialTexture(&map->entry.materials[2], MATERIAL_MAP_DIFFUSE, map->entryTex);
+
     // Starting location
     map->entryX = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 2) + TILE_COUNT / 4;
     map->entryY = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 4);
@@ -509,6 +515,17 @@ map_draw(Map* map, Color light, float visibility, float power)
                 DrawModel(map->ceiling, origin, 1.f, color);
             }
 
+            /* Entrance Ladder */
+            if (x == map->entryX && y == map->entryY) {
+                origin = map_tileCorner(x + 1, y + 1);
+                center = map_tileCenter(x, y);
+                center.y += TILE_SIDE_LENGTH;
+                distance = Vector3Distance(position, center);
+                color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
+                DrawModel(map->entry, origin, 1.f, color);
+            }
+
+            /* Tomb */
             if (x == map->goalX && y == map->goalY) {
                 origin = map_tileCorner(x + 1, y + 1);
                 center = map_tileCenter(x, y);

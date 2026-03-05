@@ -177,14 +177,15 @@ ui_characterHudCard(Character c, Rectangle card, int index)
         int prefix;
 
         button.x = portrait.x;
-        button.width = card.width - UI_PADDING * 2;
         button.height = util_intmin(48, card.height - portrait.height - UI_PADDING * 3);
         button.y = card.y + card.height - UI_PADDING - button.height;
 
+        #if 0
+        button.width = card.width - UI_PADDING * 2;
         if (m->flags & GlobalFlags_Encounter) {
             prefix = 8;
             if (c.class == CharacterClass_Warrior) {
-                snprintf(buffer, sizeof(buffer), "Action: Multi-Attack");
+                snprintf(buffer, sizeof(buffer), "ACTION: Multi-Attack");
             } else {
                 snprintf(buffer, sizeof(buffer), "Action: Attack");
             }
@@ -192,10 +193,21 @@ ui_characterHudCard(Character c, Rectangle card, int index)
             prefix = 6;
             snprintf(buffer, sizeof(buffer), "Wait: Rest");
         }
+
         measure = MeasureTextEx(m->fonts.heading, buffer, m->fonts.heading.baseSize, 0);
         if (measure.x > button.width - UI_PADDING) {
-            memmove(buffer, buffer + 7, sizeof(buffer) - 7);
+            memmove(buffer, buffer + prefix, sizeof(buffer) - prefix);
         }
+        #else
+        button.width = util_intmin(120, (card.width - UI_PADDING * 3) / 2);
+        prefix = 0;
+        snprintf(buffer, sizeof(buffer), "ACTION");
+
+        measure = MeasureTextEx(m->fonts.heading, buffer, m->fonts.heading.baseSize, 0);
+        if (measure.x > button.width - UI_PADDING) {
+            snprintf(buffer, sizeof(buffer), "ACT");
+        }
+        #endif
 
         result = ui_button(button, buffer, index >= 0 ? KEY_F1 + index : KEY_NULL,
                             index >= 0 && !(m->flags & GlobalFlags_TheEnd));

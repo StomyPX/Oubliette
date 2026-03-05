@@ -38,6 +38,8 @@ typedef struct {
     Texture     ceilingTex;
     Model       goal;
     Texture     goalTex;
+    Model       entry;
+    Texture     entryTex;
     // TODO decorations (models/sprites)
 
     // Build Info
