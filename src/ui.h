@@ -17,6 +17,6 @@ static void ui_border(Texture border, Rectangle rec, Color color);
 
 /* Default color: ZINNWALDITEBROWN */
 static void ui_log(Color color, char* fmt, ...);
-static int ui_characterHudCard(Character c, Rectangle r, int index);
+static int ui_characterHudCard(Character* c, Rectangle r, int index);
 /* -1 on hover, 1 on LMB down, 2 on RMB down */
 static int ui_button(Rectangle rect, char* text, int hotkey, bool enabled);

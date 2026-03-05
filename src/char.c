@@ -21,7 +21,7 @@ CombatAction_toStringFancy(CombatAction c)
         case CombatAction_MultiAttack: return "Multi-Attack";
         case CombatAction_DefendSelf: return "Defend Self";
         case CombatAction_GuardOthers: return "Guard Others";
-        case CombatAction_Hide: return "Hide Self";
+        case CombatAction_Hide: return "Hide in Shadow";
         case CombatAction_UseItem: return "Use Item";
         case CombatAction_CastSpell: return "Cast Spell";
     }
@@ -34,7 +34,7 @@ DowntimeActivity_toStringFancy(DowntimeActivity a)
         default:
             TraceLog(LOG_ERROR, "CHARACTER: Unknown downtime activity, id: %i", a);
         case DowntimeActivity_Rest: return "Rest";
-        case DowntimeActivity_Guard: return "Stand Guard";
+        //case DowntimeActivity_Guard: return "Stand Guard";
         case DowntimeActivity_Hide: return "Hide";
     }
 }

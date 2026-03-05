@@ -33,7 +33,7 @@ combat_fight(void)
     int weights[4] = {};
     int weightTotal = 0;
     for (int i = 0; i < arrlen(m->party); i++) {
-        if (m->party[i].health > 0) {
+        if (m->party[i].health > 0 && !(m->party[i].flags & CharacterFlags_Hidden)) {
             ch = m->party + i;
             weights[i] = 24;
             weights[i] -= ch->charisma;
@@ -59,6 +59,19 @@ combat_fight(void)
                         TraceLog(LOG_ERROR, "Unknown combat action id: %i, defaulting to attack", ch->action);
                     case CombatAction_Attack: combat_attack(ch, unit); break;
                     case CombatAction_MultiAttack: combat_multiAttack(ch, unit); break;
+                    case CombatAction_Hide: {
+                        int danger = -1;
+                        if (m->flags & GlobalFlags_MissionAccomplished) {
+                            danger = 1;
+                        } else if (abs(m->partyX - m->map.entryX) + abs(m->partyY - m->map.entryY) > TILE_COUNT / 3) {
+                            danger = 0;
+                        }
+                        int chance = ch->hide + ch->level + char_modifier(ch->dexterity) - danger * 30;
+                        if (PcgRandom_roll(&m->rng, 1, 100) < chance) {
+                            ui_log(ZINNWALDITEBROWN, "%s melds with the shadows", ch->name);
+                            ch->flags |= CharacterFlags_Hidden;
+                        }
+                    } break;
                 }
             }
 
@@ -77,6 +90,17 @@ combat_fight(void)
         }
 
         /* Monster attacks */
+        if (weightTotal < 1) {
+            if (unit->alive == 1) {
+                ui_log(ZINNWALDITEBROWN, "The %s peers through the darkness but finds nobody to attack",
+                        unit->class.truename);
+            } else {
+                ui_log(ZINNWALDITEBROWN, "The %s peer through the darkness but find nobody to attack",
+                        unit->class.truenamePlural);
+            }
+            continue;
+        }
+
         for (int i = 0; i < unit->alive; i++) {
             if (unit->initiative[i] == segment) {
                 /* Select target based on weighting */
@@ -87,6 +111,8 @@ combat_fight(void)
                 for (target = 0; target < arrlen(m->party) - 1; target++) {
                     if (m->party[target].health < 1)
                         continue;
+                    if (m->party[target].flags & CharacterFlags_Hidden)
+                        continue;
                     if (targetRoll <= weights[target]) {
                         break;
                     } else {
@@ -95,6 +121,8 @@ combat_fight(void)
                 }
 
                 ch = m->party + target;
+                if (ch->flags & CharacterFlags_Hidden)
+                    continue; /* Wha!? Where did he go!? */
                 if (ch->health <= 0)
                     continue; /* Stop, he's already dead! */
 
@@ -177,6 +205,9 @@ combat_flee(void)
         int roll = PcgRandom_roll(&m->rng, 1, 20);
 
         if (c->health < 1)
+            continue;
+
+        if (c->flags & CharacterFlags_Hidden)
             continue;
 
         if (c->class == CharacterClass_Thief) {
@@ -296,14 +327,20 @@ combat_attack(Character* ch, Unit* unit)
             if (damage < unit->health[target]) {
                 ui_log(color, "%s %s a %s for %i damage",
                         ch->name, verb, unit->class.truename, damage);
-                // TODO lose hidden status
+                ch->flags &= ~(CharacterFlags_Hidden);
             } else {
                 ui_log(color, "%s %s a %s for %i damage, killing it!",
                         ch->name, verb, unit->class.truename, damage);
-                // TODO lose hidden status if not a thief
+                if (ch->class != CharacterClass_Thief)
+                    ch->flags &= ~(CharacterFlags_Hidden);
             }
             unit->health[target] -= damage;
         } else {
+            if (ch->flags & CharacterFlags_Hidden) {
+                int chance = ch->hide * 2 + ch->level + char_modifier(ch->dexterity);
+                if (PcgRandom_roll(&m->rng, 1, 100) >= chance)
+                    ch->flags &= ~(CharacterFlags_Hidden);
+            }
             ui_log(ZINNWALDITEBROWN, "%s swings but misses", ch->name);
         }
     }

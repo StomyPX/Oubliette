@@ -605,23 +605,25 @@ main(int argc, char* argv[])
                 if (result > 0) {
                     ui_log(ZINNWALDITEBROWN, "Resting...");
                     m->encounter.ticks += 300;
-                    m->flags |= GlobalFlags_AdvanceTurn;
+                    m->flags |= GlobalFlags_AdvanceTurn | GlobalFlags_Downtime;
 
                     for (int i = 0; i < arrlen(m->party); i++) {
                         Character* c = m->party + i;
                         if (!c->name[0] || c->health < 1)
                             continue;
 
-                        if (c->stamina < char_maxStamina(*c)) {
-                            int die = (c->constitution + c->willpower) / 10 + 2;
-                            c->stamina += PcgRandom_roll(&m->rng, 1, die);
-                            if (c->stamina > char_maxStamina(*c))
-                                c->stamina = char_maxStamina(*c);
-                        } else if (c->health < char_maxHealth(*c)) {
-                            int die = c->constitution / 20 + 2;
-                            c->health += PcgRandom_roll(&m->rng, 1, die) - 1;
-                            if (c->health > char_maxHealth(*c))
-                                c->health = char_maxHealth(*c);
+                        if (c->activity == DowntimeActivity_Rest) {
+                            if (c->stamina < char_maxStamina(*c)) {
+                                int die = (c->constitution + c->willpower) / 10 + 2;
+                                c->stamina += PcgRandom_roll(&m->rng, 1, die);
+                                if (c->stamina > char_maxStamina(*c))
+                                    c->stamina = char_maxStamina(*c);
+                            } else if (c->health < char_maxHealth(*c)) {
+                                int die = c->constitution / 20 + 2;
+                                c->health += PcgRandom_roll(&m->rng, 1, die) - 1;
+                                if (c->health > char_maxHealth(*c))
+                                    c->health = char_maxHealth(*c);
+                            }
                         }
                     }
 
@@ -703,19 +705,19 @@ main(int argc, char* argv[])
                 card.y = m->area.top + m->area.height * (1.f - UI_PORTRAIT_FRACTION) + UI_PADDING;
                 card.width = m->area.width * (1.f - UI_SIDE_PANEL_FRACTION) / 4.f - UI_PADDING * 2;
                 card.height = m->area.height * UI_PORTRAIT_FRACTION - UI_PADDING * 2;
-                if (ui_characterHudCard(m->party[0], card, 0))
+                if (ui_characterHudCard(m->party + 0, card, 0))
                     anyHover = 4;
 
                 card.x += card.width + UI_PADDING * 2;
-                if (ui_characterHudCard(m->party[1], card, 1))
+                if (ui_characterHudCard(m->party + 1, card, 1))
                     anyHover = 5;
 
                 card.x += card.width + UI_PADDING * 2;
-                if (ui_characterHudCard(m->party[2], card, 2))
+                if (ui_characterHudCard(m->party + 2, card, 2))
                     anyHover = 6;
 
                 card.x += card.width + UI_PADDING * 2;
-                if (ui_characterHudCard(m->party[3], card, 3))
+                if (ui_characterHudCard(m->party + 3, card, 3))
                     anyHover = 7;
             }
 
@@ -855,8 +857,14 @@ main(int argc, char* argv[])
                     for (int i = 0; i < arrlen(m->party); i++) {
                         Character* ch = m->party + i;
 
+                        /* Incapacitated Characters have a percentage chance to wake */
+                        if (ch->health == 0 && PcgRandom_roll(&m->rng, 1, 100) < ch->stamina) {
+                            ch->health -= 1;
+                            ui_log(WHITE, "%s recovers consciousness", ch->name);
+                        }
+
                         /* Passive stamina recovery */
-                        if (ch->health > 0 && ch->stamina < char_maxStamina(*ch)) {
+                        if (ch->health >= 0 && ch->stamina < char_maxStamina(*ch)) {
                             int die = (ch->constitution + ch->willpower) / 20 + 1;
                             ch->stamina += PcgRandom_roll(&m->rng, 1, die) - 1;
                             if (ch->stamina > char_maxStamina(*ch))
@@ -866,6 +874,18 @@ main(int argc, char* argv[])
                         /* Dead characters decompose, losing more HP */
                         if (ch->health < 0 && PcgRandom_roll(&m->rng, 1, 6) == 1) {
                             ch->health -= 1;
+                            if (PcgRandom_roll(&m->rng, 1, 6) == 1) {
+                                switch (PcgRandom_roll(&m->rng, 1, 6)) {
+                                    default:
+                                    case 1: ch->strength -= 1;
+                                    case 2: ch->dexterity -= 1;
+                                    case 3: ch->constitution -= 1;
+                                    case 4: ch->intellect -= 1;
+                                    case 5: ch->willpower -= 1;
+                                    case 6: ch->charisma -= 1;
+                                }
+                                /* TODO Having a stat reduced to zero renders a character invalid */
+                            }
                         }
                     }
 
@@ -874,7 +894,7 @@ main(int argc, char* argv[])
                     }
                 }
 
-                m->flags &= ~(GlobalFlags_AdvanceTurn);
+                m->flags &= ~(GlobalFlags_AdvanceTurn | GlobalFlags_Downtime);
             }
 
             // TODO if not in a menu or encounter

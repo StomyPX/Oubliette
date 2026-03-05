@@ -68,7 +68,6 @@ monster_cleanup(MonstrousCompendium* monstrous)
 static void
 monster_encounter(MonstrousCompendium* monstrous)
 {
-    /* TODO Danger modifier applies based on proximity to features, with entry and exit overriding all else */
     size_t count = 0;
     size_t count2 = 0;
     size_t pick;
@@ -151,7 +150,35 @@ monster_encounter(MonstrousCompendium* monstrous)
         }
     }
 
-    /* TODO Ambush/Surprise */
+    /* TODO Ambush/Surprise (per unit and per character) */
+
+    /* Automatic abilities */
+    for (int i = 0; i < arrlen(m->party); i++) {
+        Character* ch = m->party + i;
+        ch->flags &= ~(CharacterFlags_Hidden);
+
+        if (ch->health <= 0)
+            continue;
+
+        { /* Hide chance */
+            int chance = 0;
+
+            if (m->flags & GlobalFlags_Downtime) {
+                if (ch->activity == DowntimeActivity_Hide) {
+                    chance += ch->hide + ch->level + char_modifier(ch->dexterity);
+                    chance -= danger * 30;
+                    if (ch->class == CharacterClass_Thief)
+                        chance += ch->hide;
+                }
+            } else if (ch->class == CharacterClass_Thief) {
+                chance += ch->hide + ch->level + char_modifier(ch->dexterity);
+                chance -= danger * 30;
+            }
+
+            if (PcgRandom_roll(&m->rng, 1, 100) < chance)
+                ch->flags |= CharacterFlags_Hidden;
+        }
+    }
 
     PlaySound(m->encounter.klaxon);
 }

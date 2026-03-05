@@ -1,6 +1,7 @@
 typedef enum: uint32_t {
     CharacterFlags_Female = 1 << 0,
     CharacterFlags_Hidden = 1 << 1,
+    CharacterFlags_Surprised = 1 << 2,
 } CharacterFlags;
 
 typedef enum: uint8_t {
@@ -25,8 +26,9 @@ static char* CombatAction_toStringFancy(CombatAction c);
 
 typedef enum {
     DowntimeActivity_Rest = 0,
-    DowntimeActivity_Guard,
+    //DowntimeActivity_Guard,
     DowntimeActivity_Hide,
+    DowntimeActivity_Count,
 } DowntimeActivity;
 static char* DowntimeActivity_toStringFancy(DowntimeActivity c);
 

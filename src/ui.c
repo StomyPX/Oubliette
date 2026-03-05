@@ -106,7 +106,7 @@ ui_log(Color color, char* fmt, ...)
 }
 
 static int
-ui_characterHudCard(Character c, Rectangle card, int index)
+ui_characterHudCard(Character* ch, Rectangle card, int index)
 {
     Rectangle portrait;
     Texture ptex;
@@ -115,7 +115,7 @@ ui_characterHudCard(Character c, Rectangle card, int index)
     Color color;
     int result;
 
-    ptex = c.health > 0 ? c.portrait : m->dead;
+    ptex = ch->health >= 0 ? ch->portrait : m->dead;
     portrait.x = card.x + UI_PADDING;
     portrait.y = card.y + UI_PADDING;
     portrait.width = card.width / 2.f;
@@ -131,40 +131,40 @@ ui_characterHudCard(Character c, Rectangle card, int index)
         char buffer[64];
 
         BeginScissorMode(card.x, card.y, card.width, card.height);
-        ui_text(m->fonts.heading, c.name, Vector2Floor(position), m->fonts.heading.baseSize, 0, MINDAROGREEN);
+        ui_text(m->fonts.heading, ch->name, Vector2Floor(position), m->fonts.heading.baseSize, 0, MINDAROGREEN);
         position.y += m->fonts.heading.baseSize + 2;
 
-        snprintf(buffer, sizeof(buffer), "%s %u", CharacterClass_toString(c.class), c.level);
+        snprintf(buffer, sizeof(buffer), "%s %u", CharacterClass_toString(ch->class), ch->level);
         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         position.y += m->fonts.text.baseSize + UI_PADDING;
 
-        snprintf(buffer, sizeof(buffer), "HP: %i/%i", c.health, char_maxHealth(c));
+        snprintf(buffer, sizeof(buffer), "HP: %i/%i", ch->health, char_maxHealth(*ch));
         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         position.y += m->fonts.text.baseSize;
 
-        snprintf(buffer, sizeof(buffer), "SP: %i/%i", util_intmax(0, c.stamina), char_maxStamina(c));
+        snprintf(buffer, sizeof(buffer), "SP: %i/%i", util_intmax(0, ch->stamina), char_maxStamina(*ch));
         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         position.y += m->fonts.text.baseSize;
 
         /* Characteristic display */
-        if (c.level < UINT8_MAX) {
-            snprintf(buffer, sizeof(buffer), "XP: %llu/%llu", c.experience,
-                    char_levelRequirement(c.class, c.level + 1));
+        if (ch->level < UINT8_MAX) {
+            snprintf(buffer, sizeof(buffer), "XP: %llu/%llu", ch->experience,
+                    char_levelRequirement(ch->class, ch->level + 1));
         } else {
-            snprintf(buffer, sizeof(buffer), "XP: %llu", c.experience);
+            snprintf(buffer, sizeof(buffer), "XP: %llu", ch->experience);
         }
         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         position.y += m->fonts.text.baseSize;
 
-        snprintf(buffer, sizeof(buffer), "STR: %i DEX: %i", c.strength, c.dexterity);
+        snprintf(buffer, sizeof(buffer), "STR: %i DEX: %i", ch->strength, ch->dexterity);
         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
         position.y += m->fonts.text.baseSize;
-        snprintf(buffer, sizeof(buffer), "CON: %i INT: %i", c.constitution, c.intellect);
+        snprintf(buffer, sizeof(buffer), "CON: %i INT: %i", ch->constitution, ch->intellect);
         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
 
         position.y += m->fonts.text.baseSize;
-        snprintf(buffer, sizeof(buffer), "WIL: %i CHA: %i", c.willpower, c.charisma);
+        snprintf(buffer, sizeof(buffer), "WIL: %i CHA: %i", ch->willpower, ch->charisma);
         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         position.y += m->fonts.text.baseSize;
 
@@ -177,61 +177,100 @@ ui_characterHudCard(Character c, Rectangle card, int index)
         Vector2 measure;
         Vector2 position;
         char buffer[32];
-        int prefix;
 
         button.x = portrait.x;
         button.y = portrait.y + portrait.height + UI_PADDING;
         button.height = util_intmin(48, card.height - portrait.height - UI_PADDING * 3);
-
-        #if 0
-        button.width = card.width - UI_PADDING * 2;
-        if (m->flags & GlobalFlags_Encounter) {
-            prefix = 8;
-            if (c.class == CharacterClass_Warrior) {
-                snprintf(buffer, sizeof(buffer), "ACTION: Multi-Attack");
-            } else {
-                snprintf(buffer, sizeof(buffer), "Action: Attack");
-            }
-        } else {
-            prefix = 6;
-            snprintf(buffer, sizeof(buffer), "Wait: Rest");
-        }
-
-        measure = MeasureTextEx(m->fonts.heading, buffer, m->fonts.heading.baseSize, 0);
-        if (measure.x > button.width - UI_PADDING) {
-            memmove(buffer, buffer + prefix, sizeof(buffer) - prefix);
-        }
-        #else
         button.width = util_intmin(120, portrait.width);
-        prefix = 0;
         snprintf(buffer, sizeof(buffer), "ACTION");
 
         measure = MeasureTextEx(m->fonts.heading, buffer, m->fonts.heading.baseSize, 0);
         if (measure.x > button.width - UI_PADDING) {
             snprintf(buffer, sizeof(buffer), "ACT");
         }
-        #endif
 
         result = ui_button(button, buffer, index >= 0 ? KEY_F1 + index : KEY_NULL,
                             index >= 0 && !(m->flags & GlobalFlags_TheEnd));
 
+        if (result > 0) {
+            PlaySound(m->click);
+            if (m->flags & GlobalFlags_Encounter) {
+                switch (ch->class) {
+                    default: break;
+                    case CharacterClass_Warrior: {
+                        if (ch->action == CombatAction_Attack) {
+                            ch->action = CombatAction_MultiAttack;
+                        } else {
+                            ch->action = CombatAction_Attack;
+                        }
+                    } break;
+                    case CharacterClass_Thief: {
+                        if (ch->action == CombatAction_Attack) {
+                            ch->action = CombatAction_Hide;
+                        } else {
+                            ch->action = CombatAction_Attack;
+                        }
+                    } break;
+                }
+
+            /* Downtime Activity */
+            } else {
+                ch->activity += 1;
+                ch->activity %= DowntimeActivity_Count;
+            }
+        }
+
         position.x = button.x;
         position.y = button.y + button.height + UI_PADDING;
         if (m->flags & GlobalFlags_Encounter) {
-            DrawTextEx(m->fonts.text, CombatAction_toStringFancy(c.action), Vector2Floor(position),
+            DrawTextEx(m->fonts.text, CombatAction_toStringFancy(ch->action), Vector2Floor(position),
                         m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         } else {
-            DrawTextEx(m->fonts.text, DowntimeActivity_toStringFancy(c.activity), Vector2Floor(position),
+            DrawTextEx(m->fonts.text, DowntimeActivity_toStringFancy(ch->activity), Vector2Floor(position),
                         m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
         }
     }
 
     { /* Portrait */
-        /* Color lerping TODO More colors for status effects */
-        color = ColorLerp(YELLOW, WHITE, Clamp((c.health * 1.1f) / (float)char_maxHealth(c), 0.f, 1.f));
-        color = ColorLerp(MAROON, color, Clamp((c.health * 2.f) / (float)char_maxHealth(c), 0.f, 1.f));
+        Vector2 position;
+        color = WHITE;
+
+        /* Color lerping  */
+        if (ch->health > 0) {
+            if ((m->flags & GlobalFlags_Encounter) && (ch->flags & CharacterFlags_Hidden))
+                color = ColorLerp(color, DARKBLUE, 0.5f);
+            if (ch->stamina <= 0)
+                color = ColorLerp(color, MOSSGREEN, 0.5f);
+        }
+
+        color = ColorLerp(YELLOW, color, Clamp((ch->health * 1.1f) / (float)char_maxHealth(*ch), 0.f, 1.f));
+        color = ColorLerp(MAROON, color, Clamp((ch->health * 2.f) / (float)char_maxHealth(*ch), 0.f, 1.f));
+
         DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, color);
-        /* TODO Write status effects over the portrait */
+
+        /* Write status effects over the portrait */
+        BeginScissorMode(portrait.x, portrait.y, portrait.width, portrait.height);
+        position.x = portrait.x + UI_PADDING;
+        position.y = portrait.y + UI_PADDING;
+        if (ch->health == 0) {
+            ui_text(m->fonts.text, "Unconscious", Vector2Floor(position), m->fonts.text.baseSize, 0, MAROON);
+            position.y += m->fonts.text.baseSize;
+        } else if (ch->health < 0) {
+            ui_text(m->fonts.text, "DEAD", Vector2Floor(position), m->fonts.text.baseSize, 0, MAROON);
+            position.y += m->fonts.text.baseSize;
+        } else {
+            if ((m->flags & GlobalFlags_Encounter) && (ch->flags & CharacterFlags_Hidden)) {
+                ui_text(m->fonts.text, "Hidden", Vector2Floor(position), m->fonts.text.baseSize, 0, DARKBLUE);
+                position.y += m->fonts.text.baseSize;
+            }
+
+            if (ch->stamina <= 0) {
+                ui_text(m->fonts.text, "Exhausted", Vector2Floor(position), m->fonts.text.baseSize, 0, MOSSGREEN);
+                position.y += m->fonts.text.baseSize;
+            }
+        }
+        EndScissorMode();
+
         ui_border(m->border, portrait, BONE);
     }
 
