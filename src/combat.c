@@ -1,4 +1,208 @@
 static void
+combat_randomEncounter(MonstrousCompendium* monstrous)
+{
+    size_t count = 0;
+    size_t count2 = 0;
+    size_t pick;
+    MonsterClass* monster = 0;
+    int danger = -1;
+
+    if (m->flags & GlobalFlags_MissionAccomplished) {
+        danger = 1;
+    } else if (abs(m->partyX - m->map.entryX) + abs(m->partyY - m->map.entryY) > TILE_COUNT / 3) {
+        danger = 0;
+    }
+    TraceLog(LOG_TRACE, "MONSTER: Encounter danger: %i", danger);
+
+    /* Traverse the compendium and total up all picks, then roll and loop again */
+    for (int i = 0; i < monstrous->total; i++) {
+        int contrib;
+        monster = monstrous->compendium + i;
+
+        contrib = monster->abundance + monster->danger * danger;
+        if (contrib > 0)
+            count += contrib;
+    }
+
+    pick = PcgRandom_randomu(&m->rng) % count;
+    for (int i = 0; i < monstrous->total; i++) {
+        int contrib;
+        monster = monstrous->compendium + i;
+
+        contrib = monster->abundance + monster->danger * danger;
+        if (contrib > 0)
+            count2 += contrib;
+
+        if (count2 >= pick) {
+            break;
+        }
+    }
+
+    if (!monster) {
+        monster = monstrous->compendium;
+        TraceLog(LOG_WARNING, "MONSTER: Could not pick a monster to encounter, "
+                "this shouldn't ever happen. Defaulting to %s",
+                monster->truename);
+    }
+
+    /* Set as current encounter */
+    m->flags |= GlobalFlags_Encounter;
+    m->encounter.unit.class = *monster;
+    m->encounter.unit.total = PcgRandom_roll(&m->rng, 1, monster->groupDie);
+    m->encounter.unit.total += monster->groupModifier;
+    m->encounter.unit.total = util_intclamp(m->encounter.unit.total, 1, MONSTER_UNIT_MAX);
+    m->encounter.unit.alive = m->encounter.unit.total;
+
+    /* Encounter message */
+    if (m->encounter.unit.total == 1) {
+        ui_log(BLACK, "You encounter a %s!", monster->truename);
+    } else {
+        ui_log(BLACK, "You encounter %i %s!", m->encounter.unit.total, monster->truenamePlural);
+    }
+
+    { /* Init health for every monster in the unit */
+        int dieFace;
+        int dieNum = 1;
+
+        if (monster->hitDice >= 1) {
+            dieFace = 8;
+            dieNum = monster->hitDice;
+        } else if (monster->hitDice == 0) {
+            dieFace = 6;
+        } else if (monster->hitDice == -1) {
+            dieFace = 5;
+        } else {
+            dieFace = 8 / monster->hitDice;
+            if (dieFace < 1)
+                dieFace = 1;
+        }
+
+        for (unsigned i = 0; i < m->encounter.unit.total; i++) {
+            m->encounter.unit.health[i] = PcgRandom_roll(&m->rng, dieNum, dieFace);
+            TraceLog(LOG_TRACE, "MONSTER: %s, HP: %lli", monster->truename, m->encounter.unit.health[i]);
+        }
+    }
+
+    /* Automatic abilities */
+    for (int i = 0; i < arrlen(m->party); i++) {
+        Character* ch = m->party + i;
+        ch->flags &= ~(CharacterFlags_Hidden);
+
+        if (ch->health <= 0)
+            continue;
+
+        { /* Hide chance */
+            int chance = 0;
+
+            if (m->flags & GlobalFlags_Downtime) {
+                if (ch->activity == DowntimeActivity_Hide) {
+                    chance += ch->hide + ch->level + char_modifier(ch->dexterity);
+                    chance -= danger * 30;
+                    if (ch->class == CharacterClass_Thief)
+                        chance += ch->hide;
+                }
+            } else if (ch->class == CharacterClass_Thief) {
+                chance += ch->hide + ch->level + char_modifier(ch->dexterity);
+                chance -= danger * 30;
+            }
+
+            if (PcgRandom_roll(&m->rng, 1, 100) < chance)
+                ch->flags |= CharacterFlags_Hidden;
+        }
+    }
+
+    /* Surprise check (per unit and per character) */
+        bool ambush = true;
+        for (int i = 0; i < arrlen(m->party); i++) {
+            if (!(m->party[i].flags & CharacterFlags_Hidden)) {
+                ambush = false;
+                break;
+            }
+        }
+
+    if (ambush) {
+        ui_log(ZINNWALDITEBROWN, "You catch the enemy by surprise!");
+        m->encounter.unit.status |= MonsterStatus_Surprised;
+    } else if (m->flags & GlobalFlags_Downtime) {
+        int monsterSurprise = -monster->stealth;
+        int roll;
+
+        for (int i = 0; i < arrlen(m->party); i++) {
+            Character* ch = m->party + i;
+            int chance = monster->stealth;
+
+            if (ch->flags & CharacterFlags_Hidden) {/* Can't be surprised if you're hidden */
+                monsterSurprise += 1;
+                continue;
+            }
+
+            switch (ch->activity) {
+                default: {
+                    chance += 1;
+                } break;
+
+                case DowntimeActivity_Rest: {
+                    if (ch->health < char_maxHealth(*ch))
+                        chance += 2;
+                    if (ch->stamina < char_maxStamina(*ch))
+                        chance += 1;
+                } break;
+
+                case DowntimeActivity_Guard: {
+                    chance -= 1;
+                } break;
+
+                case DowntimeActivity_Hide: {
+                    /* no change */
+                } break;
+            }
+
+            roll = PcgRandom_roll(&m->rng, 1, 6);
+            if (roll <= chance) {
+                ch->flags |= CharacterFlags_Surprised;
+            }
+        }
+
+        /* TODO If the party hasn't lit their lantern, the monsters may also be surprised */
+
+        roll = PcgRandom_roll(&m->rng, 1, 6);
+        if (roll <= monsterSurprise) {
+            ui_log(ZINNWALDITEBROWN, "You catch the enemy by surprise!");
+            m->encounter.unit.status |= MonsterStatus_Surprised;
+        }
+
+    } else {
+        int partySurprise = monster->stealth;
+        int monsterSurprise = -monster->stealth;
+        int roll;
+
+        /* TODO If the party hasn't lit their lantern, both sides have a chance of being caught by surprise */
+
+        for (int i = 0; i < arrlen(m->party); i++) {
+            Character* ch = m->party + i;
+
+            if (ch->flags & CharacterFlags_Hidden) { /* Can't be surprised if you're hidden */
+                monsterSurprise += 1;
+                continue;
+            }
+
+            roll = PcgRandom_roll(&m->rng, 1, 6);
+            if (roll <= partySurprise) {
+                ch->flags |= CharacterFlags_Surprised;
+            }
+        }
+
+        roll = PcgRandom_roll(&m->rng, 1, 6);
+        if (roll <= monsterSurprise) {
+            ui_log(ZINNWALDITEBROWN, "You catch the enemy by surprise!");
+            m->encounter.unit.status |= MonsterStatus_Surprised;
+        }
+    }
+
+    PlaySound(m->encounter.klaxon);
+}
+
+static void
 combat_fight(void)
 {
     Unit* unit;
@@ -35,10 +239,18 @@ combat_fight(void)
     int weights[4] = {};
     int weightTotal = 0;
     for (int i = 0; i < arrlen(m->party); i++) {
-        if (m->party[i].health > 0 && !(m->party[i].flags & CharacterFlags_Hidden)) {
-            ch = m->party + i;
+        ch = m->party + i;
+        if (ch->health > 0 && !(ch->flags & CharacterFlags_Hidden)) {
             weights[i] = 24;
-            weights[i] -= ch->charisma;
+            if (ch->action == CombatAction_GuardOthers) {
+                weights[i] += util_intmax(0, ch->charisma);
+                weights[i] += 2;
+            } else {
+                weights[i] -= ch->charisma;
+            }
+
+            if (ch->action == CombatAction_DefendSelf)
+                weights[i] -= 2;
             switch (ch->class) {
                 default:                        weights[i] += 2; break;
                 case CharacterClass_Warrior:    weights[i] += 4; break;
@@ -61,6 +273,8 @@ combat_fight(void)
                         TraceLog(LOG_ERROR, "Unknown combat action id: %i, defaulting to attack", ch->action);
                     case CombatAction_Attack: combat_attack(ch, unit); break;
                     case CombatAction_MultiAttack: combat_multiAttack(ch, unit); break;
+                    case CombatAction_DefendSelf: break;
+                    case CombatAction_GuardOthers: break;
                     case CombatAction_Hide: {
                         if (!(ch->flags & CharacterFlags_Hidden) && PcgRandom_roll(&m->rng, 1, 3) <= 1) {
                             ch->stamina -= 1;
@@ -92,10 +306,17 @@ combat_fight(void)
 
                         int target = PcgRandom_randomu(&m->rng) % unit->alive;
                         int damage = PcgRandom_roll(&m->rng, 3 + ch->level / 3, 6);
-                        ui_log(ZINNWALDITEBROWN, "%s casts Chain Lightning at the %s", ch->name,
+
+                        /* Modify the damage by Charisma. Because a big part of how effective it will be comes
+                         * down to how impressively the mage can yell "CHAIN LIGHTNING!" */
+                        damage += char_modifier(ch->charisma);
+                        damage += char_modifier(ch->willpower);
+                        damage = util_intmax(1, damage);
+
+                        ui_log(SKYBLUE, "%s casts Chain Lightning at the %s", ch->name,
                                 plural ? unit->class.truenamePlural : unit->class.truename);
                         for (int i = 0; i < unit->alive && damage > 0; i++) {
-                            int index = i + target % unit->alive;
+                            int index = (i + target) % unit->alive;
                             if (damage < unit->health[index]) {
                                 if (plural) {
                                     ui_log(ZINNWALDITEBROWN, "...one is fried for %i damage", damage);
@@ -110,7 +331,7 @@ combat_fight(void)
                                 }
                             }
                             unit->health[index] -= damage;
-                            damage -= PcgRandom_roll(&m->rng, 1, 6);
+                            damage -= PcgRandom_roll(&m->rng, 1, 4);
                         }
 
                         for (int i = 0; i < unit->alive; i++) {
@@ -120,8 +341,10 @@ combat_fight(void)
                                 unit->alive -= 1;
                                 unit->health[i] = unit->health[unit->alive];
                                 unit->initiative[i] = unit->initiative[unit->alive];
+                                i -= 1;
                             } else {
                                 unit->alive = 0;
+                                break;
                             }
                         }
 
@@ -164,6 +387,7 @@ combat_fight(void)
                 int targetRoll = PcgRandom_randomu(&m->rng) % weightTotal;
                 int target;
                 int tohit;
+                int defense;
 
                 for (target = 0; target < arrlen(m->party) - 1; target++) {
                     if (m->party[target].health < 1)
@@ -183,9 +407,15 @@ combat_fight(void)
                 if (ch->health <= 0)
                     continue; /* Stop, he's already dead! */
 
+                defense = COMBAT_BASE_DEFENSE + char_modifier(ch->dexterity);
+                if (m->party[target].action == CombatAction_DefendSelf)
+                    defense += 4;
+                if (m->party[target].action == CombatAction_GuardOthers)
+                    defense += 2;
+
                 tohit = PcgRandom_roll(&m->rng, 1, 20);
                 tohit -= util_intmax(0, char_modifier(ch->charisma)); // Only creatures of average intelligence should acknowledge this
-                if (tohit == 20 || (tohit + unit->class.attack > COMBAT_BASE_DEFENSE + char_modifier(ch->dexterity) && tohit != 1)) {
+                if (tohit == 20 || (tohit + unit->class.attack > defense && tohit != 1)) {
                     int damage = PcgRandom_roll(&m->rng, 1, unit->class.damageDie) + unit->class.damageModifier;
                     damage = util_intmax(1, damage);
                     switch (ch->class) {
@@ -258,9 +488,10 @@ combat_flee(void)
 {
     ui_log(ZINNWALDITEBROWN, "The party attempts to flee...");
     /* Parting shots */
+    MonsterClass* monster = &m->encounter.unit.class;
     for (int i = 0; i < arrlen(m->party); i++) {
         Character* c = m->party + i;
-        int save = c->dexterity;
+        int save = c->dexterity - monster->stealth;
         int roll = PcgRandom_roll(&m->rng, 1, 20);
 
         if (c->health < 1)
@@ -277,7 +508,6 @@ combat_flee(void)
             save = 19;
 
         if (roll == 20 || roll > save) {
-            MonsterClass* monster = &m->encounter.unit.class;
             int damage = PcgRandom_roll(&m->rng, 1, monster->damageDie);
             damage += monster->damageModifier;
             if (damage < 1)

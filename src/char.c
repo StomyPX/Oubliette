@@ -36,6 +36,7 @@ DowntimeActivity_toStringFancy(DowntimeActivity a)
         case DowntimeActivity_Rest: return "Rest";
         case DowntimeActivity_Guard: return "Stand Guard";
         case DowntimeActivity_Hide: return "Hide";
+        case DowntimeActivity_TendWounds: return "Tend Wounds";
     }
 }
 
@@ -64,6 +65,7 @@ char_random(void)
     if (c.intellect > c.dexterity && c.intellect > c.strength) {
         c.class = CharacterClass_Mage;
         c.action = CombatAction_CastSpell;
+        c.activity = DowntimeActivity_TendWounds;
     } else if (c.dexterity > c.strength) {
         c.class = CharacterClass_Thief;
     } else {

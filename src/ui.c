@@ -206,6 +206,10 @@ ui_characterHudCard(Character* ch, Rectangle card, int index)
                     default: break;
                     case CharacterClass_Warrior: {
                         if (ch->action == CombatAction_Attack) {
+                            ch->action = CombatAction_DefendSelf;
+                        } else if (ch->action == CombatAction_DefendSelf) {
+                            ch->action = CombatAction_GuardOthers;
+                        } else if (ch->action == CombatAction_GuardOthers) {
                             ch->action = CombatAction_MultiAttack;
                         } else {
                             ch->action = CombatAction_Attack;
@@ -213,6 +217,8 @@ ui_characterHudCard(Character* ch, Rectangle card, int index)
                     } break;
                     case CharacterClass_Thief: {
                         if (ch->action == CombatAction_Attack) {
+                            ch->action = CombatAction_DefendSelf;
+                        } else if (ch->action == CombatAction_DefendSelf) {
                             ch->action = CombatAction_Hide;
                         } else {
                             ch->action = CombatAction_Attack;
@@ -220,6 +226,8 @@ ui_characterHudCard(Character* ch, Rectangle card, int index)
                     } break;
                     case CharacterClass_Mage: {
                         if (ch->action == CombatAction_Attack) {
+                            ch->action = CombatAction_DefendSelf;
+                        } else if (ch->action == CombatAction_DefendSelf) {
                             ch->action = CombatAction_CastSpell;
                         } else {
                             ch->action = CombatAction_Attack;
@@ -230,6 +238,8 @@ ui_characterHudCard(Character* ch, Rectangle card, int index)
             /* Downtime Activity */
             } else {
                 ch->activity += 1;
+                if (ch->activity == DowntimeActivity_TendWounds && ch->class != CharacterClass_Mage)
+                    ch->activity += 1;
                 ch->activity %= DowntimeActivity_Count;
             }
         }

@@ -1,5 +1,6 @@
 #define COMBAT_BASE_DEFENSE 10
 
+static void combat_randomEncounter(MonstrousCompendium* monstrous);
 static void combat_fight(void);
 static void combat_flee(void);
 

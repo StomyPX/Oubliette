@@ -59,5 +59,4 @@ typedef struct
 
 static void monster_init(MonstrousCompendium* monstrous);
 static void monster_cleanup(MonstrousCompendium* monstrous);
-static void monster_encounter(MonstrousCompendium* monstrous); // TODO Move this into combat
 

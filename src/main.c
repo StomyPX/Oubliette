@@ -224,176 +224,6 @@ main(int argc, char* argv[])
                 EnableCursor();
                 SetMousePosition(dragStart.x, dragStart.y);
             }
-        } else if (m->flags & GlobalFlags_Encounter) {
-        } else if (m->flags & GlobalFlags_TheEnd) {
-        } else {
-            int direction = -1;
-
-            if (IsKeyPressed(KEY_W)) {
-                direction = m->partyFacing + 0;
-                m->partyMoveTimer = m->partyMoveFreq;
-            } else if (IsKeyPressed(KEY_A)) {
-                direction = m->partyFacing + 3;
-                m->partyMoveTimer = m->partyMoveFreq;
-            } else if (IsKeyPressed(KEY_S)) {
-                direction = m->partyFacing + 2;
-                m->partyMoveTimer = m->partyMoveFreq;
-            } else if (IsKeyPressed(KEY_D)) {
-                direction = m->partyFacing + 1;
-                m->partyMoveTimer = m->partyMoveFreq;
-
-            } else if (IsKeyDown(KEY_W)) {
-                m->partyMoveTimer -= m->deltaTime;
-                if (m->partyMoveTimer <= 0.f) {
-                    direction = m->partyFacing + 0;
-                    m->partyMoveTimer = m->partyMoveFreq;
-                }
-            } else if (IsKeyDown(KEY_A)) {
-                m->partyMoveTimer -= m->deltaTime;
-                if (m->partyMoveTimer <= 0.f) {
-                    direction = m->partyFacing + 3;
-                    m->partyMoveTimer = m->partyMoveFreq;
-                }
-            } else if (IsKeyDown(KEY_S)) {
-                m->partyMoveTimer -= m->deltaTime;
-                if (m->partyMoveTimer <= 0.f) {
-                    direction = m->partyFacing + 2;
-                    m->partyMoveTimer = m->partyMoveFreq;
-                }
-            } else if (IsKeyDown(KEY_D)) {
-                m->partyMoveTimer -= m->deltaTime;
-                if (m->partyMoveTimer <= 0.f) {
-                    direction = m->partyFacing + 1;
-                    m->partyMoveTimer = m->partyMoveFreq;
-                }
-            }
-
-            /* TODO Move into ents.c as a function for all entity movement,
-             * will have to extract camera movement though */
-            if (direction >= 0) {
-                unsigned targetTile, currentTile;
-                bool successful = false;
-
-                currentTile = m->partyX + m->partyY * TILE_COUNT;
-                switch (direction % 4) {
-                    case 0: { /* North */
-                        targetTile = m->partyX + (m->partyY - 1) * TILE_COUNT;
-                        if (targetTile < TILE_COUNT * TILE_COUNT
-                            && m->map.tiles[targetTile] & TileFlags_AllowEntry
-                            && m->map.tiles[targetTile] & TileFlags_AllowSouth
-                            && m->partyY > 0)
-                        {
-                            m->partyY -= 1;
-                            successful = true;
-                        } else {
-                            m->camera.position.z -= 0.1f;
-                        }
-                    } break;
-
-                    case 1: { /* East */
-                        targetTile = m->partyX + 1 + m->partyY * TILE_COUNT;
-                        if (targetTile < TILE_COUNT * TILE_COUNT
-                            && m->map.tiles[targetTile] & TileFlags_AllowEntry
-                            && m->map.tiles[currentTile] & TileFlags_AllowEast
-                            && m->partyX + 1 < TILE_COUNT)
-                        {
-                            m->partyX += 1;
-                            successful = true;
-                        } else {
-                            m->camera.position.x += 0.1f;
-                        }
-                    } break;
-
-                    case 2: { /* South */
-                        targetTile = m->partyX + (m->partyY + 1) * TILE_COUNT;
-                        if (targetTile < TILE_COUNT * TILE_COUNT
-                            && m->map.tiles[targetTile] & TileFlags_AllowEntry
-                            && m->map.tiles[currentTile] & TileFlags_AllowSouth
-                            && m->partyY + 1 < TILE_COUNT)
-                        {
-                            m->partyY += 1;
-                            successful = true;
-                        } else {
-                            m->camera.position.z += 0.1f;
-                        }
-                    } break;
-
-                    case 3: { /* West */
-                        targetTile = m->partyX - 1 + m->partyY * TILE_COUNT;
-                        if (targetTile < TILE_COUNT * TILE_COUNT
-                            && m->map.tiles[targetTile] & TileFlags_AllowEntry
-                            && m->map.tiles[targetTile] & TileFlags_AllowEast
-                            && m->partyX > 0)
-                        {
-                            m->partyX -= 1;
-                            successful = true;
-                        } else {
-                            m->camera.position.x -= 0.1f;
-                        }
-                    } break;
-                }
-
-                if (successful) {
-                    m->flags |= GlobalFlags_AdvanceTurn;
-
-                    /* Footsteps */
-                    int advance = PcgRandom_roll(&m->rng2, 1, 4);
-                    int first = PcgRandom_randomu(&m->rng2) % arrlen(m->footstep);
-                    for (int i = 0; i < arrlen(m->party); i++) {
-                        if (m->party[i].health > 0) {
-                            int index = (first + i * advance) % arrlen(m->footstep);
-                            PlaySound(m->footstep[index]);
-                        }
-                    }
-
-                    /* Tick up encounter accumulator */
-                    int ticks = 20;
-                    for (int i = 0; i < arrlen(m->party); i++) {
-                        if (m->party[i].name[0]) {
-                            if (m->party[i].health > 0) {
-                                int contrib = 20;
-                                contrib -= char_modifier(m->party[i].dexterity) * 2;
-                                contrib -= char_modifier(m->party[i].intellect);
-                                contrib += char_modifier(m->party[i].strength);
-                                contrib -= m->party[i].movesilent / 10;
-                                ticks += contrib;
-                            }
-                        }
-                    }
-
-                    if (ticks < 50)
-                        ticks = 50;
-                    m->encounter.ticks += ticks;
-
-                    /* TODO Check for interactables, for now just the entry and exit */
-                    if (m->partyX == m->map.goalX && m->partyY == m->map.goalY) {
-                        m->flags |= GlobalFlags_MissionAccomplished;
-                        ui_log(MINDAROGREEN, "Dread fills your heart as you open the tomb of the Last King");
-                        ui_log(ZINNWALDITEBROWN, "The deed is done, return to the entrance");
-                    } else if ((m->flags & GlobalFlags_MissionAccomplished)
-                                && m->partyX == m->map.entryX && m->partyY == m->map.entryY)
-                    {
-                        m->flags |= GlobalFlags_TheEnd;
-                        m->encounter.ticks = 0;
-                        ui_log(MINDAROGREEN, "You climb out of the Oubliette, to a new and uncertain future...");
-                    }
-                } else {
-                    /* Tick up very slightly */
-                    m->encounter.ticks += 1;
-
-                    /* TODO Play a different sound for a failed move */
-                }
-            }
-
-            if (IsKeyPressed(KEY_Q)) {
-                m->partyFacing += 3;
-                m->partyFacing %= 4;
-            }
-
-            if (IsKeyPressed(KEY_E)) {
-                m->partyFacing += 1;
-                m->partyFacing %= 4;
-            }
         }
 
         /* Rendering */
@@ -608,21 +438,65 @@ main(int argc, char* argv[])
                     m->flags |= GlobalFlags_AdvanceTurn | GlobalFlags_Downtime;
 
                     for (int i = 0; i < arrlen(m->party); i++) {
-                        Character* c = m->party + i;
-                        if (!c->name[0] || c->health < 1)
+                        Character* ch = m->party + i;
+                        if (!ch->name[0] || ch->health < 1)
                             continue;
 
-                        if (c->activity == DowntimeActivity_Rest) {
-                            if (c->stamina < char_maxStamina(*c)) {
-                                int die = (c->constitution + c->willpower) / 10 + 2;
-                                c->stamina += PcgRandom_roll(&m->rng, 1, die);
-                                if (c->stamina > char_maxStamina(*c))
-                                    c->stamina = char_maxStamina(*c);
-                            } else if (c->health < char_maxHealth(*c)) {
-                                int die = c->constitution / 20 + 2;
-                                c->health += PcgRandom_roll(&m->rng, 1, die) - 1;
-                                if (c->health > char_maxHealth(*c))
-                                    c->health = char_maxHealth(*c);
+                        if (ch->activity == DowntimeActivity_Rest) {
+                            if (ch->stamina < char_maxStamina(*ch)) {
+                                int die = (ch->constitution + ch->willpower) / 10 + 2;
+                                ch->stamina += PcgRandom_roll(&m->rng, 1, util_intmax(2, die));
+                                if (ch->stamina > char_maxStamina(*ch))
+                                    ch->stamina = char_maxStamina(*ch);
+                            } else if (ch->health < char_maxHealth(*ch)) {
+                                int die = ch->constitution / 20 + 2;
+                                ch->health += PcgRandom_roll(&m->rng, 1, util_intmax(2, die)) - 1;
+                                if (ch->health > char_maxHealth(*ch))
+                                    ch->health = char_maxHealth(*ch);
+                            }
+                        } else if (ch->activity == DowntimeActivity_TendWounds) {
+                            if (ch->stamina < 1) {
+                                ui_log(ZINNWALDITEBROWN, "%s is too tired to tend wounds and so "
+                                        "rests for a moment instead", ch->name);
+                                int die = (ch->constitution + ch->willpower) / 10 + 2;
+                                ch->stamina += PcgRandom_roll(&m->rng, 1, die);
+                                if (ch->stamina > char_maxStamina(*ch))
+                                    ch->stamina = char_maxStamina(*ch);
+                            } else {
+                                Character* patient = 0;
+                                int32_t lowest = INT32_MAX;
+                                for (int j = 0; j < arrlen(m->party); j++) {
+                                    if (m->party[j].health < char_maxHealth(m->party[j])
+                                        && m->party[j].health < lowest)
+                                    {
+                                        patient = m->party + j;
+                                        lowest = m->party[j].health;
+                                    }
+                                }
+
+                                if (patient) {
+                                    /* TODO Requires bandages!, without them it only heals 0-max(1, Charisma Mod) */
+                                    int healing = PcgRandom_roll(&m->rng, 1, 6);
+                                    healing += char_modifier(ch->intellect);
+                                    healing = util_intclamp(healing, 1, char_maxHealth(*patient) - patient->health);
+                                    if (patient == ch) {
+                                        ui_log(ZINNWALDITEBROWN, "%s tends to %s wounds, "
+                                                "healing %i points of damage", ch->name,
+                                                ch->flags & CharacterFlags_Female ? "her" : "his", healing);
+                                    } else {
+                                        ui_log(ZINNWALDITEBROWN, "%s tends to %s's wounds, "
+                                                "healing %i points of damage",
+                                                ch->name, patient->name, healing);
+                                    }
+                                    patient->health += healing;
+                                    ch->stamina -= 1;
+                                } else {
+                                    /* TODO Need to make this rest Stamina regain into a function */
+                                    int die = (ch->constitution + ch->willpower) / 10 + 2;
+                                    ch->stamina += PcgRandom_roll(&m->rng, 1, die);
+                                    if (ch->stamina > char_maxStamina(*ch))
+                                        ch->stamina = char_maxStamina(*ch);
+                                }
                             }
                         }
                     }
@@ -630,6 +504,176 @@ main(int argc, char* argv[])
                     PlaySound(m->click);
                 } else if (result < 0) {
                     anyHover = 3;
+                }
+
+                { /* Movement Keys
+                   * TODO Buttons need to distinguish between pressed and down. Probably with a 2 */
+                    int direction = -1;
+
+                    if (IsKeyPressed(KEY_W)) {
+                        direction = m->partyFacing + 0;
+                        m->partyMoveTimer = m->partyMoveFreq;
+                    } else if (IsKeyPressed(KEY_A)) {
+                        direction = m->partyFacing + 3;
+                        m->partyMoveTimer = m->partyMoveFreq;
+                    } else if (IsKeyPressed(KEY_S)) {
+                        direction = m->partyFacing + 2;
+                        m->partyMoveTimer = m->partyMoveFreq;
+                    } else if (IsKeyPressed(KEY_D)) {
+                        direction = m->partyFacing + 1;
+                        m->partyMoveTimer = m->partyMoveFreq;
+
+                    } else if (IsKeyDown(KEY_W)) {
+                        m->partyMoveTimer -= m->deltaTime;
+                        if (m->partyMoveTimer <= 0.f) {
+                            direction = m->partyFacing + 0;
+                            m->partyMoveTimer = m->partyMoveFreq;
+                        }
+                    } else if (IsKeyDown(KEY_A)) {
+                        m->partyMoveTimer -= m->deltaTime;
+                        if (m->partyMoveTimer <= 0.f) {
+                            direction = m->partyFacing + 3;
+                            m->partyMoveTimer = m->partyMoveFreq;
+                        }
+                    } else if (IsKeyDown(KEY_S)) {
+                        m->partyMoveTimer -= m->deltaTime;
+                        if (m->partyMoveTimer <= 0.f) {
+                            direction = m->partyFacing + 2;
+                            m->partyMoveTimer = m->partyMoveFreq;
+                        }
+                    } else if (IsKeyDown(KEY_D)) {
+                        m->partyMoveTimer -= m->deltaTime;
+                        if (m->partyMoveTimer <= 0.f) {
+                            direction = m->partyFacing + 1;
+                            m->partyMoveTimer = m->partyMoveFreq;
+                        }
+                    }
+
+                    /* TODO switch to using util_traverse */
+                    if (direction >= 0) {
+                        unsigned targetTile, currentTile;
+                        bool successful = false;
+
+                        currentTile = m->partyX + m->partyY * TILE_COUNT;
+                        switch (direction % 4) {
+                            case 0: { /* North */
+                                targetTile = m->partyX + (m->partyY - 1) * TILE_COUNT;
+                                if (targetTile < TILE_COUNT * TILE_COUNT
+                                    && m->map.tiles[targetTile] & TileFlags_AllowEntry
+                                    && m->map.tiles[targetTile] & TileFlags_AllowSouth
+                                    && m->partyY > 0)
+                                {
+                                    m->partyY -= 1;
+                                    successful = true;
+                                } else {
+                                    m->camera.position.z -= 0.1f;
+                                }
+                            } break;
+
+                            case 1: { /* East */
+                                targetTile = m->partyX + 1 + m->partyY * TILE_COUNT;
+                                if (targetTile < TILE_COUNT * TILE_COUNT
+                                    && m->map.tiles[targetTile] & TileFlags_AllowEntry
+                                    && m->map.tiles[currentTile] & TileFlags_AllowEast
+                                    && m->partyX + 1 < TILE_COUNT)
+                                {
+                                    m->partyX += 1;
+                                    successful = true;
+                                } else {
+                                    m->camera.position.x += 0.1f;
+                                }
+                            } break;
+
+                            case 2: { /* South */
+                                targetTile = m->partyX + (m->partyY + 1) * TILE_COUNT;
+                                if (targetTile < TILE_COUNT * TILE_COUNT
+                                    && m->map.tiles[targetTile] & TileFlags_AllowEntry
+                                    && m->map.tiles[currentTile] & TileFlags_AllowSouth
+                                    && m->partyY + 1 < TILE_COUNT)
+                                {
+                                    m->partyY += 1;
+                                    successful = true;
+                                } else {
+                                    m->camera.position.z += 0.1f;
+                                }
+                            } break;
+
+                            case 3: { /* West */
+                                targetTile = m->partyX - 1 + m->partyY * TILE_COUNT;
+                                if (targetTile < TILE_COUNT * TILE_COUNT
+                                    && m->map.tiles[targetTile] & TileFlags_AllowEntry
+                                    && m->map.tiles[targetTile] & TileFlags_AllowEast
+                                    && m->partyX > 0)
+                                {
+                                    m->partyX -= 1;
+                                    successful = true;
+                                } else {
+                                    m->camera.position.x -= 0.1f;
+                                }
+                            } break;
+                        }
+
+                        if (successful) {
+                            m->flags |= GlobalFlags_AdvanceTurn;
+
+                            /* Footsteps */
+                            int advance = PcgRandom_roll(&m->rng2, 1, 4);
+                            int first = PcgRandom_randomu(&m->rng2) % arrlen(m->footstep);
+                            for (int i = 0; i < arrlen(m->party); i++) {
+                                if (m->party[i].health > 0) {
+                                    int index = (first + i * advance) % arrlen(m->footstep);
+                                    PlaySound(m->footstep[index]);
+                                }
+                            }
+
+                            /* Tick up encounter accumulator */
+                            int ticks = 20;
+                            for (int i = 0; i < arrlen(m->party); i++) {
+                                if (m->party[i].name[0]) {
+                                    if (m->party[i].health > 0) {
+                                        int contrib = 20;
+                                        contrib -= char_modifier(m->party[i].dexterity) * 2;
+                                        contrib -= char_modifier(m->party[i].intellect);
+                                        contrib += char_modifier(m->party[i].strength);
+                                        contrib -= m->party[i].movesilent / 10;
+                                        ticks += contrib;
+                                    }
+                                }
+                            }
+
+                            if (ticks < 50)
+                                ticks = 50;
+                            m->encounter.ticks += ticks;
+
+                            /* TODO Check for interactables, for now just the entry and exit */
+                            if (m->partyX == m->map.goalX && m->partyY == m->map.goalY) {
+                                m->flags |= GlobalFlags_MissionAccomplished;
+                                ui_log(MINDAROGREEN, "Dread fills your heart as you open the tomb of the Last King");
+                                ui_log(ZINNWALDITEBROWN, "The deed is done, return to the entrance");
+                            } else if ((m->flags & GlobalFlags_MissionAccomplished)
+                                        && m->partyX == m->map.entryX && m->partyY == m->map.entryY)
+                            {
+                                m->flags |= GlobalFlags_TheEnd;
+                                m->encounter.ticks = 0;
+                                ui_log(MINDAROGREEN, "You climb out of the Oubliette, to a new and uncertain future...");
+                            }
+                        } else {
+                            /* Tick up very slightly */
+                            m->encounter.ticks += 1;
+
+                            /* TODO Play a different sound for a failed move */
+                        }
+                    }
+
+                    if (IsKeyPressed(KEY_Q)) {
+                        m->partyFacing += 3;
+                        m->partyFacing %= 4;
+                    }
+
+                    if (IsKeyPressed(KEY_E)) {
+                        m->partyFacing += 1;
+                        m->partyFacing %= 4;
+                    }
                 }
             }
 
@@ -866,7 +910,7 @@ main(int argc, char* argv[])
                         /* Passive stamina recovery */
                         if (ch->health >= 0 && ch->stamina < char_maxStamina(*ch)) {
                             int die = (ch->constitution + ch->willpower) / 20 + 1;
-                            ch->stamina += PcgRandom_roll(&m->rng, 1, die) - 1;
+                            ch->stamina += PcgRandom_roll(&m->rng, 1, util_intmax(2, die)) - 1;
                             if (ch->stamina > char_maxStamina(*ch))
                                 ch->stamina = char_maxStamina(*ch);
                         }
@@ -890,7 +934,7 @@ main(int argc, char* argv[])
                     }
 
                     if (PcgRandom_roll(&m->rng, 1, die) <= chance) {
-                        monster_encounter(&m->monsters);
+                        combat_randomEncounter(&m->monsters);
                     }
                 }
 

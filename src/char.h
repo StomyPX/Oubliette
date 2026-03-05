@@ -28,6 +28,7 @@ typedef enum {
     DowntimeActivity_Rest = 0,
     DowntimeActivity_Guard,
     DowntimeActivity_Hide,
+    DowntimeActivity_TendWounds, /* Mages only */
     DowntimeActivity_Count,
 } DowntimeActivity;
 static char* DowntimeActivity_toStringFancy(DowntimeActivity c);
