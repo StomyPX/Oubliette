@@ -150,8 +150,6 @@ monster_encounter(MonstrousCompendium* monstrous)
         }
     }
 
-    /* TODO Ambush/Surprise (per unit and per character) */
-
     /* Automatic abilities */
     for (int i = 0; i < arrlen(m->party); i++) {
         Character* ch = m->party + i;
@@ -177,6 +175,92 @@ monster_encounter(MonstrousCompendium* monstrous)
 
             if (PcgRandom_roll(&m->rng, 1, 100) < chance)
                 ch->flags |= CharacterFlags_Hidden;
+        }
+    }
+
+    /* Surprise check (per unit and per character) */
+        bool ambush = true;
+        for (int i = 0; i < arrlen(m->party); i++) {
+            if (!(m->party[i].flags & CharacterFlags_Hidden)) {
+                ambush = false;
+                break;
+            }
+        }
+
+    if (ambush) {
+        ui_log(ZINNWALDITEBROWN, "You catch the enemy by surprise!");
+        m->encounter.unit.status |= MonsterStatus_Surprised;
+    } else if (m->flags & GlobalFlags_Downtime) {
+        int monsterSurprise = -monster->stealth;
+        int roll;
+
+        for (int i = 0; i < arrlen(m->party); i++) {
+            Character* ch = m->party + i;
+            int chance = monster->stealth;
+
+            if (ch->flags & CharacterFlags_Hidden) {/* Can't be surprised if you're hidden */
+                monsterSurprise += 1;
+                continue;
+            }
+
+            switch (ch->activity) {
+                default: {
+                    chance += 1;
+                } break;
+
+                case DowntimeActivity_Rest: {
+                    if (ch->health < char_maxHealth(*ch) && ch->stamina < char_maxStamina(*ch)) {
+                        chance += 3;
+                    } else {
+                        chance -= 1;
+                    }
+                } break;
+
+                case DowntimeActivity_Guard:
+                case DowntimeActivity_Hide: {
+                    chance -= 1;
+                } break;
+            }
+
+            roll = PcgRandom_roll(&m->rng, 1, 6);
+            if (roll <= chance) {
+                ch->flags |= CharacterFlags_Surprised;
+            }
+        }
+
+        /* TODO If the party hasn't lit their lantern, the monsters may also be surprised */
+
+        roll = PcgRandom_roll(&m->rng, 1, 6);
+        if (roll <= monsterSurprise) {
+            ui_log(ZINNWALDITEBROWN, "You catch the enemy by surprise!");
+            m->encounter.unit.status |= MonsterStatus_Surprised;
+        }
+
+    } else {
+        int partySurprise = monster->stealth;
+        int monsterSurprise = -monster->stealth;
+        int roll;
+
+        /* TODO If the party hasn't lit their lantern, both sides have a chance of being caught by surprise */
+
+        for (int i = 0; i < arrlen(m->party); i++) {
+            Character* ch = m->party + i;
+
+            if (ch->flags & CharacterFlags_Hidden) { /* Can't be surprised if you're hidden */
+                monsterSurprise += 1;
+                continue;
+            }
+
+            roll = PcgRandom_roll(&m->rng, 1, 6);
+            if (roll <= partySurprise) {
+                ch->flags |= CharacterFlags_Surprised;
+            }
+        }
+
+        roll = PcgRandom_roll(&m->rng, 1, 6);
+        if (roll <= monsterSurprise) {
+            ui_log(ZINNWALDITEBROWN, "You catch the enemy by surprise!");
+            m->encounter.unit.status |= MonsterStatus_Surprised;
         }
     }
 
@@ -218,6 +302,8 @@ MonsterClass_init(struct json_object_s* object)
             mc.groupDie = integer;
         } else if (util_jsonParseInteger(element, "groupModifier", &integer)) {
             mc.groupModifier = integer;
+        } else if (util_jsonParseInteger(element, "stealth", &integer)) {
+            mc.stealth = integer;
 
         /* Combat stats */
         } else if (util_jsonParseInteger(element, "hitDice", &integer)) {

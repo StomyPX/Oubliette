@@ -189,6 +189,13 @@ ui_characterHudCard(Character* ch, Rectangle card, int index)
             snprintf(buffer, sizeof(buffer), "ACT");
         }
 
+        /* Ignore F-keys when editor mode is available and shift is held */
+        if ((m->flags | GlobalFlags_EditorModePermitted)
+            && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)))
+        {
+            index = -1;
+        }
+
         result = ui_button(button, buffer, index >= 0 ? KEY_F1 + index : KEY_NULL,
                             index >= 0 && !(m->flags & GlobalFlags_TheEnd));
 
@@ -207,6 +214,13 @@ ui_characterHudCard(Character* ch, Rectangle card, int index)
                     case CharacterClass_Thief: {
                         if (ch->action == CombatAction_Attack) {
                             ch->action = CombatAction_Hide;
+                        } else {
+                            ch->action = CombatAction_Attack;
+                        }
+                    } break;
+                    case CharacterClass_Mage: {
+                        if (ch->action == CombatAction_Attack) {
+                            ch->action = CombatAction_CastSpell;
                         } else {
                             ch->action = CombatAction_Attack;
                         }
@@ -237,6 +251,8 @@ ui_characterHudCard(Character* ch, Rectangle card, int index)
 
         /* Color lerping  */
         if (ch->health > 0) {
+            if ((m->flags & GlobalFlags_Encounter) && (ch->flags & CharacterFlags_Surprised))
+                color = ColorLerp(color, PINK, 0.5f);
             if ((m->flags & GlobalFlags_Encounter) && (ch->flags & CharacterFlags_Hidden))
                 color = ColorLerp(color, DARKBLUE, 0.5f);
             if (ch->stamina <= 0)
@@ -259,6 +275,11 @@ ui_characterHudCard(Character* ch, Rectangle card, int index)
             ui_text(m->fonts.text, "DEAD", Vector2Floor(position), m->fonts.text.baseSize, 0, MAROON);
             position.y += m->fonts.text.baseSize;
         } else {
+            if ((m->flags & GlobalFlags_Encounter) && (ch->flags & CharacterFlags_Surprised)) {
+                ui_text(m->fonts.text, "Surprised", Vector2Floor(position), m->fonts.text.baseSize, 0, PINK);
+                position.y += m->fonts.text.baseSize;
+            }
+
             if ((m->flags & GlobalFlags_Encounter) && (ch->flags & CharacterFlags_Hidden)) {
                 ui_text(m->fonts.text, "Hidden", Vector2Floor(position), m->fonts.text.baseSize, 0, DARKBLUE);
                 position.y += m->fonts.text.baseSize;

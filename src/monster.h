@@ -1,8 +1,8 @@
 #define MONSTER_UNIT_MAX 20
 
 typedef enum {
-    MonsterFlags_StreetLore = 1 << 0, /* Indicates Thieves know these better than Mages do */
-} MonsterFlags;
+    MonsterStatus_Surprised = 1 << 0,
+} MonsterStatus;
 
 typedef struct
 {
@@ -20,6 +20,7 @@ typedef struct
     uint32_t groupDie;
     int32_t groupModifier;
     int8_t level;
+    int8_t stealth; /* Affects chance to inflict surprise */
 
     /* Combat stats */
     int8_t hitDice;
@@ -49,6 +50,7 @@ typedef struct
 typedef struct
 {
     MonsterClass class;
+    MonsterStatus status;
     uint32_t alive;
     uint32_t total;
     int64_t health[MONSTER_UNIT_MAX];

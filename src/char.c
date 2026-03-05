@@ -23,7 +23,7 @@ CombatAction_toStringFancy(CombatAction c)
         case CombatAction_GuardOthers: return "Guard Others";
         case CombatAction_Hide: return "Hide in Shadow";
         case CombatAction_UseItem: return "Use Item";
-        case CombatAction_CastSpell: return "Cast Spell";
+        case CombatAction_CastSpell: return "Cast: Chain Lightning";
     }
 }
 
@@ -34,7 +34,7 @@ DowntimeActivity_toStringFancy(DowntimeActivity a)
         default:
             TraceLog(LOG_ERROR, "CHARACTER: Unknown downtime activity, id: %i", a);
         case DowntimeActivity_Rest: return "Rest";
-        //case DowntimeActivity_Guard: return "Stand Guard";
+        case DowntimeActivity_Guard: return "Stand Guard";
         case DowntimeActivity_Hide: return "Hide";
     }
 }
@@ -63,6 +63,7 @@ char_random(void)
 
     if (c.intellect > c.dexterity && c.intellect > c.strength) {
         c.class = CharacterClass_Mage;
+        c.action = CombatAction_CastSpell;
     } else if (c.dexterity > c.strength) {
         c.class = CharacterClass_Thief;
     } else {

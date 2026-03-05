@@ -23,6 +23,8 @@ combat_fight(void)
         ch->initiative = PcgRandom_roll(&m->rng, 1, 20) + char_modifier(ch->dexterity);
         if (ch->health < 1)
             ch->initiative -= 10;
+        if (ch->action == CombatAction_CastSpell)
+            ch->initiative += 3;
         if (ch->initiative > initHigh)
             initHigh = ch->initiative;
         if (ch->initiative < initLow)
@@ -53,25 +55,78 @@ combat_fight(void)
         for (int i = 0; i < arrlen(m->party); i++) {
             ch = m->party + i;
 
-            if (ch->initiative == segment && ch->health > 0 && unit->alive > 0) {
+            if (ch->initiative == segment && ch->health > 0 && unit->alive > 0 && !(ch->flags & CharacterFlags_Surprised)) {
                 switch (ch->action) {
                     default:
                         TraceLog(LOG_ERROR, "Unknown combat action id: %i, defaulting to attack", ch->action);
                     case CombatAction_Attack: combat_attack(ch, unit); break;
                     case CombatAction_MultiAttack: combat_multiAttack(ch, unit); break;
                     case CombatAction_Hide: {
+                        if (!(ch->flags & CharacterFlags_Hidden) && PcgRandom_roll(&m->rng, 1, 3) <= 1) {
+                            ch->stamina -= 1;
+                        }
+
                         int danger = -1;
                         if (m->flags & GlobalFlags_MissionAccomplished) {
                             danger = 1;
                         } else if (abs(m->partyX - m->map.entryX) + abs(m->partyY - m->map.entryY) > TILE_COUNT / 3) {
                             danger = 0;
                         }
+
                         int chance = ch->hide + ch->level + char_modifier(ch->dexterity) - danger * 30;
                         if (PcgRandom_roll(&m->rng, 1, 100) < chance) {
                             ui_log(ZINNWALDITEBROWN, "%s melds with the shadows", ch->name);
                             ch->flags |= CharacterFlags_Hidden;
                         }
                     } break;
+                    case CombatAction_CastSpell: {
+                        bool plural = unit->alive != 1;
+                        int drain = 0;
+
+                        drain += PcgRandom_roll(&m->rng, 3, 6);
+                        drain -= ch->level / 4;
+                        drain -= char_modifier(ch->intellect);
+                        if (drain > 0) {
+                            ch->stamina -= drain;
+                        }
+
+                        int target = PcgRandom_randomu(&m->rng) % unit->alive;
+                        int damage = PcgRandom_roll(&m->rng, 3 + ch->level / 3, 6);
+                        ui_log(ZINNWALDITEBROWN, "%s casts Chain Lightning at the %s", ch->name,
+                                plural ? unit->class.truenamePlural : unit->class.truename);
+                        for (int i = 0; i < unit->alive && damage > 0; i++) {
+                            int index = i + target % unit->alive;
+                            if (damage < unit->health[index]) {
+                                if (plural) {
+                                    ui_log(ZINNWALDITEBROWN, "...one is fried for %i damage", damage);
+                                } else {
+                                    ui_log(ZINNWALDITEBROWN, "...frying it for %i damage", damage);
+                                }
+                            } else {
+                                if (plural) {
+                                    ui_log(ZINNWALDITEBROWN, "...one is fried for %i damage and dies!", damage);
+                                } else {
+                                    ui_log(ZINNWALDITEBROWN, "...frying it dead for %i damage!", damage);
+                                }
+                            }
+                            unit->health[index] -= damage;
+                            damage -= PcgRandom_roll(&m->rng, 1, 6);
+                        }
+
+                        for (int i = 0; i < unit->alive; i++) {
+                            if (unit->health[i] > 0) {
+                                continue;
+                            } else if (unit->alive > 1) {
+                                unit->alive -= 1;
+                                unit->health[i] = unit->health[unit->alive];
+                                unit->initiative[i] = unit->initiative[unit->alive];
+                            } else {
+                                unit->alive = 0;
+                            }
+                        }
+
+                        ch->flags &= ~(CharacterFlags_Hidden);
+                    }
                 }
             }
 
@@ -98,6 +153,8 @@ combat_fight(void)
                 ui_log(ZINNWALDITEBROWN, "The %s peer through the darkness but find nobody to attack",
                         unit->class.truenamePlural);
             }
+            continue;
+        } else if (unit->status & MonsterStatus_Surprised) {
             continue;
         }
 
@@ -169,6 +226,7 @@ combat_fight(void)
     for (int i = 0; i < arrlen(m->party); i++) {
         if (m->party[i].health > 0)
             survivors += 1;
+        m->party[i].flags &= ~(CharacterFlags_Surprised);
     }
 
     if (survivors < 1) {
@@ -191,6 +249,7 @@ combat_fight(void)
         }
     } else {
         TraceLog(LOG_TRACE, "COMBAT: New Round");
+        unit->status &= (~MonsterStatus_Surprised);
     }
 }
 

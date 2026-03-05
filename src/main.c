@@ -603,7 +603,7 @@ main(int argc, char* argv[])
                 button.y = viewport.y + viewport.height - UI_PADDING - button.height;
                 result = ui_button(button, "WAIT", KEY_R, !(m->flags & GlobalFlags_TheEnd));
                 if (result > 0) {
-                    ui_log(ZINNWALDITEBROWN, "Resting...");
+                    ui_log(ZINNWALDITEBROWN, "Waiting...");
                     m->encounter.ticks += 300;
                     m->flags |= GlobalFlags_AdvanceTurn | GlobalFlags_Downtime;
 
