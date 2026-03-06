@@ -34,10 +34,10 @@ linux_debug: linux_libs
 
 linux_release: linux_libs
 	@echo "Compiling for Linux in Release mode using GCC"
-	$(CC) $(LINUX_FLAGS) -DRELEASE_MODE=1 -O3 src/main.c -o $(FILE_NAME) $(LINUX_LINKS)
+	$(CC) $(LINUX_FLAGS) -DRELEASE_MODE=1 -O3 -g0 -s src/main.c -o $(FILE_NAME) $(LINUX_LINKS)
 
 linux_docker: linux_libs
-	docker $(RUN_STEAM_RT) "cd /build && make CC=gcc APPEND=-lrt linux_release"
+	docker $(RUN_STEAM_RT) "cd /build && make CC=gcc-14 APPEND=-lrt linux_release"
 
 linux_libs: lib/libraylib.glibc.a cimgui.so
 

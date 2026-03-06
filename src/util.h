@@ -4,6 +4,7 @@
 #define BONE (Color){227, 218, 201, 255}
 #define ERROR_COLOR (Color){255, 15, 21, 255}
 #define DARKOLIVEGREEN (Color){61, 81, 20, 255}
+#define LIGHTOLIVEGREEN (Color){144, 191, 47, 255}
 #define MOSSGREEN (Color){138,154,91,255}
 #define LIMEPULPGREEN (Color){209,225,137,255}
 #define MINDAROGREEN (Color){227,249,136,255}

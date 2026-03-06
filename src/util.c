@@ -124,12 +124,12 @@ util_logCleanup(void)
 static int
 util_log(unsigned short channel, char* fmt, ...)
 {
+    int count;
     va_list ap;
     // TODO Handle multiline
     // TODO Split over-long strings into multiple log lines.
 
 #if DEBUG_MODE
-    int count;
     bool safe = false;
 
     if (channel) {
@@ -168,7 +168,7 @@ skip:
 #endif
 
     va_start(ap, fmt);
-    vfprintf(stdout, fmt, ap);
+    count = vfprintf(stdout, fmt, ap);
     va_end(ap);
 
     if (g_util_logFile) {

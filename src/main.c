@@ -129,10 +129,10 @@ main(int argc, char* argv[])
     m->click = LoadSound("data/sounds/button_click.wav");
     m->click2 = LoadSound("data/sounds/button_click2.wav");
 
-    m->ambient = LoadMusicStream("data/sounds/loops/dungeon.mp3");
+    m->ambient = LoadMusicStream("darkambient.mp3");
     SetMusicVolume(m->ambient, 0.3f);
     PlayMusicStream(m->ambient);
-    m->music = LoadMusicStream("data/music/weltherrscherer.ogg");
+    m->music = LoadMusicStream("weltherrscherer.ogg");
     PlayMusicStream(m->music);
 
     for (int i = 0; i < arrlen(m->party); i++) {
@@ -361,7 +361,7 @@ main(int argc, char* argv[])
 
             if (m->map.name[0]) {
                 // TODO Redo lighting to allow multiple sources with different curves
-                map_draw(&m->map, /*BEIGE*/ DARKOLIVEGREEN, 4.f * TILE_SIDE_LENGTH, 2.0f);
+                map_draw(&m->map, /*BEIGE*/ LIGHTOLIVEGREEN, 4.f * TILE_SIDE_LENGTH, 0.9f);
             }
 
             rlDisableDepthMask();
