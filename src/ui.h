@@ -27,3 +27,5 @@ static void ui_log(Color color, char* fmt, ...);
 static int ui_characterHudCard(Character* c, Rectangle r, int portraitSize, int keycode);
 /* -1 on hover, 1 on LMB down */
 static int ui_button(Rectangle rect, char* text, int hotkey, bool enabled);
+
+static void ui_dumpCredits(void);

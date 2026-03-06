@@ -170,11 +170,18 @@ map_generatePassage(Map* map, MapPassage u)
     // Advance D4+2
     bool success = true;
     unsigned steps = PcgRandom_roll(&map->rng, 1, 4) + 2;
-    int i;
+    unsigned stepsTaken;
+    int ox = u.x;
+    int oy = u.y;
 
-    for (i = 0; i < steps && success; i++) {
-        if (!map_generateStepForward(map, &u.x, &u.y, u.facing))
+    for (stepsTaken = 0; stepsTaken < steps && success; stepsTaken++) {
+        if (!map_generateStepForward(map, &u.x, &u.y, u.facing)) {
+            /* If we're stopped, at least make the target enterable */
+            int index = map_tileIndex(u.x, u.y);
+            if (index >= 0)
+                map->tiles[index] |= TileFlags_AllowEntry;
             break;
+        }
     }
 
     // Either place a chamber or leave marked for another passage
@@ -203,6 +210,9 @@ map_generatePassage(Map* map, MapPassage u)
                 } break;
             }
             map->passages[map->passageCount++] = u;
+            int index = map_tileIndex(u.x, u.y);
+            if (index >= 0)
+                map->tiles[index] |= TileFlags_Terminator;
         }
     }
 }
@@ -272,6 +282,14 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
         util_err(0, "MAP: Exceeded maximum chambers!");
     }
 
+    #if DEBUG_MODE
+    { /* Debugging */
+        int index = map_tileIndex(x, y);
+        if (index >= 0)
+            map->tiles[index] |= TileFlags_Builder;
+    }
+    #endif
+
     /* Register new chamber and determine dimensions */
     rectD6 = PcgRandom_roll(&map->rng, 1, 6);
     switch (rectD6) {
@@ -316,9 +334,48 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
         } break;
     }
 
-    /* Ensure passage into new chamber */
-    if (!map_generateStepForward(map, &x, &y, facing)) {
-        return;
+    /* Ensure passage into new chamber
+     * This is a huge pain in the ass, we need to check beforehand if there's a separating wall and rebuild
+     * it if the step results in a failure. */
+    {
+        int index = map_tileIndex(x, y);
+        int mask = TileFlags_AllowSouth | TileFlags_AllowEast;
+        int restore = 0;
+        int wall;
+        int tx = x;
+        int ty = y;
+        switch (facing) {
+            default: /* North */ {
+                wall = map_tileIndex(x, y - 1);
+                if (wall >= 0)
+                    restore = map->tiles[wall] & mask;
+            } break;
+            case Facing_East: {
+                wall = index;
+                if (wall >= 0)
+                    restore = map->tiles[wall] & mask;
+            } break;
+            case Facing_South: {
+                wall = index;
+                if (wall >= 0)
+                    restore = map->tiles[wall] & mask;
+            } break;
+            case Facing_West: {
+                wall = map_tileIndex(x - 1, y);
+                if (wall >= 0)
+                    restore = map->tiles[wall] & mask;
+            } break;
+        }
+
+        if (!map_generateStepForward(map, &tx, &ty, facing)) {
+            map->tiles[index] |= TileFlags_Failure;
+            if (wall >= 0) {
+                map->tiles[wall] &= ~(mask);
+                map->tiles[wall] |= restore;
+            }
+
+            return;
+        }
     }
 
     /* Write chamber into list */
@@ -327,8 +384,8 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
     /* Bore out collision area */
     for (int i = 0; i < c.w; i++) {
         for (int j = 0; j < c.h; j++) {
-            int index = c.x + i + (c.y + j) * TILE_COUNT;
-            if (c.x + i < 0 || c.x + i >= TILE_COUNT || c.y + j < 0 || c.y + j >= TILE_COUNT)
+            int index = map_tileIndex(c.x + i, c.y + j);
+            if (map->tiles[index] < 0)
                 continue;
 
             /* Skip manually filled tiles */
@@ -336,10 +393,12 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
                 continue;
 
             map->tiles[index] |= TileFlags_AllowEntry | TileFlags_Chamber;
-            if (i < c.w - 1)
+            if (i < c.w - 1) {
                 map->tiles[index] |= TileFlags_AllowEast;
-            if (j < c.h - 1)
+            }
+            if (j < c.h - 1) {
                 map->tiles[index] |= TileFlags_AllowSouth;
+            }
         }
     }
 
@@ -426,6 +485,8 @@ map_generateChamberRandomPassage(Map* map, MapChamber chamber, Facing facing)
 
     if (index >= 0 && next >= 0 && !(map->tiles[next] & TileFlags_Chamber)) {
         map->passages[map->passageCount++] = passage;
+        map->tiles[index] |= TileFlags_Passage;
+        map->tiles[next] |= TileFlags_Next;
     }
 }
 
@@ -548,6 +609,82 @@ map_draw(Map* map, Color light, float visibility, float power)
                 color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
                 DrawModel(map->goal, origin, 1.f, color);
             }
+
+            #if DEBUG_MODE
+            if (m->flags & GlobalFlags_ShowTileFlags) {
+                if (map->tiles[index] & TileFlags_Passage) {
+                    center = map_tileCenter(x, y);
+                    float side = 0.6f;
+                    center.y -= 1.f;
+                    DrawCube(center, side, side, side, BLACK);
+                    DrawCubeWires(center, side, side, side, GRAY);
+                }
+                if (map->tiles[index] & TileFlags_Next) {
+                    center = map_tileCenter(x, y);
+                    float side = 0.4f;
+                    center.y -= 1.5f;
+                    DrawCube(center, side, side, side, WHITE);
+                    DrawCubeWires(center, side, side, side, GRAY);
+                }
+                if (map->tiles[index] & TileFlags_Filled) {
+                    center = map_tileCenter(x, y);
+                    center.x += 1.f;
+                    center.z += 1.f;
+                    center.y -= 1.f;
+                    float side = 0.3f;
+                    DrawCube(center, side, 1.f, side, DARKBROWN);
+                    DrawCubeWires(center, side, 1.f, side, GRAY);
+                }
+                if (map->tiles[index] & TileFlags_Feature) {
+                    center = map_tileCenter(x, y);
+                    center.x -= 1.f;
+                    center.z -= 1.f;
+                    center.y -= 1.f;
+                    float side = 0.3f;
+                    DrawCube(center, side, 1.f, side, GOLD);
+                    DrawCubeWires(center, side, 1.f, side, GRAY);
+                }
+                if (map->tiles[index] & TileFlags_Visited) {
+                    center = map_tileCenter(x, y);
+                    center.x += 1.f;
+                    center.z -= 1.f;
+                    center.y -= 1.5f;
+                    float side = 0.3f;
+                    DrawCube(center, side, side, side, DARKOLIVEGREEN);
+                    DrawCubeWires(center, side, side, side, GRAY);
+                }
+                if (map->tiles[index] & TileFlags_Chamber) {
+                    center = map_tileCenter(x, y);
+                    center.x -= 1.f;
+                    center.z += 1.f;
+                    center.y -= 1.5f;
+                    float side = 0.3f;
+                    DrawCube(center, side, side, side, SKYBLUE);
+                    DrawCubeWires(center, side, side, side, GRAY);
+                }
+                if (map->tiles[index] & TileFlags_Terminator) {
+                    center = map_tileCenter(x, y);
+                    float side = 0.4f;
+                    center.y += 1.0f;
+                    DrawCube(center, side, side, side, RED);
+                    DrawCubeWires(center, side, side, side, GRAY);
+                }
+                if (map->tiles[index] & TileFlags_Builder) {
+                    center = map_tileCenter(x, y);
+                    float side = 0.4f;
+                    center.y += 2.0f;
+                    DrawCube(center, side, side, side, SKYBLUE);
+                    DrawCubeWires(center, side, side, side, GRAY);
+                }
+                if (map->tiles[index] & TileFlags_Failure) {
+                    center = map_tileCenter(x, y);
+                    float side = 0.6f;
+                    center.y += 1.5f;
+                    DrawCube(center, side, side, side, ORANGE);
+                    DrawCubeWires(center, side, side, side, GRAY);
+                }
+            }
+            #endif
         }
     }
 }

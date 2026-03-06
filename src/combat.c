@@ -462,6 +462,7 @@ combat_fight(void)
     if (survivors < 1) {
         ui_log(MAROON, "GAME OVER!");
         m->flags |= GlobalFlags_GameOver;
+        ui_dumpCredits();
 
     } else if (unit->alive < 1) {
         int xp;
@@ -550,6 +551,7 @@ combat_flee(void)
         if (survivors < 1) {
             ui_log(BLACK, "GAME OVER!");
             m->flags |= GlobalFlags_GameOver;
+            ui_dumpCredits();
         } else {
             ui_log(ZINNWALDITEBROWN, "The party escapes");
             m->flags &= ~(GlobalFlags_Encounter);

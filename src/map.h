@@ -12,6 +12,12 @@ typedef enum {
     TileFlags_Feature    = 1 << 5,
 
     // Debugging only
+    TileFlags_Failure    = 1 << 24,
+    TileFlags_Builder    = 1 << 25,
+    TileFlags_Terminator = 1 << 26,
+    TileFlags_Visited    = 1 << 27,
+    TileFlags_Passage    = 1 << 28,
+    TileFlags_Next       = 1 << 29,
     TileFlags_FloodTest  = 1 << 30,
     TileFlags_Flooded    = 1 << 31,
 } TileFlags;

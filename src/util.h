@@ -1,4 +1,5 @@
 #define CLIP_COLOR (Color){250, 255, 30, 64}
+#define WALLCLIP_COLOR (Color){255, 128, 30, 64}
 #define CLEAR_COLOR (Color){6, 0, 3, 255}
 #define BONE (Color){227, 218, 201, 255}
 #define ERROR_COLOR (Color){255, 15, 21, 255}

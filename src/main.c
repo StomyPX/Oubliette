@@ -210,6 +210,10 @@ main(int argc, char* argv[])
                     char_exp(m->party + i, 1000);
                 }
             }
+            if (IsKeyPressed(KEY_F7))
+                m->flags ^= GlobalFlags_IgnoreEncounters;
+            if (IsKeyPressed(KEY_F8))
+                m->flags ^= GlobalFlags_ShowTileFlags;
         }
 
         if (m->flags & GlobalFlags_EditorMode) {
@@ -382,14 +386,14 @@ main(int argc, char* argv[])
                         if (!(m->map.tiles[index] & TileFlags_AllowEast)) {
                             Vector3 position = map_tileCenter(x, y);
                             position.x += (float)TILE_SIDE_LENGTH / 2.f;
-                            DrawCube(position, 0.1f, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, CLIP_COLOR);
+                            DrawCube(position, 0.1f, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, WALLCLIP_COLOR);
                             DrawCubeWires(position, 0.1f, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, LIGHTGRAY);
                         }
 
                         if (!(m->map.tiles[index] & TileFlags_AllowSouth)) {
                             Vector3 position = map_tileCenter(x, y);
                             position.z += (float)TILE_SIDE_LENGTH / 2.f;
-                            DrawCube(position, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, 0.1f, CLIP_COLOR);
+                            DrawCube(position, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, 0.1f, WALLCLIP_COLOR);
                             DrawCubeWires(position, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, 0.1f, LIGHTGRAY);
                         }
                     }
@@ -600,7 +604,7 @@ main(int argc, char* argv[])
                     anyHover = 3;
                 }
 
-                { /* Movement Keys
+                if (!(m->flags & GlobalFlags_EditorMode)) { /* Movement Keys
                    * TODO Buttons need to distinguish between pressed and down. Probably with a 2 */
                     int direction = -1;
 
@@ -752,6 +756,7 @@ main(int argc, char* argv[])
                                 m->flags |= GlobalFlags_TheEnd;
                                 m->encounter.ticks = 0;
                                 ui_log(MINDAROGREEN, "You climb out of the Oubliette, to a new and uncertain future...");
+                                ui_dumpCredits();
                             }
                         } else {
                             /* Tick up very slightly */
@@ -769,6 +774,11 @@ main(int argc, char* argv[])
                     if (IsKeyPressed(KEY_E)) {
                         m->partyFacing += 1;
                         m->partyFacing %= 4;
+                    }
+
+                    int index = map_tileIndex(m->partyX, m->partyY);
+                    if (index >= 0) {
+                        m->map.tiles[index] |= TileFlags_Visited;
                     }
                 }
             }
@@ -1013,14 +1023,15 @@ main(int argc, char* argv[])
                         //"Debug View: %s\n"
                         "Camera: %4.1f, %4.1f\n"
                         "Tile: %2i, %2i [%i]\n"
-                        "Enc. Ticks: %i/%i\n"
+                        "Enc. Ticks: %i/%i %s\n"
                         "Dungeon Lv%i Size %i\n"
                         "Seed: %llu\n",
                         GetFPS(),
                         //m->flags & GlobalFlags_EditorMode ? "ON" : "off",
                         m->camera.position.x, m->camera.position.z,
-                        m->partyX, m->partyY, m->partyX + m->partyY * TILE_COUNT,
+                        m->partyX, m->partyY, map_tileIndex(m->partyX, m->partyY),
                         m->encounter.ticks, m->map.encounterFreq,
+                        m->flags & GlobalFlags_IgnoreEncounters ? "OFF" : "",
                         danger + 2, m->map.chamberCount,
                         m->map.seed);
                 ui_text(GetFontDefault(), buf, position, GetFontDefault().baseSize, 1, BONE);
@@ -1052,16 +1063,20 @@ main(int argc, char* argv[])
                                 }
                             } else if (m->map.goalX == x && m->map.goalY == y) {
                                 buffer[x * 2] = 'X';
+                            } else if (t & TileFlags_Failure) {
+                                buffer[x * 2] = 'f';
                             } else if (t & TileFlags_Feature) {
                                 buffer[x * 2] = '?';
                             } else if (t & TileFlags_Filled) {
                                 buffer[x * 2] = 'E';
                             } else if ((t & TileFlags_AllowEntry) && !(t & TileFlags_AllowSouth)) {
                                 buffer[x * 2] = '_';
+                            } else if (t & TileFlags_Visited) {
+                                buffer[x * 2] = '.';
                             } else if (!(t & TileFlags_AllowEntry)) {
                                 buffer[x * 2] = '#';
                             } else if (!(t & TileFlags_Flooded)) {
-                                buffer[x * 2] = '.';
+                                buffer[x * 2] = 'u';
                             } else {
                                 buffer[x * 2] = ' ';
                             }
@@ -1132,7 +1147,7 @@ main(int argc, char* argv[])
                         }
                     }
 
-                    if (PcgRandom_roll(&m->rng, 1, die) <= chance) {
+                    if (PcgRandom_roll(&m->rng, 1, die) <= chance && !(m->flags & GlobalFlags_IgnoreEncounters)) {
                         combat_randomEncounter(&m->monsters);
                     }
                 }
@@ -1141,10 +1156,12 @@ main(int argc, char* argv[])
             }
 
             // TODO if not in a menu or encounter
-            Camera intended = map_cameraForTile(m->partyX, m->partyY, m->partyFacing);
-            float lerp = Clamp(m->deltaTime * 10.0f, 0.f, 1.f);
-            m->camera.position = Vector3Lerp(m->camera.position, intended.position, lerp);
-            m->camera.target = Vector3Lerp(m->camera.target, intended.target, lerp);
+            if (!(m->flags & GlobalFlags_EditorMode)) {
+                Camera intended = map_cameraForTile(m->partyX, m->partyY, m->partyFacing);
+                float lerp = Clamp(m->deltaTime * 10.0f, 0.f, 1.f);
+                m->camera.position = Vector3Lerp(m->camera.position, intended.position, lerp);
+                m->camera.target = Vector3Lerp(m->camera.target, intended.target, lerp);
+            }
         }
 
         if (anyHover && lastHover != anyHover)
