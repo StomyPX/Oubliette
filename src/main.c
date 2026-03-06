@@ -131,7 +131,9 @@ main(int argc, char* argv[])
 
     m->ambient = LoadMusicStream("data/sounds/loops/dungeon.mp3");
     SetMusicVolume(m->ambient, 0.3f);
+    PlayMusicStream(m->ambient);
     m->music = LoadMusicStream("data/music/weltherrscherer.ogg");
+    PlayMusicStream(m->music);
 
     for (int i = 0; i < arrlen(m->party); i++) {
         m->party[i] = char_random();
@@ -174,23 +176,8 @@ main(int argc, char* argv[])
         m->second += m->deltaTime;
         int anyHover = 0;
 
-        if (IsMusicValid(m->ambient)) {
-            if (!IsMusicStreamPlaying(m->ambient)) {
-                PlayMusicStream(m->ambient);
-            }
-            UpdateMusicStream(m->ambient);
-        } else {
-            util_err(LogChannelErr_AmbientLoop, "Ambient loop not playing");
-        }
-
-        if (IsMusicValid(m->music)) {
-            if (!IsMusicStreamPlaying(m->music)) {
-                PlayMusicStream(m->music);
-            }
-            UpdateMusicStream(m->music);
-        } else {
-            util_err(LogChannelErr_MusicLoop, "Music loop not playing");
-        }
+        UpdateMusicStream(m->ambient);
+        UpdateMusicStream(m->music);
 
         if (IsKeyPressed(KEY_F4) && (IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT)))
             m->flags |= GlobalFlags_RequestQuit;
@@ -523,6 +510,16 @@ main(int argc, char* argv[])
                     (Rectangle){0, 0, m->rtex.texture.width, -m->rtex.texture.height},
                     (Vector2){viewport.x, viewport.y}, WHITE);
 
+                { /* Compass */
+                    Vector2 pos;
+                    Vector2 dim = MeasureTextEx(m->fonts.heading, Facing_toString(m->partyFacing),
+                                                m->fonts.heading.baseSize, 0);
+                    pos.x = viewport.x + viewport.width / 2 - dim.x / 2;
+                    pos.y = viewport.y + UI_PADDING;
+                    ui_text(m->fonts.heading, Facing_toString(m->partyFacing), Vector2Floor(pos),
+                            m->fonts.heading.baseSize, 0, BONE);
+                }
+
                 button.width = 120;
                 button.height = 48;
                 button.x = viewport.x + viewport.width - UI_PADDING - button.width;
@@ -778,12 +775,113 @@ main(int argc, char* argv[])
 
             ui_border(m->border, viewport, BONE);
 
-            if (m->map.name[0] && panel.height > 400) {
-                Vector2 position;
-                Vector2 dimensions = MeasureTextEx(m->fonts.title, m->map.name, m->fonts.title.baseSize, 0);
-                position.x = panel.x + panel.width / 2 - dimensions.x / 2;
-                position.y = panel.y + UI_SIDE_PANEL_HEADER / 2.f - dimensions.y / 2.f;
-                ui_text(m->fonts.title, m->map.name, Vector2Floor(position), m->fonts.title.baseSize, 0, BONE);
+            { /* Options */
+                Rectangle button;
+                button = panel;
+                button.width = 140;
+                button.height = 48;
+                int result;
+
+                if (IsMusicStreamPlaying(m->music)) {
+                    result = ui_button(button, "MUSIC", KEY_NULL, true);
+                    if (result > 0) {
+                        StopMusicStream(m->music);
+                        PlaySound(m->click);
+                    } else if (result < 0) {
+                        anyHover = 8;
+                    }
+                } else {
+                    result = ui_button(button, "(music)", KEY_NULL, true);
+                    if (result > 0) {
+                        PlayMusicStream(m->music);
+                        PlaySound(m->click);
+                    } else if (result < 0) {
+                        anyHover = 8;
+                    }
+                }
+
+                button.y += button.height + UI_PADDING;
+
+                if (IsMusicStreamPlaying(m->ambient)) {
+                    result = ui_button(button, "AMBIENCE", KEY_NULL, true);
+                    if (result > 0) {
+                        StopMusicStream(m->ambient);
+                        PlaySound(m->click);
+                    } else if (result < 0) {
+                        anyHover = 9;
+                    }
+                } else {
+                    result = ui_button(button, "(ambience)", KEY_NULL, true);
+                    if (result > 0) {
+                        PlayMusicStream(m->ambient);
+                        PlaySound(m->click);
+                    } else if (result < 0) {
+                        anyHover = 9;
+                    }
+                }
+
+                button.y = panel.y;
+                button.x = panel.x + panel.width - button.width;
+
+                if (m->flags & GlobalFlags_ConfirmExit) {
+                    result = ui_button(button, "CONFIRM?", KEY_NULL, true);
+                    if (result > 0) {
+                        m->flags |= GlobalFlags_RequestQuit;
+                    } else  if (result < 0) {
+                        anyHover = 10;
+                    } else {
+                        m->flags &= ~(GlobalFlags_ConfirmExit);
+                    }
+                } else {
+                    result = ui_button(button, "EXIT", KEY_NULL, true);
+                    if (result > 0) {
+                        m->flags |= GlobalFlags_ConfirmExit;
+                        PlaySound(m->click2);
+                    } else  if (result < 0) {
+                        anyHover = 10;
+                    }
+                }
+
+                button.y += button.height + UI_PADDING;
+
+                if (m->flags & GlobalFlags_MuteSFX) {
+                    result = ui_button(button, "(sfx)", KEY_NULL, true);
+                    if (result > 0) {
+                        m->flags &= ~(GlobalFlags_MuteSFX);
+                        /* I realize there is probably a better way */
+                        for (int i = 0; i < arrlen(m->footstep); i++)
+                            SetSoundVolume(m->footstep[i], 1.f);
+                        SetSoundVolume(m->encounter.klaxon, 1.f);
+                        SetSoundVolume(m->hover, 1.f);
+                        SetSoundVolume(m->click, 1.f);
+                        SetSoundVolume(m->click2, 1.f);
+                        PlaySound(m->click);
+                    } else  if (result < 0) {
+                        anyHover = 11;
+                    }
+                } else {
+                    result = ui_button(button, "SFX", KEY_NULL, true);
+                    if (result > 0) {
+                        m->flags |= GlobalFlags_MuteSFX;
+                        for (int i = 0; i < arrlen(m->footstep); i++)
+                            SetSoundVolume(m->footstep[i], 0.f);
+                        SetSoundVolume(m->encounter.klaxon, 0.f);
+                        SetSoundVolume(m->hover, 0.f);
+                        SetSoundVolume(m->click, 0.f);
+                        SetSoundVolume(m->click2, 0.f);
+                    } else  if (result < 0) {
+                        anyHover = 11;
+                    }
+                }
+
+                if (m->map.name[0]) {
+                    Vector2 position;
+                    Vector2 dimensions = MeasureTextEx(m->fonts.title, m->map.name, m->fonts.title.baseSize, 0);
+                    position.x = panel.x + panel.width / 2 - dimensions.x / 2;
+                    position.y = panel.y + UI_SIDE_PANEL_HEADER / 2.f - dimensions.y / 2.f;
+                    ui_text(m->fonts.title, m->map.name, Vector2Floor(position), m->fonts.title.baseSize, 0, BONE);
+                }
+
                 panel.height -= UI_SIDE_PANEL_HEADER;
                 panel.y += UI_SIDE_PANEL_HEADER;
             }
@@ -814,6 +912,7 @@ main(int argc, char* argv[])
                     scrollMax = 0;
                 } else {
                     position.y -= scrollMax * m->fonts.text.baseSize;
+                    position.y -= (int)panel.height % m->fonts.text.baseSize;
                 }
 
                 for (unsigned i = 0; i < UI_LOGLINE_COUNT; i++) {
@@ -901,7 +1000,7 @@ main(int argc, char* argv[])
 
             if (m->flags & GlobalFlags_PartyStats) {
                 char buf[160] = {0};
-                Vector2 position = (Vector2){GetRenderWidth() - 120, 10};
+                Vector2 position = (Vector2){GetRenderWidth() - 160, UI_SIDE_PANEL_HEADER + UI_PADDING * 2};
                 int danger = -1;
                 if (m->flags & GlobalFlags_MissionAccomplished) {
                     danger = 1;
@@ -914,7 +1013,6 @@ main(int argc, char* argv[])
                         //"Debug View: %s\n"
                         "Camera: %4.1f, %4.1f\n"
                         "Tile: %2i, %2i [%i]\n"
-                        "Facing: %s\n"
                         "Enc. Ticks: %i/%i\n"
                         "Dungeon Lv%i Size %i\n"
                         "Seed: %llu\n",
@@ -922,7 +1020,6 @@ main(int argc, char* argv[])
                         //m->flags & GlobalFlags_EditorMode ? "ON" : "off",
                         m->camera.position.x, m->camera.position.z,
                         m->partyX, m->partyY, m->partyX + m->partyY * TILE_COUNT,
-                        Facing_toString(m->partyFacing),
                         m->encounter.ticks, m->map.encounterFreq,
                         danger + 2, m->map.chamberCount,
                         m->map.seed);

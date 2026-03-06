@@ -14,5 +14,7 @@ typedef enum {
     GlobalFlags_TheEnd              = 1 << 9,
     GlobalFlags_MissionAccomplished = 1 << 10,
     GlobalFlags_Resting             = 1 << 11,
+    GlobalFlags_ConfirmExit         = 1 << 12,
+    GlobalFlags_MuteSFX             = 1 << 13,
 } GlobalFlags_t; /* Need to append Type to avoid clash with symbols on windows */
 
