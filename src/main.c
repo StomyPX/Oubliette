@@ -232,7 +232,7 @@ main(int argc, char* argv[])
 
         /* Determine GUI layout proportions */
         Rectangle viewport, card, panel;
-        HudLayout layout;
+        GuiLayout layout;
         int portraitSize = 145;
         int aspect = (float)GetRenderWidth() / (float)GetRenderHeight() * 100;
         {
@@ -273,7 +273,7 @@ main(int argc, char* argv[])
 
             /* Ultrawide, cards on left side */
             if (aspect > 180 && viewport.height >= card.height * 4 + UI_PADDING * 3) {
-                layout = HudLayout_Ultrawide;
+                layout = GuiLayout_Ultrawide;
 
                 portraitSize = 145;
                 card.x = viewport.x;
@@ -291,12 +291,12 @@ main(int argc, char* argv[])
             /* TODO Square, 2x2 cards along bottom, for aspects as small as 70-80 */
             #if 0
             } else if (aspect < 120) {
-                layout = HudLayout_Tall;
+                layout = GuiLayout_Tall;
             #endif
 
             /* Non-Widescreen, cards along bottom */
             } else if (viewport.width < card.width * 4 + panel.width + UI_PADDING * 3) {
-                layout = HudLayout_Square;
+                layout = GuiLayout_Square;
 
                 card.x = viewport.x;
                 card.y = viewport.y + viewport.height - card.height;
@@ -311,7 +311,7 @@ main(int argc, char* argv[])
                 viewport.width -= panel.width + UI_PADDING;
 
             } else { /* Regular Widescreen, cards below viewport */
-                layout = HudLayout_Widescreen;
+                layout = GuiLayout_Widescreen;
 
                 panel.width = util_intclamp(viewport.width * UI_SIDE_PANEL_FRACTION, 480, 700);
                 panel.height = viewport.height;
@@ -469,26 +469,26 @@ main(int argc, char* argv[])
                     position.y = frame.y + UI_PADDING;
                     ui_text(m->fonts.title, buffer, position, m->fonts.title.baseSize, 0, MINDAROGREEN);
 
+                    /* FIGHT! */
                     button.width = 120;
                     button.height = 48;
-                    button.x = viewport.x + viewport.width - UI_PADDING - button.width;
-                    button.y = viewport.y + viewport.height - UI_PADDING - button.height;
-                    result = ui_button(button, "FLEE", KEY_R, active);
-                    if (result > 0) {
-                        PlaySound(m->click);
-                        combat_flee();
-                    } else if (result < 0) {
-                        anyHover = 1;
-                    }
-
-                    /* FIGHT! */
                     button.x = viewport.x + UI_PADDING;
+                    button.y = viewport.y + viewport.height - UI_PADDING - button.height;
                     result = ui_button(button, "FIGHT", KEY_F, active);
                     if (result > 0) {
                         PlaySound(m->click);
                         combat_fight();
                     } else if (result < 0) {
                         anyHover = 2;
+                    }
+
+                    button.x += button.width + UI_PADDING;
+                    result = ui_button(button, "FLEE", KEY_R, active);
+                    if (result > 0) {
+                        PlaySound(m->click);
+                        combat_flee();
+                    } else if (result < 0) {
+                        anyHover = 1;
                     }
                 }
 
@@ -505,18 +505,18 @@ main(int argc, char* argv[])
                 button.height = 48;
                 button.x = viewport.x + viewport.width - UI_PADDING - button.width;
                 button.y = viewport.y + viewport.height - UI_PADDING - button.height;
-                result = ui_button(button, "WAIT", KEY_R, !(m->flags & GlobalFlags_TheEnd));
+                result = ui_button(button, "REST", KEY_R, !(m->flags & GlobalFlags_TheEnd));
                 if (result > 0) {
-                    ui_log(ZINNWALDITEBROWN, "Waiting...");
+                    ui_log(ZINNWALDITEBROWN, "Resting...");
                     m->encounter.ticks += 300;
-                    m->flags |= GlobalFlags_AdvanceTurn | GlobalFlags_Downtime;
+                    m->flags |= GlobalFlags_AdvanceTurn | GlobalFlags_Resting;
 
                     for (int i = 0; i < arrlen(m->party); i++) {
                         Character* ch = m->party + i;
                         if (!ch->name[0] || ch->health < 1)
                             continue;
 
-                        if (ch->activity == DowntimeActivity_Rest) {
+                        if (ch->activity == RestActivity_Rest) {
                             if (ch->stamina < char_maxStamina(*ch)) {
                                 int die = (ch->constitution + ch->willpower) / 10 + 2;
                                 ch->stamina += PcgRandom_roll(&m->rng, 1, util_intmax(2, die));
@@ -528,10 +528,10 @@ main(int argc, char* argv[])
                                 if (ch->health > char_maxHealth(*ch))
                                     ch->health = char_maxHealth(*ch);
                             }
-                        } else if (ch->activity == DowntimeActivity_TendWounds) {
+                        } else if (ch->activity == RestActivity_TendWounds) {
                             if (ch->stamina < 1) {
                                 ui_log(ZINNWALDITEBROWN, "%s is too tired to tend wounds and so "
-                                        "rests for a moment instead", ch->name);
+                                        "rests for a while instead", ch->name);
                                 int die = (ch->constitution + ch->willpower) / 10 + 2;
                                 ch->stamina += PcgRandom_roll(&m->rng, 1, die);
                                 if (ch->stamina > char_maxStamina(*ch))
@@ -721,7 +721,7 @@ main(int argc, char* argv[])
                             m->encounter.ticks += ticks;
 
                             /* TODO Check for interactables, for now just the entry and exit */
-                            if ((!m->flags & GlobalFlags_MissionAccomplished)
+                            if (!(m->flags & GlobalFlags_MissionAccomplished)
                                 && m->partyX == m->map.goalX && m->partyY == m->map.goalY)
                             {
                                 m->flags |= GlobalFlags_MissionAccomplished;
@@ -818,7 +818,7 @@ main(int argc, char* argv[])
                 if (ui_characterHudCard(m->party + 0, card, portraitSize, active ? KEY_ONE : -1))
                     anyHover = 4;
 
-                if (layout == HudLayout_Ultrawide) {
+                if (layout == GuiLayout_Ultrawide) {
                     card.y += card.height + UI_PADDING;
                 } else {
                     card.x += card.width + UI_PADDING;
@@ -826,7 +826,7 @@ main(int argc, char* argv[])
                 if (ui_characterHudCard(m->party + 1, card, portraitSize, active ? KEY_TWO : -1))
                     anyHover = 5;
 
-                if (layout == HudLayout_Ultrawide) {
+                if (layout == GuiLayout_Ultrawide) {
                     card.y += card.height + UI_PADDING;
                 } else {
                     card.x += card.width + UI_PADDING;
@@ -834,7 +834,7 @@ main(int argc, char* argv[])
                 if (ui_characterHudCard(m->party + 2, card, portraitSize, active ? KEY_THREE : -1))
                     anyHover = 6;
 
-                if (layout == HudLayout_Ultrawide) {
+                if (layout == GuiLayout_Ultrawide) {
                     card.y += card.height + UI_PADDING;
                 } else {
                     card.x += card.width + UI_PADDING;
@@ -889,21 +889,23 @@ main(int argc, char* argv[])
 
                 snprintf(buf, sizeof(buf),
                         "FPS: %3i\n"
-                        "Debug View: %s\n"
+                        //"Debug View: %s\n"
                         "Camera: %4.1f, %4.1f\n"
                         "Tile: %2i, %2i [%i]\n"
                         "Facing: %s\n"
                         "Enc. Ticks: %i/%i\n"
                         "Dungeon Level: %i\n"
-                        "Seed: %llu\n",
+                        "Seed: %llu\n"
+                        "Chambers: %i",
                         GetFPS(),
-                        m->flags & GlobalFlags_EditorMode ? "ON" : "off",
+                        //m->flags & GlobalFlags_EditorMode ? "ON" : "off",
                         m->camera.position.x, m->camera.position.z,
                         m->partyX, m->partyY, m->partyX + m->partyY * TILE_COUNT,
                         Facing_toString(m->partyFacing),
                         m->encounter.ticks, m->map.encounterFreq,
                         danger + 2,
-                        m->map.seed);
+                        m->map.seed,
+                        m->map.chamberCount);
                 ui_text(GetFontDefault(), buf, position, GetFontDefault().baseSize, 1, BONE);
             }
 
@@ -941,6 +943,8 @@ main(int argc, char* argv[])
                                 buffer[x * 2] = '_';
                             } else if (!(t & TileFlags_AllowEntry)) {
                                 buffer[x * 2] = '#';
+                            } else if (!(t & TileFlags_Flooded)) {
+                                buffer[x * 2] = '.';
                             } else {
                                 buffer[x * 2] = ' ';
                             }
@@ -1016,7 +1020,7 @@ main(int argc, char* argv[])
                     }
                 }
 
-                m->flags &= ~(GlobalFlags_AdvanceTurn | GlobalFlags_Downtime);
+                m->flags &= ~(GlobalFlags_AdvanceTurn | GlobalFlags_Resting);
             }
 
             // TODO if not in a menu or encounter

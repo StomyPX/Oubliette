@@ -94,8 +94,8 @@ combat_randomEncounter(MonstrousCompendium* monstrous)
         { /* Hide chance */
             int chance = 0;
 
-            if (m->flags & GlobalFlags_Downtime) {
-                if (ch->activity == DowntimeActivity_Hide) {
+            if (m->flags & GlobalFlags_Resting) {
+                if (ch->activity == RestActivity_Hide) {
                     chance += char_hideChance(ch);
                     chance -= danger * 30;
                     if (ch->class == CharacterClass_Thief)
@@ -123,7 +123,7 @@ combat_randomEncounter(MonstrousCompendium* monstrous)
     if (ambush) {
         ui_log(ZINNWALDITEBROWN, "You catch the enemy by surprise!");
         m->encounter.unit.status |= MonsterStatus_Surprised;
-    } else if (m->flags & GlobalFlags_Downtime) {
+    } else if (m->flags & GlobalFlags_Resting) {
         int monsterSurprise = -monster->stealth;
         int roll;
 
@@ -141,18 +141,18 @@ combat_randomEncounter(MonstrousCompendium* monstrous)
                     chance += 1;
                 } break;
 
-                case DowntimeActivity_Rest: {
+                case RestActivity_Rest: {
                     if (ch->health < char_maxHealth(*ch))
                         chance += 2;
                     if (ch->stamina < char_maxStamina(*ch))
                         chance += 1;
                 } break;
 
-                case DowntimeActivity_Guard: {
+                case RestActivity_Guard: {
                     chance -= 1;
                 } break;
 
-                case DowntimeActivity_Hide: {
+                case RestActivity_Hide: {
                     /* no change */
                 } break;
             }

@@ -111,19 +111,11 @@ map_generate(Map* map, uint64_t seed)
     map->entryY = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 4);
     map->tiles[map->entryX + map->entryY * TILE_COUNT] = TileFlags_Filled | TileFlags_AllowEntry;
 
-    map_generateChamber(map, map->entryX, map->entryY, Facing_South);
     // Build out the map, recursively resolving passages
-    for (int i = 0;
-        i < TILE_COUNT * TILE_COUNT && map->passageCount > 0 && map->chamberCount < MAP_CHAMBERS_MAX;
-        i++)
-    {
-        int randomPassage = PcgRandom_randomu(&map->rng) % map->passageCount;
-        MapPassage p = map->passages[randomPassage];
-        map->passageCount -= 1;
-        if (randomPassage < map->passageCount)
-            map->passages[randomPassage] = map->passages[map->passageCount];
-        map_generatePassage(map, p);
-    }
+    //for (int i = 0; i < 3 && map->chamberCount < 3; i++) {
+        map_generateChamber(map, map->entryX, map->entryY, Facing_South);
+        map_generateLoop(map);
+    //}
 
     /* Place the tomb in the farthest chamber from the exit. */
     int farthest = 0;
@@ -140,12 +132,36 @@ map_generate(Map* map, uint64_t seed)
                 farthest = distance;
             }
         }
-    } /* TODO Instead, try walking backwards through the chamber list to find an appropriate one */
+    } /* TODO Could instead try walking backwards through the chamber list to find an appropriate one */
 
     // TODO Place features
 
+    /* Flood Test */
+    #if DEBUG_MODE
+    if (!map_floodTest(map)) {
+        ui_log(MAROON, "ERROR: This map (seed %llu) has failed the flood test!", map->seed);
+        ui_log(MAROON, "The map is not completable, please quit and start again");
+    }
+    #endif
+
     snprintf(map->name, sizeof(map->name), "Oubliette");
     map->encounterFreq = 600; // Hardcoded for now. 3000 is more like typical D&D freq of one roll every 30min
+}
+
+static void
+map_generateLoop(Map* map)
+{
+    for (int i = 0;
+        i < TILE_COUNT * TILE_COUNT && map->passageCount > 0 && map->chamberCount < MAP_CHAMBERS_MAX;
+        i++)
+    {
+        int randomPassage = PcgRandom_randomu(&map->rng) % map->passageCount;
+        MapPassage p = map->passages[randomPassage];
+        map->passageCount -= 1;
+        if (randomPassage < map->passageCount)
+            map->passages[randomPassage] = map->passages[map->passageCount];
+        map_generatePassage(map, p);
+    }
 }
 
 static void
@@ -157,7 +173,8 @@ map_generatePassage(Map* map, MapPassage u)
     int i;
 
     for (i = 0; i < steps && success; i++) {
-        map_generateStepForward(map, &u.x, &u.y, u.facing);
+        if (!map_generateStepForward(map, &u.x, &u.y, u.facing))
+            break;
     }
 
     // Either place a chamber or leave marked for another passage
@@ -196,10 +213,9 @@ map_generateStepForward(Map* map, int* x, int* y, Facing facing)
     unsigned target; // Tile directly in front
     unsigned wall; // Tile that controls passage between current and target
 
-    target = util_traverse(facing, *x, *y, 1, 0, 0, 0);
-    if (target > TILE_COUNT * TILE_COUNT)
-        return false;
-    if (map->tiles[target] & TileFlags_Filled)
+    util_traverse(facing, *x, *y, 1, 0, 0, 0);
+    target = map_tileIndex(*x, *y);
+    if (target < 0)
         return false;
 
     switch (facing) {
@@ -284,7 +300,7 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
     switch (facing) {
         default: {
             c.x = x - (PcgRandom_roll(&map->rng, 1, c.w) - 1);
-            c.y = y + c.h;
+            c.y = y - c.h;
         } break;
         case Facing_East: {
             c.x = x + 1;
@@ -295,7 +311,7 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
             c.y = y + 1;
         } break;
         case Facing_West: {
-            c.x = x + c.w;
+            c.x = x - c.w;
             c.y = y - (PcgRandom_roll(&map->rng, 1, c.h) - 1);
         } break;
     }
@@ -329,14 +345,12 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
 
     /* Generate exits */
     exitD6 = PcgRandom_roll(&map->rng, 1, 6);
-    if (map->chamberCount > 1 && map->chamberCount <= 4)
+    if (map->chamberCount % 8 == 1 && map->chamberCount <= MAP_CHAMBERS_MAX / 4)
         exitD6 += 3;
-    if (map->chamberCount > MAP_CHAMBERS_MAX / 4)
-        exitD6 -= 1;
     if (map->chamberCount > MAP_CHAMBERS_MAX / 2)
         exitD6 -= 1;
     if (map->chamberCount > MAP_CHAMBERS_MAX * 3 / 4)
-        exitD6 -= 1;
+        exitD6 -= 2;
     exitD6 = Clamp(exitD6, 0, 6);
     switch (exitD6) {
         default: {
@@ -538,3 +552,104 @@ map_draw(Map* map, Color light, float visibility, float power)
     }
 }
 
+#if DEBUG_MODE
+
+static bool
+map_floodTest(Map* map)
+{
+    int64_t tocheck;
+    int start = map_tileIndex(map->entryX, map->entryY);
+    int goal = map_tileIndex(map->goalX, map->goalY);
+
+    if (start < 0) {
+        TraceLog(LOG_FATAL, "Invalid starting tile [%i, %i]! This should be impossible!",
+            map->entryX, map->entryY);
+        return false;
+    } else if (goal < 0) {
+        TraceLog(LOG_FATAL, "Invalid goal tile [%i, %i]! This should be impossible!",
+            map->goalX, map->goalY);
+        return false;
+    }
+
+    /* Clear any previous result */
+    for (int i = 0; i < arrlen(map->tiles); i++) {
+        map->tiles[i] &= ~(TileFlags_FloodTest | TileFlags_Flooded);
+    }
+
+    map->tiles[start] |= TileFlags_FloodTest;
+    tocheck = 1;
+
+    /* Flood fill loop */
+    for (uint32_t i = 0; i < UINT32_MAX && tocheck > 0; i++) {
+        for (int y = 0; y < TILE_COUNT; y++) {
+            for (int x = 0; x < TILE_COUNT; x++) {
+                int index = map_tileIndex(x, y);
+                if (index < 0)
+                    TraceLog(LOG_ERROR, "Invalid tile index [%i, %i], this shouldn't happen", x, y);
+
+                if (map->tiles[index] & TileFlags_FloodTest) {
+                    int neighbors[4];
+
+                    map->tiles[index] &= ~(TileFlags_FloodTest);
+                    map->tiles[index] |= TileFlags_Flooded;
+                    tocheck -= 1;
+
+                    /*
+                    if (index == goal) {
+                        TraceLog(LOG_DEBUG, "Goal tile flooded, early-exit successful flood test");
+                        return true;
+                    }
+                    */
+
+                    neighbors[0] = map_tileIndex(x, y - 1); // North
+                    neighbors[1] = map_tileIndex(x, y + 1); // South
+                    neighbors[2] = map_tileIndex(x + 1, y); // East
+                    neighbors[3] = map_tileIndex(x - 1, y); // West
+
+                    for (int n = 0; n < arrlen(neighbors); n++) {
+                        if (index >= 0) {
+                            if (map->tiles[neighbors[n]] & (TileFlags_Flooded | TileFlags_FloodTest)) {
+                                neighbors[n] = -1;
+                            } else if (!(map->tiles[neighbors[n]] & TileFlags_AllowEntry)) {
+                                neighbors[n] = -1;
+                            }
+                        }
+                    }
+
+                    if (neighbors[0] >= 0 && map->tiles[neighbors[0]] & TileFlags_AllowSouth) {
+                        map->tiles[neighbors[0]] |= TileFlags_FloodTest;
+                        tocheck += 1;
+                    }
+
+                    if (neighbors[1] >= 0 && map->tiles[index] & TileFlags_AllowSouth) {
+                        map->tiles[neighbors[1]] |= TileFlags_FloodTest;
+                        tocheck += 1;
+                    }
+
+                    if (neighbors[2] >= 0 && map->tiles[index] & TileFlags_AllowEast) {
+                        map->tiles[neighbors[2]] |= TileFlags_FloodTest;
+                        tocheck += 1;
+                    }
+
+                    if (neighbors[3] >= 0 && map->tiles[neighbors[3]] & TileFlags_AllowEast) {
+                        map->tiles[neighbors[3]] |= TileFlags_FloodTest;
+                        tocheck += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    if (map->tiles[goal] & TileFlags_Flooded) {
+        if (map->tiles[start] & TileFlags_Flooded) {
+            return true;
+        } else {
+            TraceLog(LOG_ERROR, "ERROR: Entry tile not flooded, flood test failed! Map Seed: %llu", map->seed);
+            return false;
+        }
+    } else {
+        TraceLog(LOG_ERROR, "ERROR: Goal tile not flooded, flood test failed! Map Seed: %llu", map->seed);
+        return false;
+    }
+}
+#endif

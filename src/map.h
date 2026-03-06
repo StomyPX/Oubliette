@@ -10,6 +10,10 @@ typedef enum {
     TileFlags_Chamber    = 1 << 3,
     TileFlags_Filled     = 1 << 4,
     TileFlags_Feature    = 1 << 5,
+
+    // Debugging only
+    TileFlags_FloodTest  = 1 << 30,
+    TileFlags_Flooded    = 1 << 31,
 } TileFlags;
 
 typedef struct {
@@ -64,6 +68,7 @@ static Camera3D map_cameraForTile(int x, int y, Facing facing);
 
 /* Returns non-zero on success */
 static void map_generate(Map* map, uint64_t seed);
+static void map_generateLoop(Map* map);
 static void map_generatePassage(Map* map, MapPassage u);
 static bool map_generateStepForward(Map* map, int* x, int* y, Facing facing);
 static void map_generateChamber(Map* map, int x, int y, Facing facing);
@@ -72,3 +77,6 @@ static void map_generateChamberRandomPassage(Map* map, MapChamber chamber, Facin
 static void map_unload(Map* map);
 static void map_draw(Map* map, Color light, float visibility, float power);
 
+#if DEBUG_MODE
+static bool map_floodTest(Map* map);
+#endif

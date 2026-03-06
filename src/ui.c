@@ -227,12 +227,12 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
                     } break;
                 }
 
-            /* Downtime Activity */
+            /* Rest Activity */
             } else {
                 ch->activity += 1;
-                if (ch->activity == DowntimeActivity_TendWounds && ch->class != CharacterClass_Mage)
+                if (ch->activity == RestActivity_TendWounds && ch->class != CharacterClass_Mage)
                     ch->activity += 1;
-                ch->activity %= DowntimeActivity_Count;
+                ch->activity %= RestActivity_Count;
             }
         }
 
@@ -257,18 +257,18 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
         } else {
             char buffer[64];
             switch (ch->activity) {
-                case DowntimeActivity_Hide: {
+                case RestActivity_Hide: {
                     int chance = char_hideChance(ch);
                     if (ch->class == CharacterClass_Thief)
                         chance += ch->level;
                     snprintf(buffer, sizeof(buffer), "%s (%i%%)",
-                                DowntimeActivity_toStringFancy(ch->activity), util_intmax(0, chance));
+                                RestActivity_toStringFancy(ch->activity), util_intmax(0, chance));
                     DrawTextEx(m->fonts.text, buffer, Vector2Floor(position),
                                 m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                 } break;
 
                 default: {
-                    DrawTextEx(m->fonts.text, DowntimeActivity_toStringFancy(ch->activity),
+                    DrawTextEx(m->fonts.text, RestActivity_toStringFancy(ch->activity),
                                 Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                 } break;
             }

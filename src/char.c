@@ -28,15 +28,15 @@ CombatAction_toStringFancy(CombatAction c)
 }
 
 static char*
-DowntimeActivity_toStringFancy(DowntimeActivity a)
+RestActivity_toStringFancy(RestActivity a)
 {
     switch (a) {
         default:
-            TraceLog(LOG_ERROR, "CHARACTER: Unknown downtime activity, id: %i", a);
-        case DowntimeActivity_Rest: return "Rest";
-        case DowntimeActivity_Guard: return "Stand Guard";
-        case DowntimeActivity_Hide: return "Hide";
-        case DowntimeActivity_TendWounds: return "Tend Wounds";
+            TraceLog(LOG_ERROR, "CHARACTER: Unknown rest activity, id: %i", a);
+        case RestActivity_Rest: return "Rest";
+        case RestActivity_Guard: return "Stand Guard";
+        case RestActivity_Hide: return "Hide";
+        case RestActivity_TendWounds: return "Tend Wounds";
     }
 }
 
@@ -65,7 +65,7 @@ char_random(void)
     if (c.intellect > c.dexterity && c.intellect > c.strength) {
         c.class = CharacterClass_Mage;
         c.action = CombatAction_CastSpell;
-        c.activity = DowntimeActivity_TendWounds;
+        c.activity = RestActivity_TendWounds;
     } else if (c.dexterity > c.strength) {
         c.class = CharacterClass_Thief;
     } else {

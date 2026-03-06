@@ -8,11 +8,11 @@
 
 typedef enum
 {
-    HudLayout_Widescreen = 0,
-    HudLayout_Square,
-    HudLayout_Ultrawide,
-    //HudLayout_Tall, TODO 2x2 cards along the bottom
-} HudLayout;
+    GuiLayout_Widescreen = 0,
+    GuiLayout_Square,
+    GuiLayout_Ultrawide,
+    //GuiLayout_Tall, TODO 2x2 cards along the bottom
+} GuiLayout;
 
 typedef struct
 {
