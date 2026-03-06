@@ -564,6 +564,7 @@ main(int argc, char* argv[])
                                 int32_t lowest = INT32_MAX;
                                 for (int j = 0; j < arrlen(m->party); j++) {
                                     if (m->party[j].health < char_maxHealth(m->party[j])
+                                        && m->party[j].health >= 0
                                         && m->party[j].health < lowest)
                                     {
                                         patient = m->party + j;

@@ -67,7 +67,7 @@ windows_debug: windows_libs
 
 windows_release: windows_libs
 	@echo "Compiling for Windows in Release mode using MinGW-w64"
-	x86_64-w64-mingw32-gcc $(WINDOWS_FLAGS) -DRELEASE_MODE=1 -O3 src/main.c src/ext_miniphysfs.c -o $(FILE_NAME) $(WINDOWS_LINKS)
+	x86_64-w64-mingw32-gcc $(WINDOWS_FLAGS) -DRELEASE_MODE=1 -O3 -g0 -s src/main.c src/ext_miniphysfs.c -o $(FILE_NAME) $(WINDOWS_LINKS)
 
 windows_libs: lib/libraylib.mingw.a cimgui.dll \
 			  libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll
@@ -79,7 +79,7 @@ cimgui.dll: | $(cimgui_directory)
 
 lib/libraylib.mingw.a: | $(raylib_directory)
 	cd ext/raylib/src/ && $(MAKE) clean
-	cd ext/raylib/src/ && $(MAKE) CC=x86_64-w64-mingw32-gcc PLATFORM=PLATFORM_DESKTOP RAYLIB_CONFIG_FLAGS=NONE
+	cd ext/raylib/src/ && $(MAKE) CC=x86_64-w64-mingw32-gcc PLATFORM=PLATFORM_DESKTOP PLATFORM_OS=WINDOWS RAYLIB_CONFIG_FLAGS=NONE
 	mv ext/raylib/src/libraylib.a lib/libraylib.mingw.a
 
 # Just copy them out of the local MinGW toolchain
