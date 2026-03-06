@@ -81,3 +81,5 @@ static int char_modifier(int characteristic);
 static void char_exp(Character* c, int xp);
 static uint8_t char_level(CharacterClass class, int64_t xp);
 static int64_t char_levelRequirement(CharacterClass class, uint8_t level);
+
+static int char_hideChance(Character* ch);

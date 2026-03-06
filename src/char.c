@@ -339,3 +339,10 @@ char_levelRequirement(CharacterClass class, uint8_t target)
 
     return req;
 }
+
+static int
+char_hideChance(Character* ch)
+{
+    int chance = ch->hide + ch->level + char_modifier(ch->dexterity);
+    return chance;
+}

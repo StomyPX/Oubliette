@@ -84,7 +84,11 @@ main(int argc, char* argv[])
     SetSaveFileDataCallback(util_writeFileData);
     SetLoadFileTextCallback(util_readFileText);
     SetSaveFileTextCallback(util_writeFileText);
+    #if DEBUG_MODE
+    InitWindow(1024, 768, GAME_NAME);
+    #else
     InitWindow(1280, 720, GAME_NAME);
+    #endif
     InitAudioDevice();
     SetExitKey(KEY_NULL);
     SetTraceLogLevel(LOG_ALL);
@@ -177,9 +181,7 @@ main(int argc, char* argv[])
         if (IsKeyPressed(KEY_KP_ENTER))
             util_clearLog();
 
-        if (m->flags & GlobalFlags_EditorModePermitted
-            && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)))
-        {
+        if (m->flags & GlobalFlags_EditorModePermitted) {
             if (IsKeyPressed(KEY_F1))
                 m->flags ^= GlobalFlags_EditorMode;
             if (IsKeyPressed(KEY_F2))
@@ -228,17 +230,20 @@ main(int argc, char* argv[])
 
         /* Rendering */
 
-        { /* Determine GUI layout proportions */
-            int aspect = (float)GetRenderWidth() / (float)GetRenderHeight() * 100;
-
-            if (aspect > 200) {
-                m->area.width = GetRenderHeight() * 2;
+        /* Determine GUI layout proportions */
+        Rectangle viewport, card, panel;
+        HudLayout layout;
+        int portraitSize = 145;
+        int aspect = (float)GetRenderWidth() / (float)GetRenderHeight() * 100;
+        {
+            if (aspect > 240) {
+                m->area.width = GetRenderHeight() * 2.4f;
                 m->area.height = GetRenderHeight();
                 m->area.top = 0;
                 m->area.left = (GetRenderWidth() - m->area.width) / 2;
             } else if (aspect < 100) {
                 m->area.width = GetRenderWidth();
-                m->area.height = GetRenderWidth();
+                m->area.height = GetRenderHeight();
                 m->area.top = (GetRenderHeight() - m->area.height) / 2;
                 m->area.left = 0;
             } else {
@@ -249,13 +254,82 @@ main(int argc, char* argv[])
             }
             m->area.bottom = m->area.top + m->area.height;
             m->area.right = m->area.left + m->area.width;
-        }
 
-        Rectangle viewport;
-        viewport.x = floorf(m->area.left + UI_PADDING);
-        viewport.y = floorf(m->area.top + UI_PADDING);
-        viewport.width = floorf(m->area.width * (1.f - UI_SIDE_PANEL_FRACTION) - UI_PADDING * 2);
-        viewport.height = floorf(m->area.height * (1.f - UI_PORTRAIT_FRACTION) - UI_PADDING * 2);
+            /* We proceed by slicing out of the main viewport */
+            viewport.x = m->area.left + UI_PADDING;
+            viewport.y = m->area.top + UI_PADDING;
+            viewport.width = m->area.width - UI_PADDING * 2;
+            viewport.height = m->area.height - UI_PADDING * 2;
+
+            /* Minimum dimensions */
+            card.height = 254;
+            card.width = 245;
+            panel.width = 480;
+
+            /* Portrait has a fixed square size based on the vertical play area (145px @ 1080p)
+             * This means the card rectangle will need at least that plus 30 for padding and 115 for text
+             * on width. For height it should always be 260 or else all the stats won't fit beside the action.
+             * Panel width maxes out at 700px */
+
+            /* Ultrawide, cards on left side */
+            if (aspect > 180 && viewport.height >= card.height * 4 + UI_PADDING * 3) {
+                layout = HudLayout_Ultrawide;
+
+                portraitSize = 145;
+                card.x = viewport.x;
+                card.y = viewport.y;
+                card.width = 300;
+                viewport.x += card.width + UI_PADDING;
+                viewport.width -= card.width + UI_PADDING;
+
+                panel.width = 700;
+                panel.x = viewport.x + viewport.width - panel.width;
+                panel.y = viewport.y;
+                panel.height = viewport.height;
+                viewport.width -= panel.width + UI_PADDING;
+
+            /* TODO Square, 2x2 cards along bottom, for aspects as small as 70-80 */
+            #if 0
+            } else if (aspect < 120) {
+                layout = HudLayout_Tall;
+            #endif
+
+            /* Non-Widescreen, cards along bottom */
+            } else if (viewport.width < card.width * 4 + panel.width + UI_PADDING * 3) {
+                layout = HudLayout_Square;
+
+                card.x = viewport.x;
+                card.y = viewport.y + viewport.height - card.height;
+                card.width = (viewport.width - UI_PADDING * 3) / 4;
+                portraitSize = util_intclamp(card.width - 145, 64, 145);
+                viewport.height -= card.height + UI_PADDING;
+
+                panel.width = util_intclamp(viewport.width * UI_SIDE_PANEL_FRACTION, 480, 700);
+                panel.height = viewport.height;
+                panel.y = viewport.y;
+                panel.x = viewport.x + viewport.width - panel.width;
+                viewport.width -= panel.width + UI_PADDING;
+
+            } else { /* Regular Widescreen, cards below viewport */
+                layout = HudLayout_Widescreen;
+
+                panel.width = util_intclamp(viewport.width * UI_SIDE_PANEL_FRACTION, 480, 700);
+                panel.height = viewport.height;
+                panel.y = viewport.y;
+                panel.x = viewport.x + viewport.width - panel.width;
+                viewport.width -= panel.width + UI_PADDING;
+
+                card.x = viewport.x;
+                card.y = viewport.y + viewport.height - card.height;
+                card.width = (viewport.width - UI_PADDING * 3) / 4;
+                portraitSize = util_intclamp(card.width - 145, 64, 145);
+                viewport.height -= card.height + UI_PADDING;
+            }
+
+            viewport = RectangleFloor(viewport);
+            card = RectangleFloor(card);
+            panel = RectangleFloor(panel);
+        }
 
         if (!(m->flags & GlobalFlags_Encounter)) {
             /* Draw map to a render texture. Incredibly, raylib doesn't do viewports */
@@ -263,9 +337,9 @@ main(int argc, char* argv[])
                 if (IsRenderTextureValid(m->rtex))
                     UnloadRenderTexture(m->rtex);
                 m->rtex = LoadRenderTexture(viewport.width, viewport.height);
+                TraceLog(LOG_DEBUG, "Viewport Resize W: %4i->%4i H: %4i->%4i", m->rtexW, (int)viewport.width, m->rtexH, (int)viewport.height);
                 m->rtexW = viewport.width;
                 m->rtexH = viewport.height;
-                TraceLog(LOG_DEBUG, "Viewport Resize W: %4i->%4i H: %4i->%4i", m->rtexW, (int)viewport.width, m->rtexH, (int)viewport.height);
             }
 
             BeginTextureMode(m->rtex);
@@ -475,7 +549,8 @@ main(int argc, char* argv[])
                                 }
 
                                 if (patient) {
-                                    /* TODO Requires bandages!, without them it only heals 0-max(1, Charisma Mod) */
+                                    /* TODO Requires bandages!, without them it only heals 0-CharismaMod.
+                                     * And if Charisma mod isn't positive, it does nothing. */
                                     int healing = PcgRandom_roll(&m->rng, 1, 6);
                                     healing += char_modifier(ch->intellect);
                                     healing = util_intclamp(healing, 1, char_maxHealth(*patient) - patient->health);
@@ -646,7 +721,9 @@ main(int argc, char* argv[])
                             m->encounter.ticks += ticks;
 
                             /* TODO Check for interactables, for now just the entry and exit */
-                            if (m->partyX == m->map.goalX && m->partyY == m->map.goalY) {
+                            if ((!m->flags & GlobalFlags_MissionAccomplished)
+                                && m->partyX == m->map.goalX && m->partyY == m->map.goalY)
+                            {
                                 m->flags |= GlobalFlags_MissionAccomplished;
                                 ui_log(MINDAROGREEN, "Dread fills your heart as you open the tomb of the Last King");
                                 ui_log(ZINNWALDITEBROWN, "The deed is done, return to the entrance");
@@ -679,28 +756,22 @@ main(int argc, char* argv[])
 
             ui_border(m->border, viewport, BONE);
 
-            if (m->map.name[0]) {
+            if (m->map.name[0] && panel.height > 400) {
                 Vector2 position;
                 Vector2 dimensions = MeasureTextEx(m->fonts.title, m->map.name, m->fonts.title.baseSize, 0);
-                position.x = m->area.left + m->area.width;
-                position.x -= m->area.width * UI_SIDE_PANEL_FRACTION / 2.f;
-                position.x -= dimensions.x / 2.f;
-                position.y = m->area.top + UI_SIDE_PANEL_HEADER / 2.f - dimensions.y / 2.f;
+                position.x = panel.x + panel.width / 2 - dimensions.x / 2;
+                position.y = panel.y + UI_SIDE_PANEL_HEADER / 2.f - dimensions.y / 2.f;
                 ui_text(m->fonts.title, m->map.name, Vector2Floor(position), m->fonts.title.baseSize, 0, BONE);
+                panel.height -= UI_SIDE_PANEL_HEADER;
+                panel.y += UI_SIDE_PANEL_HEADER;
             }
 
             { /* Side Panel */
-                Rectangle panel;
                 Vector2 position;
                 int count = 0;
                 int scrollMax = 0;
                 int visible;
 
-                panel.x = m->area.left + m->area.width * (1.f - UI_SIDE_PANEL_FRACTION) + UI_PADDING;
-                panel.y = m->area.top + UI_SIDE_PANEL_HEADER + UI_PADDING;
-                panel.width = m->area.width * UI_SIDE_PANEL_FRACTION - UI_PADDING * 2;
-                panel.height = m->area.height - UI_PADDING * 2 - UI_SIDE_PANEL_HEADER - UI_SIDE_PANEL_FOOTER;
-                panel = RectangleFloor(panel);
                 position.x = panel.x + UI_PADDING;
                 position.y = panel.y + UI_PADDING;
                 visible = panel.height / m->fonts.text.baseSize;
@@ -742,26 +813,33 @@ main(int argc, char* argv[])
                 ui_border(m->border, panel, BONE);
             }
 
-            { /* Portraits */
-                Rectangle card;
-
-                card.x = m->area.left + UI_PADDING;
-                card.y = m->area.top + m->area.height * (1.f - UI_PORTRAIT_FRACTION) + UI_PADDING;
-                card.width = m->area.width * (1.f - UI_SIDE_PANEL_FRACTION) / 4.f - UI_PADDING * 2;
-                card.height = m->area.height * UI_PORTRAIT_FRACTION - UI_PADDING * 2;
-                if (ui_characterHudCard(m->party + 0, card, 0))
+            { /* Character Cards */
+                bool active = !(m->flags & (GlobalFlags_GameOver | GlobalFlags_TheEnd));
+                if (ui_characterHudCard(m->party + 0, card, portraitSize, active ? KEY_ONE : -1))
                     anyHover = 4;
 
-                card.x += card.width + UI_PADDING * 2;
-                if (ui_characterHudCard(m->party + 1, card, 1))
+                if (layout == HudLayout_Ultrawide) {
+                    card.y += card.height + UI_PADDING;
+                } else {
+                    card.x += card.width + UI_PADDING;
+                }
+                if (ui_characterHudCard(m->party + 1, card, portraitSize, active ? KEY_TWO : -1))
                     anyHover = 5;
 
-                card.x += card.width + UI_PADDING * 2;
-                if (ui_characterHudCard(m->party + 2, card, 2))
+                if (layout == HudLayout_Ultrawide) {
+                    card.y += card.height + UI_PADDING;
+                } else {
+                    card.x += card.width + UI_PADDING;
+                }
+                if (ui_characterHudCard(m->party + 2, card, portraitSize, active ? KEY_THREE : -1))
                     anyHover = 6;
 
-                card.x += card.width + UI_PADDING * 2;
-                if (ui_characterHudCard(m->party + 3, card, 3))
+                if (layout == HudLayout_Ultrawide) {
+                    card.y += card.height + UI_PADDING;
+                } else {
+                    card.x += card.width + UI_PADDING;
+                }
+                if (ui_characterHudCard(m->party + 3, card, portraitSize, active ? KEY_FOUR : -1))
                     anyHover = 7;
             }
 

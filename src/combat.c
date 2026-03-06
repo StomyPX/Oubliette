@@ -96,13 +96,13 @@ combat_randomEncounter(MonstrousCompendium* monstrous)
 
             if (m->flags & GlobalFlags_Downtime) {
                 if (ch->activity == DowntimeActivity_Hide) {
-                    chance += ch->hide + ch->level + char_modifier(ch->dexterity);
+                    chance += char_hideChance(ch);
                     chance -= danger * 30;
                     if (ch->class == CharacterClass_Thief)
-                        chance += ch->hide;
+                        chance += ch->level;
                 }
             } else if (ch->class == CharacterClass_Thief) {
-                chance += ch->hide + ch->level + char_modifier(ch->dexterity);
+                chance += char_hideChance(ch);
                 chance -= danger * 30;
             }
 
@@ -289,7 +289,7 @@ combat_fight(void)
 
                         int chance = ch->hide + ch->level + char_modifier(ch->dexterity) - danger * 30;
                         if (PcgRandom_roll(&m->rng, 1, 100) < chance) {
-                            ui_log(ZINNWALDITEBROWN, "%s melds with the shadows", ch->name);
+                            ui_log(DARKBLUE, "%s melds with the shadows", ch->name);
                             ch->flags |= CharacterFlags_Hidden;
                         }
                     } break;
@@ -494,6 +494,8 @@ combat_flee(void)
         int save = c->dexterity - monster->stealth;
         int roll = PcgRandom_roll(&m->rng, 1, 20);
 
+        c->stamina -= PcgRandom_roll(&m->rng, 1, 6);
+
         if (c->health < 1)
             continue;
 
@@ -609,6 +611,9 @@ combat_attack(Character* ch, Unit* unit)
                     damage += PcgRandom_roll(&m->rng, 1, damageDie);
                     verb = "critically hits";
                     color = WHITE;
+                    if (ch->class == CharacterClass_Thief) {
+                        damage += ch->level;
+                    }
                 }
             }
 
@@ -626,7 +631,7 @@ combat_attack(Character* ch, Unit* unit)
             unit->health[target] -= damage;
         } else {
             if (ch->flags & CharacterFlags_Hidden) {
-                int chance = ch->hide * 2 + ch->level + char_modifier(ch->dexterity);
+                int chance = char_hideChance(ch);
                 if (PcgRandom_roll(&m->rng, 1, 100) >= chance)
                     ch->flags &= ~(CharacterFlags_Hidden);
             }

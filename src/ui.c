@@ -106,7 +106,7 @@ ui_log(Color color, char* fmt, ...)
 }
 
 static int
-ui_characterHudCard(Character* ch, Rectangle card, int index)
+ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode)
 {
     Rectangle portrait;
     Texture ptex;
@@ -118,7 +118,7 @@ ui_characterHudCard(Character* ch, Rectangle card, int index)
     ptex = ch->health >= 0 ? ch->portrait : m->dead;
     portrait.x = card.x + UI_PADDING;
     portrait.y = card.y + UI_PADDING;
-    portrait.width = card.width / 2.f;
+    portrait.width = portraitSize;
     portrait.height = portrait.width;
     position.x = portrait.x + portrait.width + UI_PADDING;
     position.y = portrait.y;
@@ -180,7 +180,7 @@ ui_characterHudCard(Character* ch, Rectangle card, int index)
 
         button.x = portrait.x;
         button.y = portrait.y + portrait.height + UI_PADDING;
-        button.height = util_intmin(48, card.height - portrait.height - UI_PADDING * 3);
+        button.height = 48;
         button.width = util_intmin(120, portrait.width);
         snprintf(buffer, sizeof(buffer), "ACTION");
 
@@ -189,15 +189,7 @@ ui_characterHudCard(Character* ch, Rectangle card, int index)
             snprintf(buffer, sizeof(buffer), "ACT");
         }
 
-        /* Ignore F-keys when editor mode is available and shift is held */
-        if ((m->flags | GlobalFlags_EditorModePermitted)
-            && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)))
-        {
-            index = -1;
-        }
-
-        result = ui_button(button, buffer, index >= 0 ? KEY_F1 + index : KEY_NULL,
-                            index >= 0 && !(m->flags & GlobalFlags_TheEnd));
+        result = ui_button(button, buffer, keycode, keycode >= 0);
 
         if (result > 0) {
             PlaySound(m->click);
@@ -244,14 +236,42 @@ ui_characterHudCard(Character* ch, Rectangle card, int index)
             }
         }
 
+        /* Current Action */
         position.x = button.x;
-        position.y = button.y + button.height + UI_PADDING;
+        position.y = card.y + card.height - UI_PADDING - m->fonts.text.baseSize;
         if (m->flags & GlobalFlags_Encounter) {
-            DrawTextEx(m->fonts.text, CombatAction_toStringFancy(ch->action), Vector2Floor(position),
-                        m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+            char buffer[64];
+            switch (ch->action) {
+                case CombatAction_Hide: {
+                    snprintf(buffer, sizeof(buffer), "%s (%i%%)",
+                                CombatAction_toStringFancy(ch->action), char_hideChance(ch));
+                    DrawTextEx(m->fonts.text, buffer, Vector2Floor(position),
+                                m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+                } break;
+
+                default: {
+                    DrawTextEx(m->fonts.text, CombatAction_toStringFancy(ch->action), Vector2Floor(position),
+                                m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+                } break;
+            }
         } else {
-            DrawTextEx(m->fonts.text, DowntimeActivity_toStringFancy(ch->activity), Vector2Floor(position),
-                        m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+            char buffer[64];
+            switch (ch->activity) {
+                case DowntimeActivity_Hide: {
+                    int chance = char_hideChance(ch);
+                    if (ch->class == CharacterClass_Thief)
+                        chance += ch->level;
+                    snprintf(buffer, sizeof(buffer), "%s (%i%%)",
+                                DowntimeActivity_toStringFancy(ch->activity), util_intmax(0, chance));
+                    DrawTextEx(m->fonts.text, buffer, Vector2Floor(position),
+                                m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+                } break;
+
+                default: {
+                    DrawTextEx(m->fonts.text, DowntimeActivity_toStringFancy(ch->activity),
+                                Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+                } break;
+            }
         }
     }
 
