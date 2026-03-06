@@ -98,7 +98,7 @@ main(int argc, char* argv[])
 
     /* TODO Always on in debug mode, requires cmdline switch "--editor" in release mode */
     #if DEBUG_MODE
-        m->flags |= GlobalFlags_PartyStats;
+        //m->flags |= GlobalFlags_PartyStats;
         m->flags |= GlobalFlags_EditorModePermitted;
         //m->flags |= GlobalFlags_ShowCollision;
     #endif
@@ -128,6 +128,10 @@ main(int argc, char* argv[])
     m->hover = LoadSound("data/sounds/button_hover.wav");
     m->click = LoadSound("data/sounds/button_click.wav");
     m->click2 = LoadSound("data/sounds/button_click2.wav");
+
+    m->ambient = LoadMusicStream("data/sounds/loops/dungeon.mp3");
+    SetMusicVolume(m->ambient, 0.3f);
+    m->music = LoadMusicStream("data/music/weltherrscherer.ogg");
 
     for (int i = 0; i < arrlen(m->party); i++) {
         m->party[i] = char_random();
@@ -169,6 +173,24 @@ main(int argc, char* argv[])
         m->deltaTime = GetFrameTime();
         m->second += m->deltaTime;
         int anyHover = 0;
+
+        if (IsMusicValid(m->ambient)) {
+            if (!IsMusicStreamPlaying(m->ambient)) {
+                PlayMusicStream(m->ambient);
+            }
+            UpdateMusicStream(m->ambient);
+        } else {
+            util_err(LogChannelErr_AmbientLoop, "Ambient loop not playing");
+        }
+
+        if (IsMusicValid(m->music)) {
+            if (!IsMusicStreamPlaying(m->music)) {
+                PlayMusicStream(m->music);
+            }
+            UpdateMusicStream(m->music);
+        } else {
+            util_err(LogChannelErr_MusicLoop, "Music loop not playing");
+        }
 
         if (IsKeyPressed(KEY_F4) && (IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT)))
             m->flags |= GlobalFlags_RequestQuit;
@@ -894,18 +916,16 @@ main(int argc, char* argv[])
                         "Tile: %2i, %2i [%i]\n"
                         "Facing: %s\n"
                         "Enc. Ticks: %i/%i\n"
-                        "Dungeon Level: %i\n"
-                        "Seed: %llu\n"
-                        "Chambers: %i",
+                        "Dungeon Lv%i Size %i\n"
+                        "Seed: %llu\n",
                         GetFPS(),
                         //m->flags & GlobalFlags_EditorMode ? "ON" : "off",
                         m->camera.position.x, m->camera.position.z,
                         m->partyX, m->partyY, m->partyX + m->partyY * TILE_COUNT,
                         Facing_toString(m->partyFacing),
                         m->encounter.ticks, m->map.encounterFreq,
-                        danger + 2,
-                        m->map.seed,
-                        m->map.chamberCount);
+                        danger + 2, m->map.chamberCount,
+                        m->map.seed);
                 ui_text(GetFontDefault(), buf, position, GetFontDefault().baseSize, 1, BONE);
             }
 
@@ -1049,6 +1069,10 @@ main(int argc, char* argv[])
     UnloadSound(m->hover);
     UnloadSound(m->click);
     UnloadSound(m->click2);
+
+    UnloadMusicStream(m->ambient);
+    UnloadMusicStream(m->music);
+
     for (int i = 0; i < arrlen(m->party); i++)
         char_free(m->party + i);
     UnloadRenderTexture(m->rtex);

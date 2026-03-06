@@ -35,6 +35,12 @@ typedef enum: unsigned short {
     LogChannel_None = 0,
 } LogChannel;
 
+typedef enum: unsigned short {
+    LogChannelErr_None = 0,
+    LogChannelErr_AmbientLoop,
+    LogChannelErr_MusicLoop,
+} LogChannelErr;
+
 /* Messages are shown for 3 seconds + 0.1 per character */
 static int util_log(unsigned short channel, char* fmt, ...);
 static int util_err(unsigned short channel, char* fmt, ...);
@@ -61,5 +67,4 @@ static bool util_jsonParseFloat(struct json_object_element_s* element, char* key
 /* Math helpers */
 static Vector2 Vector2Floor(Vector2 v);
 static Rectangle RectangleFloor(Rectangle r);
-
 

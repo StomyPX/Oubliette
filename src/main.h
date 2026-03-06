@@ -49,6 +49,8 @@ typedef struct Memory_ {
     Sound hover;
     Sound click;
     Sound click2;
+    Music ambient;
+    Music music;
 } Memory;
 
 static Memory* m = 0;
