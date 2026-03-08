@@ -9,8 +9,8 @@ combat_randomEncounter(MonstrousCompendium* monstrous)
 
     if (m->flags & GlobalFlags_MissionAccomplished) {
         danger = 1;
-    } else if (abs(m->partyX - m->map.entryX) + abs(m->partyY - m->map.entryY) > TILE_COUNT / 3) {
-        danger = 0;
+    //} else if (abs(m->partyX - m->map.entryX) + abs(m->partyY - m->map.entryY) > TILE_COUNT / 3) {
+        //danger = 0;
     }
     TraceLog(LOG_TRACE, "MONSTER: Encounter danger: %i", danger);
 

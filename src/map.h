@@ -1,4 +1,4 @@
-#define TILE_COUNT 128
+#define TILE_COUNT 48
 #define TILE_SIDE_LENGTH 3.f
 #define MAP_ATLAS_SUBIMAGE_COUNT 16
 #define CAMERA_HEIGHT 1.6f

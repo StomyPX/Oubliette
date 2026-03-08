@@ -152,7 +152,7 @@ main(int argc, char* argv[])
 
     Vector2 dragStart;
 
-    map_generate(&m->map, /*util_rdtsc()*/1892583196511ull);
+    map_generate(&m->map, util_rdtsc());
 
     m->partyFacing = 2; // Party always enters facing South
     m->partyX = m->map.entryX;
@@ -1015,8 +1015,8 @@ main(int argc, char* argv[])
                 int danger = -1;
                 if (m->flags & GlobalFlags_MissionAccomplished) {
                     danger = 1;
-                } else if (abs(m->partyX - m->map.entryX) + abs(m->partyY - m->map.entryY) > TILE_COUNT / 3) {
-                    danger = 0;
+                //} else if (abs(m->partyX - m->map.entryX) + abs(m->partyY - m->map.entryY) > TILE_COUNT / 3) {
+                    //danger = 0;
                 }
 
                 snprintf(buf, sizeof(buf),
