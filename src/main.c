@@ -152,7 +152,7 @@ main(int argc, char* argv[])
 
     Vector2 dragStart;
 
-    map_generate(&m->map, util_rdtsc());
+    map_generate(&m->map, /*util_rdtsc()*/1892583196511ull);
 
     m->partyFacing = 2; // Party always enters facing South
     m->partyX = m->map.entryX;

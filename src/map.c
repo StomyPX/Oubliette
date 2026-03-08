@@ -53,19 +53,20 @@ map_cameraForTile(int x, int y, Facing facing)
     c.target = c.position;
     c.target.y = 0.f;
     switch (facing % 4) {
-        case 0: {
+        default:
+        case Facing_North: {
             c.position.z += TILE_SIDE_LENGTH / 4.f;
             c.target.z -= TILE_SIDE_LENGTH * 10.f;
         } break;
-        case 1: {
+        case Facing_East: {
             c.position.x -= TILE_SIDE_LENGTH / 4.f;
             c.target.x += TILE_SIDE_LENGTH * 10.f;
         } break;
-        case 2: {
+        case Facing_South: {
             c.position.z -= TILE_SIDE_LENGTH / 4.f;
             c.target.z += TILE_SIDE_LENGTH * 10.f;
         } break;
-        case 3: {
+        case Facing_West: {
             c.position.x += TILE_SIDE_LENGTH / 4.f;
             c.target.x -= TILE_SIDE_LENGTH * 10.f;
         } break;
@@ -116,6 +117,7 @@ map_generate(Map* map, uint64_t seed)
         map_generateChamber(map, map->entryX, map->entryY, Facing_South);
         map_generateLoop(map);
     //}
+    /* TODO Better way to deal with insufficient chambers is to go back to previous ones and add more exits */
 
     /* Place the tomb in the farthest chamber from the exit. */
     int farthest = 0;
@@ -220,11 +222,12 @@ map_generatePassage(Map* map, MapPassage u)
 static bool
 map_generateStepForward(Map* map, int* x, int* y, Facing facing)
 {
-    unsigned target; // Tile directly in front
-    unsigned wall; // Tile that controls passage between current and target
+    int target; // Tile directly in front
+    int wall; // Tile that controls passage between current and target
+    int x2, y2;
 
-    util_traverse(facing, *x, *y, 1, 0, 0, 0);
-    target = map_tileIndex(*x, *y);
+    util_traverse(facing, *x, *y, 1, 0, &x2, &y2);
+    target = map_tileIndex(x2, y2);
     if (target < 0)
         return false;
 
@@ -339,40 +342,32 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
      * it if the step results in a failure. */
     {
         int index = map_tileIndex(x, y);
-        int mask = TileFlags_AllowSouth | TileFlags_AllowEast;
-        int restore = 0;
-        int wall;
+        int restoreIndex;
+        int restoreWall;
+        int wall = -1;
         int tx = x;
         int ty = y;
+
+        restoreIndex = map->tiles[index];
         switch (facing) {
-            default: /* North */ {
+            case Facing_North: {
                 wall = map_tileIndex(x, y - 1);
                 if (wall >= 0)
-                    restore = map->tiles[wall] & mask;
-            } break;
-            case Facing_East: {
-                wall = index;
-                if (wall >= 0)
-                    restore = map->tiles[wall] & mask;
-            } break;
-            case Facing_South: {
-                wall = index;
-                if (wall >= 0)
-                    restore = map->tiles[wall] & mask;
+                    restoreWall = map->tiles[wall];
             } break;
             case Facing_West: {
                 wall = map_tileIndex(x - 1, y);
                 if (wall >= 0)
-                    restore = map->tiles[wall] & mask;
+                    restoreWall = map->tiles[wall];
             } break;
+            default: break;
         }
 
         if (!map_generateStepForward(map, &tx, &ty, facing)) {
+            map->tiles[index] = restoreIndex;
             map->tiles[index] |= TileFlags_Failure;
-            if (wall >= 0) {
-                map->tiles[wall] &= ~(mask);
-                map->tiles[wall] |= restore;
-            }
+            if (wall >= 0)
+                map->tiles[wall] = restoreWall;
 
             return;
         }
