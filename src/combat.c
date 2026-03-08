@@ -499,7 +499,7 @@ combat_flee(void)
         int save = c->dexterity - monster->stealth;
         int roll = PcgRandom_roll(&m->rng, 1, 20);
 
-        c->stamina -= PcgRandom_roll(&m->rng, 1, 6);
+        c->stamina -= PcgRandom_roll(&m->rng, 2, 6);
 
         if (c->health < 1)
             continue;
