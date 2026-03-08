@@ -355,14 +355,18 @@ combat_fight(void)
 
             /* Stamina Check */
             if (ch->stamina < 0) {
-                int multiple = 3;
-                int loss = -ch->stamina / multiple;
-                ch->stamina %= multiple;
-                ch->health -= loss;
-
                 if (ch->health <= 0) {
-                    ch->health = 0;
-                    ui_log(MAROON, "%s collapses from exhaustion!", ch->name);
+                    ch->stamina = 0;
+                } else {
+                    int multiple = 3;
+                    int loss = -ch->stamina / multiple;
+                    ch->stamina %= multiple;
+                    ch->health -= loss;
+
+                    if (ch->health <= 0) {
+                        ch->health = 0;
+                        ui_log(MAROON, "%s collapses from exhaustion!", ch->name);
+                    }
                 }
             }
         }

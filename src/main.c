@@ -169,6 +169,8 @@ main(int argc, char* argv[])
             g_util_logLines[i].seconds = 0.f;
     }
 
+    ui_log(ZINNWALDITEBROWN, "Oubliette, Version 1.1");
+
     int lastHover = 0;
     while (!WindowShouldClose() && !(m->flags & GlobalFlags_RequestQuit)) {
         /* Update */

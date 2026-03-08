@@ -269,17 +269,17 @@ char_level(CharacterClass class, int64_t xp)
 
     switch (class) {
         case CharacterClass_Warrior: {
-            base = 400;
+            base = 400; // 2000
         } break;
         case CharacterClass_Mage: {
-            base = 500;
+            base = 500; // 2500
         } break;
         case CharacterClass_Thief: {
-            base = 250;
+            base = 250; // 1250
         } break;
         default: {
             TraceLog(LOG_WARNING, "Unknown class ID: %i", class);
-            base = 300;
+            base = 200; // 1000
         } break;
     }
 
@@ -312,17 +312,17 @@ char_levelRequirement(CharacterClass class, uint8_t target)
 
     switch (class) {
         case CharacterClass_Warrior: {
-            base = 400;
+            base = 400; // 2000
         } break;
         case CharacterClass_Mage: {
-            base = 500;
+            base = 500; // 2500
         } break;
         case CharacterClass_Thief: {
-            base = 250;
+            base = 250; // 1250
         } break;
         default: {
             TraceLog(LOG_WARNING, "Unknown class ID: %i", class);
-            base = 300;
+            base = 200; // 1000
         } break;
     }
 
