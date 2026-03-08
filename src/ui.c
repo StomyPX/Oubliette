@@ -403,11 +403,12 @@ ui_dumpCredits(void)
     ui_log(ZINNWALDITEBROWN, " ");
     ui_log(ZINNWALDITEBROWN, "Programming, Design, 3D Models: Stomy (stomygame.itch.io)");
     ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "Music Track: \"Welt Herrscherer Theme\" by yd (CC0, opengameart.org)");
+    ui_log(ZINNWALDITEBROWN, "Featuring public domain artwork by:");
+    ui_log(ZINNWALDITEBROWN, " Sidney Sime, Harry Clarke, Alfred Kubin, Henry Justice Ford, and others");
     ui_log(ZINNWALDITEBROWN, " ");
+    ui_log(ZINNWALDITEBROWN, "Music Track: \"Welt Herrscherer Theme\" by yd (CC0, opengameart.org)");
     ui_log(ZINNWALDITEBROWN, "Ambient Track: \"Dark Ambient\" by Alexandr Zhelanov (CC-BY 3.0, opengameart.org)");
     ui_log(ZINNWALDITEBROWN, "   https://soundcloud.com/alexandr-zhelanov");
-    ui_log(ZINNWALDITEBROWN, " ");
     ui_log(ZINNWALDITEBROWN, "Sound Effects from freesound.org. Artists:");
     ui_log(ZINNWALDITEBROWN, "   nomiqbomi, el_boss, tom_a73, kyles, Aerny");
     ui_log(ZINNWALDITEBROWN, " ");
