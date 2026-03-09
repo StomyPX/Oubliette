@@ -38,6 +38,7 @@ typedef struct Memory_ {
     } encounter;
 
     /* UI Resources */
+    char* tooltip;
     LogLine logs[UI_LOGLINE_COUNT];
     uint32_t logCursor;
     uint32_t logScroll;

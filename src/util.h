@@ -69,4 +69,5 @@ static bool util_jsonParseFloat(struct json_object_element_s* element, char* key
 /* Math helpers */
 static Vector2 Vector2Floor(Vector2 v);
 static Rectangle RectangleFloor(Rectangle r);
+static bool util_mouseInRect(Rectangle r);
 

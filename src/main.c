@@ -102,6 +102,10 @@ main(int argc, char* argv[])
         m->flags |= GlobalFlags_EditorModePermitted;
         //m->flags |= GlobalFlags_ShowCollision;
     #endif
+    m->flags |= GlobalFlags_ShowTooltips;
+
+    // TODO settings.ini
+    // TODO ArgParser
 
     ext_init(&m->ext);
     PcgRandom_init(&m->rng, util_rdtsc());
@@ -148,8 +152,6 @@ main(int argc, char* argv[])
         }
     }
 
-    /* TODO Auto-load all zip files found in data/ */
-
     Vector2 dragStart;
 
     map_generate(&m->map, util_rdtsc());
@@ -177,6 +179,7 @@ main(int argc, char* argv[])
         m->deltaTime = GetFrameTime();
         m->second += m->deltaTime;
         int anyHover = 0;
+        m->tooltip = 0;
 
         UpdateMusicStream(m->ambient);
         UpdateMusicStream(m->music);
@@ -496,6 +499,8 @@ main(int argc, char* argv[])
                     } else if (result < 0) {
                         anyHover = 2;
                     }
+                    if (result)
+                        m->tooltip = "Fight the next round of combat";
 
                     button.x += button.width + UI_PADDING;
                     result = ui_button(button, "FLEE", KEY_R, active);
@@ -505,6 +510,8 @@ main(int argc, char* argv[])
                     } else if (result < 0) {
                         anyHover = 1;
                     }
+                    if (result)
+                        m->tooltip = "Attempt to escape. Will drain SP and everyone must save DEX to avoid being hit";
                 }
 
             } else {
@@ -530,7 +537,9 @@ main(int argc, char* argv[])
                 button.height = 48;
                 button.x = viewport.x + viewport.width - UI_PADDING - button.width;
                 button.y = viewport.y + viewport.height - UI_PADDING - button.height;
-                result = ui_button(button, "REST", KEY_R, !(m->flags & GlobalFlags_TheEnd));
+                result = ui_button(button, "WAIT", KEY_R, !(m->flags & GlobalFlags_TheEnd));
+                if (result)
+                    m->tooltip = "Pass time and engage in wait activities. SP always restores over time";
                 if (result > 0) {
                     ui_log(ZINNWALDITEBROWN, "Resting...");
                     m->encounter.ticks += 300;
@@ -803,6 +812,9 @@ main(int argc, char* argv[])
                     } else if (result < 0) {
                         anyHover = 8;
                     }
+
+                    if (result)
+                        m->tooltip = "Disable background music";
                 } else {
                     result = ui_button(button, "(music)", KEY_NULL, true);
                     if (result > 0) {
@@ -811,6 +823,9 @@ main(int argc, char* argv[])
                     } else if (result < 0) {
                         anyHover = 8;
                     }
+
+                    if (result)
+                        m->tooltip = "Enable background music";
                 }
 
                 button.y += button.height + UI_PADDING;
@@ -823,6 +838,9 @@ main(int argc, char* argv[])
                     } else if (result < 0) {
                         anyHover = 9;
                     }
+
+                    if (result)
+                        m->tooltip = "Disable ambient sound loop";
                 } else {
                     result = ui_button(button, "(ambience)", KEY_NULL, true);
                     if (result > 0) {
@@ -831,6 +849,9 @@ main(int argc, char* argv[])
                     } else if (result < 0) {
                         anyHover = 9;
                     }
+
+                    if (result)
+                        m->tooltip = "Enable ambient sound loop";
                 }
 
                 button.y = panel.y;
@@ -845,6 +866,9 @@ main(int argc, char* argv[])
                     } else {
                         m->flags &= ~(GlobalFlags_ConfirmExit);
                     }
+
+                    if (result)
+                        m->tooltip = "Are you sure you want to quit?";
                 } else {
                     result = ui_button(button, "EXIT", KEY_NULL, true);
                     if (result > 0) {
@@ -853,6 +877,9 @@ main(int argc, char* argv[])
                     } else  if (result < 0) {
                         anyHover = 10;
                     }
+
+                    if (result)
+                        m->tooltip = "Quit the game";
                 }
 
                 button.y += button.height + UI_PADDING;
@@ -872,6 +899,9 @@ main(int argc, char* argv[])
                     } else  if (result < 0) {
                         anyHover = 11;
                     }
+
+                    if (result)
+                        m->tooltip = "Enable sound effects";
                 } else {
                     result = ui_button(button, "SFX", KEY_NULL, true);
                     if (result > 0) {
@@ -885,6 +915,9 @@ main(int argc, char* argv[])
                     } else  if (result < 0) {
                         anyHover = 11;
                     }
+
+                    if (result)
+                        m->tooltip = "Disable sound effects";
                 }
 
                 if (m->map.name[0]) {
@@ -897,6 +930,45 @@ main(int argc, char* argv[])
 
                 panel.height -= UI_SIDE_PANEL_HEADER;
                 panel.y += UI_SIDE_PANEL_HEADER;
+            }
+
+            { /* Character Cards */
+                bool active = !(m->flags & (GlobalFlags_GameOver | GlobalFlags_TheEnd));
+                if (ui_characterHudCard(m->party + 0, card, portraitSize, active ? KEY_ONE : -1))
+                    anyHover = 4;
+
+                if (layout == GuiLayout_Ultrawide) {
+                    card.y += card.height + UI_PADDING;
+                } else {
+                    card.x += card.width + UI_PADDING;
+                }
+                if (ui_characterHudCard(m->party + 1, card, portraitSize, active ? KEY_TWO : -1))
+                    anyHover = 5;
+
+                if (layout == GuiLayout_Ultrawide) {
+                    card.y += card.height + UI_PADDING;
+                } else {
+                    card.x += card.width + UI_PADDING;
+                }
+                if (ui_characterHudCard(m->party + 2, card, portraitSize, active ? KEY_THREE : -1))
+                    anyHover = 6;
+
+                if (layout == GuiLayout_Ultrawide) {
+                    card.y += card.height + UI_PADDING;
+                } else {
+                    card.x += card.width + UI_PADDING;
+                }
+                if (ui_characterHudCard(m->party + 3, card, portraitSize, active ? KEY_FOUR : -1))
+                    anyHover = 7;
+            }
+
+            if (m->flags & GlobalFlags_ShowTooltips) { /* Tooltips */
+                Vector2 position;
+                position.x = panel.x;
+                position.y = panel.y + panel.height - m->fonts.text.baseSize;
+                panel.height -= UI_PADDING + m->fonts.text.baseSize;
+                if (m->tooltip)
+                    DrawTextEx(m->fonts.text, m->tooltip, position, m->fonts.text.baseSize, 0, BONE);
             }
 
             { /* Side Panel */
@@ -945,36 +1017,6 @@ main(int argc, char* argv[])
                 EndScissorMode();
                 // TODO scrollbar
                 ui_border(m->border, panel, BONE);
-            }
-
-            { /* Character Cards */
-                bool active = !(m->flags & (GlobalFlags_GameOver | GlobalFlags_TheEnd));
-                if (ui_characterHudCard(m->party + 0, card, portraitSize, active ? KEY_ONE : -1))
-                    anyHover = 4;
-
-                if (layout == GuiLayout_Ultrawide) {
-                    card.y += card.height + UI_PADDING;
-                } else {
-                    card.x += card.width + UI_PADDING;
-                }
-                if (ui_characterHudCard(m->party + 1, card, portraitSize, active ? KEY_TWO : -1))
-                    anyHover = 5;
-
-                if (layout == GuiLayout_Ultrawide) {
-                    card.y += card.height + UI_PADDING;
-                } else {
-                    card.x += card.width + UI_PADDING;
-                }
-                if (ui_characterHudCard(m->party + 2, card, portraitSize, active ? KEY_THREE : -1))
-                    anyHover = 6;
-
-                if (layout == GuiLayout_Ultrawide) {
-                    card.y += card.height + UI_PADDING;
-                } else {
-                    card.x += card.width + UI_PADDING;
-                }
-                if (ui_characterHudCard(m->party + 3, card, portraitSize, active ? KEY_FOUR : -1))
-                    anyHover = 7;
             }
 
             if (m->flags & GlobalFlags_GameOver) {
@@ -1120,7 +1162,7 @@ main(int argc, char* argv[])
 
                         /* Incapacitated Characters have a percentage chance to wake */
                         if (ch->health == 0 && PcgRandom_roll(&m->rng, 1, 100) < ch->stamina) {
-                            ch->health -= 1;
+                            ch->health += 1;
                             ui_log(WHITE, "%s recovers consciousness", ch->name);
                         }
 

@@ -526,3 +526,16 @@ RectangleFloor(Rectangle v)
     v.height = floorf(v.height);
     return v;
 };
+
+static bool
+util_mouseInRect(Rectangle rect)
+{
+    Vector2 mouse = GetMousePosition();
+
+    if (m->ext.cimgui.handle && m->ext.cimgui.IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
+        return false;
+    if (mouse.x < rect.x || mouse.y < rect.y || mouse.x > rect.x + rect.width || mouse.y > rect.y + rect.height)
+        return false;
+
+    return true;
+}

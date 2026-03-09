@@ -106,7 +106,10 @@ combat_randomEncounter(MonstrousCompendium* monstrous)
                 chance -= danger * 30;
             }
 
-            if (PcgRandom_roll(&m->rng, 1, 100) < chance)
+            if (ch->stamina < 1)
+                chance -= 20;
+
+            if ((int)PcgRandom_roll(&m->rng, 1, 100) < chance)
                 ch->flags |= CharacterFlags_Hidden;
         }
     }
@@ -499,17 +502,25 @@ combat_flee(void)
         int save = c->dexterity - monster->stealth;
         int roll = PcgRandom_roll(&m->rng, 1, 20);
 
-        c->stamina -= PcgRandom_roll(&m->rng, 2, 6);
-
         if (c->health < 1)
             continue;
 
-        if (c->flags & CharacterFlags_Hidden)
+        c->stamina -= PcgRandom_roll(&m->rng, 2, 6);
+
+        if (m->encounter.unit.status & MonsterStatus_Surprised)
             continue;
 
-        if (c->class == CharacterClass_Thief) {
+        if (c->flags & CharacterFlags_Hidden)
+            save += 4;
+
+        if (c->class == CharacterClass_Thief)
             save += 1;
-        }
+
+        if (c->flags & CharacterFlags_Surprised)
+            save -= 4;
+
+        if (c->stamina < 0)
+            save -= 2;
 
         if (save > 19)
             save = 19;
