@@ -433,10 +433,10 @@ main(int argc, char* argv[])
                 Texture* tex;
                 Rectangle portrait = {};
                 char buffer[128];
-                Unit* unit;
+                Stack* stack;
 
-                unit = &m->encounter.unit;
-                tex = &m->encounter.unit.class.texture;
+                stack = &m->encounter.stack;
+                tex = &m->encounter.stack.class.texture;
 
                 portrait.width = tex->width;
                 portrait.height = tex->height;
@@ -449,7 +449,7 @@ main(int argc, char* argv[])
 
                     if (fabsf(vpAspect - rtAspect) > 0.001f) {
                         float diff = rtAspect - vpAspect;
-                        Vector2 anchor = unit->class.anchor;
+                        Vector2 anchor = stack->class.anchor;
                         if (diff > 0.f) {
                             int cut = (float)tex->width * diff / 2.f;
                             portrait.x = cut * anchor.x;
@@ -470,10 +470,10 @@ main(int argc, char* argv[])
                     int result;
                     bool active = !(m->flags & GlobalFlags_GameOver);
 
-                    if (unit->alive == 1) {
-                        snprintf(buffer, sizeof(buffer), unit->class.truename);
+                    if (stack->alive == 1) {
+                        snprintf(buffer, sizeof(buffer), stack->class.truename);
                     } else {
-                        snprintf(buffer, sizeof(buffer), "%u %s", unit->alive, unit->class.truenamePlural);
+                        snprintf(buffer, sizeof(buffer), "%u %s", stack->alive, stack->class.truenamePlural);
                     }
                     dims = MeasureTextEx(m->fonts.title, buffer, m->fonts.title.baseSize, 0);
                     frame.x = viewport.x + UI_PADDING;
@@ -550,7 +550,7 @@ main(int argc, char* argv[])
                         if (!ch->name[0] || ch->health < 1)
                             continue;
 
-                        if (ch->activity == RestActivity_Rest) {
+                        if (ch->activity == WaitActivity_Rest) {
                             if (ch->stamina < char_maxStamina(*ch)) {
                                 int die = (ch->constitution + ch->willpower) / 10 + 2;
                                 ch->stamina += PcgRandom_roll(&m->rng, 1, util_intmax(2, die));
@@ -562,7 +562,7 @@ main(int argc, char* argv[])
                                 if (ch->health > char_maxHealth(*ch))
                                     ch->health = char_maxHealth(*ch);
                             }
-                        } else if (ch->activity == RestActivity_TendWounds) {
+                        } else if (ch->activity == WaitActivity_TendWounds) {
                             if (ch->stamina < 1) {
                                 ui_log(ZINNWALDITEBROWN, "%s is too tired to tend wounds and so "
                                         "rests for a while instead", ch->name);

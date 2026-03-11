@@ -1,4 +1,4 @@
-#define MONSTER_UNIT_MAX 20
+#define MONSTER_STACK_MAX 20
 
 typedef enum {
     MonsterStatus_Surprised = 1 << 0,
@@ -53,9 +53,9 @@ typedef struct
     MonsterStatus status;
     uint32_t alive;
     uint32_t total;
-    int64_t health[MONSTER_UNIT_MAX];
-    int32_t initiative[MONSTER_UNIT_MAX];
-} Unit;
+    int64_t health[MONSTER_STACK_MAX];
+    int32_t initiative[MONSTER_STACK_MAX];
+} Stack;
 
 static void monster_init(MonstrousCompendium* monstrous);
 static void monster_cleanup(MonstrousCompendium* monstrous);

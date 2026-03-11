@@ -25,13 +25,13 @@ typedef enum {
 static char* CombatAction_toStringFancy(CombatAction c);
 
 typedef enum {
-    RestActivity_Rest = 0,
-    RestActivity_Guard,
-    RestActivity_Hide,
-    RestActivity_TendWounds, /* Mages only */
-    RestActivity_Count,
-} RestActivity;
-static char* RestActivity_toStringFancy(RestActivity c);
+    WaitActivity_Rest = 0,
+    WaitActivity_Guard,
+    WaitActivity_Hide,
+    WaitActivity_TendWounds, /* Mages only */
+    WaitActivity_Count,
+} WaitActivity;
+static char* WaitActivity_toStringFancy(WaitActivity c);
 
 typedef enum {
     QuickAction_UseItem = 0,
@@ -49,7 +49,7 @@ typedef struct {
 
     // Action Selection
     CombatAction action;
-    RestActivity activity;
+    WaitActivity activity;
 
     // Base characteristics
     uint8_t strength;

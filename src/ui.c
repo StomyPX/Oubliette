@@ -238,9 +238,9 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
             /* Rest Activity */
             } else {
                 ch->activity += 1;
-                if (ch->activity == RestActivity_TendWounds && ch->class != CharacterClass_Mage)
+                if (ch->activity == WaitActivity_TendWounds && ch->class != CharacterClass_Mage)
                     ch->activity += 1;
-                ch->activity %= RestActivity_Count;
+                ch->activity %= WaitActivity_Count;
             }
         }
 
@@ -306,41 +306,41 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
 
             } else {
                 switch (ch->activity) {
-                    case RestActivity_Rest: {
-                        DrawTextEx(m->fonts.text, RestActivity_toStringFancy(ch->activity),
+                    case WaitActivity_Rest: {
+                        DrawTextEx(m->fonts.text, WaitActivity_toStringFancy(ch->activity),
                                     Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
                             m->tooltip = "Regain additional SP and (if SP is full) HP by resting";
                     } break;
 
-                    case RestActivity_Guard: {
-                        DrawTextEx(m->fonts.text, RestActivity_toStringFancy(ch->activity),
+                    case WaitActivity_Guard: {
+                        DrawTextEx(m->fonts.text, WaitActivity_toStringFancy(ch->activity),
                                     Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
                             m->tooltip = "Stand guard while waiting (less likely to be taken by surprise)";
                     } break;
 
-                    case RestActivity_Hide: {
+                    case WaitActivity_Hide: {
                         int chance = char_hideChance(ch);
                         if (ch->class == CharacterClass_Thief)
                             chance += ch->level;
                         snprintf(buffer, sizeof(buffer), "%s (%i%%)",
-                                    RestActivity_toStringFancy(ch->activity), util_intmax(0, chance));
+                                    WaitActivity_toStringFancy(ch->activity), util_intmax(0, chance));
                         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position),
                                     m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
                             m->tooltip = "Hide in ambush while waiting (base chance of success)";
                     } break;
 
-                    case RestActivity_TendWounds: {
-                        DrawTextEx(m->fonts.text, RestActivity_toStringFancy(ch->activity),
+                    case WaitActivity_TendWounds: {
+                        DrawTextEx(m->fonts.text, WaitActivity_toStringFancy(ch->activity),
                                     Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
                             m->tooltip = "Restore health points by tending to wounds";
                     } break;
 
                     default: {
-                        DrawTextEx(m->fonts.text, RestActivity_toStringFancy(ch->activity),
+                        DrawTextEx(m->fonts.text, WaitActivity_toStringFancy(ch->activity),
                                     Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
                             m->tooltip = "TODO: This activity has no tooltip yet";

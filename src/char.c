@@ -28,15 +28,15 @@ CombatAction_toStringFancy(CombatAction c)
 }
 
 static char*
-RestActivity_toStringFancy(RestActivity a)
+WaitActivity_toStringFancy(WaitActivity a)
 {
     switch (a) {
         default:
             TraceLog(LOG_ERROR, "CHARACTER: Unknown rest activity, id: %i", a);
-        case RestActivity_Rest: return "Rest";
-        case RestActivity_Guard: return "Stand Guard";
-        case RestActivity_Hide: return "Hide";
-        case RestActivity_TendWounds: return "Tend Wounds";
+        case WaitActivity_Rest: return "Rest";
+        case WaitActivity_Guard: return "Stand Guard";
+        case WaitActivity_Hide: return "Hide";
+        case WaitActivity_TendWounds: return "Tend Wounds";
     }
 }
 
@@ -65,7 +65,7 @@ char_random(void)
     if (c.intellect > c.dexterity && c.intellect > c.strength) {
         c.class = CharacterClass_Mage;
         c.action = CombatAction_CastSpell;
-        c.activity = RestActivity_TendWounds;
+        c.activity = WaitActivity_TendWounds;
     } else if (c.dexterity > c.strength) {
         c.class = CharacterClass_Thief;
     } else {

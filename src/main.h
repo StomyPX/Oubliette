@@ -33,7 +33,7 @@ typedef struct Memory_ {
 
     struct {
         int ticks;
-        Unit unit;
+        Stack stack;
         Sound klaxon;
     } encounter;
 
