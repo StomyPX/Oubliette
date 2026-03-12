@@ -228,6 +228,8 @@ combat_fight(void)
     for (int i = 0; i < arrlen(m->party); i++) {
         ch = m->party + i;
         ch->initiative = PcgRandom_roll(&m->rng, 1, 20) + char_modifier(ch->dexterity);
+        if (ch->stamina < 1)
+            ch->initiative -= 3;
         if (ch->health < 1)
             ch->initiative -= 10;
         if (ch->action == CombatAction_CastSpell)
@@ -279,10 +281,6 @@ combat_fight(void)
                     case CombatAction_DefendSelf: break;
                     case CombatAction_GuardOthers: break;
                     case CombatAction_Hide: {
-                        if (!(ch->flags & CharacterFlags_Hidden) && PcgRandom_roll(&m->rng, 1, 3) <= 1) {
-                            ch->stamina -= 1;
-                        }
-
                         int danger = -1;
                         if (m->flags & GlobalFlags_MissionAccomplished) {
                             danger = 1;
@@ -291,9 +289,17 @@ combat_fight(void)
                         }
 
                         int chance = ch->hide + ch->level + char_modifier(ch->dexterity) - danger * 30;
+                        if (!(ch->flags & CharacterFlags_Hidden) && ch->stamina < 1) {
+                            chance -= 20;
+                        }
+
                         if (PcgRandom_roll(&m->rng, 1, 100) < chance) {
                             ui_log(DARKBLUE, "%s melds with the shadows", ch->name);
                             ch->flags |= CharacterFlags_Hidden;
+                        }
+
+                        if (!(ch->flags & CharacterFlags_Hidden) && PcgRandom_roll(&m->rng, 1, 3) <= 1) {
+                            ch->stamina -= 1;
                         }
                     } break;
                     case CombatAction_CastSpell: {
