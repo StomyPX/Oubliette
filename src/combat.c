@@ -166,8 +166,6 @@ combat_randomEncounter(MonstrousCompendium* monstrous)
             }
         }
 
-        /* TODO If the party hasn't lit their lantern, the monsters may also be surprised */
-
         roll = PcgRandom_roll(&m->rng, 1, 6);
         if (roll <= monsterSurprise) {
             ui_log(ZINNWALDITEBROWN, "You catch the enemy by surprise!");
@@ -178,8 +176,6 @@ combat_randomEncounter(MonstrousCompendium* monstrous)
         int partySurprise = monster->stealth;
         int monsterSurprise = -monster->stealth;
         int roll;
-
-        /* TODO If the party hasn't lit their lantern, both sides have a chance of being caught by surprise */
 
         for (int i = 0; i < arrlen(m->party); i++) {
             Character* ch = m->party + i;
@@ -213,6 +209,7 @@ combat_fight(void)
     int32_t initHigh = INT32_MIN;
     int32_t initLow = INT32_MAX;
     char buffer[UI_LOGLINE_LENGTH];
+    int highCha = 0;
 
     stack = &m->encounter.stack;
 
@@ -238,6 +235,9 @@ combat_fight(void)
             initHigh = ch->initiative;
         if (ch->initiative < initLow)
             initLow = ch->initiative;
+
+        if (ch->charisma > highCha)
+            highCha = ch->charisma;
     }
 
     /* Target Weights based Charisma */
@@ -246,7 +246,7 @@ combat_fight(void)
     for (int i = 0; i < arrlen(m->party); i++) {
         ch = m->party + i;
         if (ch->health > 0 && !(ch->flags & CharacterFlags_Hidden)) {
-            weights[i] = 24;
+            weights[i] = highCha + 6;
             if (ch->action == CombatAction_GuardOthers) {
                 weights[i] += util_intmax(0, ch->charisma);
                 weights[i] += 2;
