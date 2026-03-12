@@ -244,7 +244,7 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
             }
         }
 
-        {/* Current Action */
+        if (ch->health > 0) { /* Current Action */
             char buffer[64];
             position.x = button.x;
             position.y = card.y + card.height - UI_PADDING - m->fonts.text.baseSize;
