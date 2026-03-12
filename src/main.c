@@ -517,11 +517,15 @@ main(int argc, char* argv[])
             } else {
                 Rectangle button;
                 int result;
+                Color color;
 
                 /* Map viewport. Because OpenGL's origin is in the bottom left, this has to be inverted */
+                color = ColorLerp(BLACK, WHITE, m->fadein);
+                m->fadein += m->deltaTime / 2.f;
+                m->fadein = Clamp(m->fadein, 0.f, 1.f);
                 DrawTextureRec(m->rtex.texture,
                     (Rectangle){0, 0, m->rtex.texture.width, -m->rtex.texture.height},
-                    (Vector2){viewport.x, viewport.y}, WHITE);
+                    (Vector2){viewport.x, viewport.y}, color);
 
                 { /* Compass */
                     Vector2 pos;

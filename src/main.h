@@ -39,6 +39,7 @@ typedef struct Memory_ {
 
     /* UI Resources */
     char* tooltip;
+    float fadein;
     LogLine logs[UI_LOGLINE_COUNT];
     uint32_t logCursor;
     uint32_t logScroll;
