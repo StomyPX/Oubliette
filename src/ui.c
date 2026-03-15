@@ -189,7 +189,7 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
             snprintf(buffer, sizeof(buffer), "ACT");
         }
 
-        result = ui_button(button, buffer, keycode, keycode >= 0);
+        result = ui_button(button, buffer, keycode, keycode >= 0 && ch->health > 0);
 
         if (result) {
             if (m->flags & GlobalFlags_Encounter) {
