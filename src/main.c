@@ -983,7 +983,7 @@ main(int argc, char* argv[])
 
                 position.x = panel.x + UI_PADDING;
                 position.y = panel.y + UI_PADDING;
-                visible = panel.height / m->fonts.text.baseSize;
+                visible = panel.height / m->fonts.text.baseSize + 1;
 
                 DrawTextureRec(m->vellum, panel, (Vector2){panel.x, panel.y}, WHITE);
                 BeginScissorMode(panel.x, panel.y, panel.width, panel.height);
@@ -1002,7 +1002,14 @@ main(int argc, char* argv[])
                 } else {
                     position.y -= scrollMax * m->fonts.text.baseSize;
                     position.y -= (int)panel.height % m->fonts.text.baseSize;
+                    position.y += m->logScrollSmooth;
+                    position.y = floorf(position.y);
                 }
+
+                m->logScroll = util_intclamp(m->logScroll, 0, scrollMax);
+                float factor = util_floatclamp(GetFrameTime() * 10.f, 0.f, 1.f);
+                m->logScrollSmooth = ((float)m->logScroll * m->fonts.text.baseSize)
+                                    * factor + m->logScrollSmooth * (1.f - factor);
 
                 for (unsigned i = 0; i < UI_LOGLINE_COUNT; i++) {
                     unsigned index = (i + m->logCursor) % UI_LOGLINE_COUNT;

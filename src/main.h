@@ -41,7 +41,7 @@ typedef struct Memory_ {
     char* tooltip;
     float fadein;
     LogLine logs[UI_LOGLINE_COUNT];
-    uint32_t logCursor;
+    uint32_t logCursor; // index to write to next
     uint32_t logScroll;
     float logScrollSmooth;
     Texture border;

@@ -103,6 +103,7 @@ ui_log(Color color, char* fmt, ...)
     m->logCursor += 1;
     m->logCursor %= UI_LOGLINE_COUNT;
     m->logScroll = 0;
+    m->logScrollSmooth += m->fonts.text.baseSize;
 }
 
 static int

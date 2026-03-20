@@ -60,6 +60,7 @@ static uint64_t util_rdtsc(void);
 static int util_intmin(int a, int b);
 static int util_intmax(int a, int b);
 static int util_intclamp(int val, int min, int max);
+static float util_floatclamp(float val, float min, float max);
 
 /* JSON Parsing Helpers */
 static bool util_jsonParseString(struct json_object_element_s* element, char* key, char* target, size_t size);

@@ -461,6 +461,22 @@ util_intclamp(int val, int min, int max)
     return val;
 }
 
+static float
+util_floatclamp(float val, float min, float max)
+{
+    if (min > max) {
+        float temp = max;
+        max = min;
+        min = temp;
+    }
+
+    if (val < min)
+        val = min;
+    if (val > max)
+        val = max;
+    return val;
+}
+
 static bool
 util_jsonParseString(struct json_object_element_s* element, char* key, char* target, size_t size)
 {
