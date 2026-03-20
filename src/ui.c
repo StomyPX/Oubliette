@@ -178,6 +178,7 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
         Vector2 measure;
         Vector2 position;
         char buffer[32];
+        char* tooltip;
 
         button.x = portrait.x;
         button.y = portrait.y + portrait.height + UI_PADDING;
@@ -190,15 +191,13 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
             snprintf(buffer, sizeof(buffer), "ACT");
         }
 
-        result = ui_button(button, buffer, keycode, keycode >= 0 && ch->health > 0);
-
-        if (result) {
-            if (m->flags & GlobalFlags_Encounter) {
-                m->tooltip = "Cycle through combat actions";
-            } else {
-                m->tooltip = "Cycle through wait activities";
-            }
+        if (m->flags & GlobalFlags_Encounter) {
+            tooltip = "Cycle through combat actions";
+        } else {
+            tooltip = "Cycle through wait activities";
         }
+
+        result = ui_button(button, buffer, tooltip, keycode, keycode >= 0 && ch->health > 0);
 
         if (result > 0) {
             PlaySound(m->click);
@@ -430,7 +429,7 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
 }
 
 static int
-ui_button(Rectangle rect, char* text, int hotkey, bool enabled)
+ui_button(Rectangle rect, char* text, char* tooltip, int hotkey, bool enabled)
 {
     int result = 0;
     Vector2 measure;
@@ -442,14 +441,18 @@ ui_button(Rectangle rect, char* text, int hotkey, bool enabled)
         if (!enabled)
             goto draw;
 
-        if (!util_mouseInRect(rect))
-            goto draw;
-
         if (IsKeyPressed(hotkey)) {
             result = 1;
             goto draw;
         } else if (IsKeyDown(hotkey)) {
             result = -1;
+        }
+
+        if (util_mouseInRect(rect)) {
+            if (tooltip)
+                m->tooltip = tooltip;
+        } else {
+            goto draw;
         }
 
         result = -1;

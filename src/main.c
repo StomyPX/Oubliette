@@ -492,26 +492,23 @@ main(int argc, char* argv[])
                     button.height = 48;
                     button.x = viewport.x + UI_PADDING;
                     button.y = viewport.y + viewport.height - UI_PADDING - button.height;
-                    result = ui_button(button, "FIGHT", KEY_F, active);
+                    result = ui_button(button, "FIGHT", "Fight the next round of combat", KEY_F, active);
                     if (result > 0) {
                         PlaySound(m->click);
                         combat_fight();
                     } else if (result < 0) {
                         anyHover = 2;
                     }
-                    if (result)
-                        m->tooltip = "Fight the next round of combat";
 
                     button.x += button.width + UI_PADDING;
-                    result = ui_button(button, "FLEE", KEY_R, active);
+                    result = ui_button(button, "FLEE", "Attempt to escape. Will drain SP and everyone must "
+                                        "save DEX to avoid being hit", KEY_R, active);
                     if (result > 0) {
                         PlaySound(m->click);
                         combat_flee();
                     } else if (result < 0) {
                         anyHover = 1;
                     }
-                    if (result)
-                        m->tooltip = "Attempt to escape. Will drain SP and everyone must save DEX to avoid being hit";
                 }
 
             } else {
@@ -541,9 +538,8 @@ main(int argc, char* argv[])
                 button.height = 48;
                 button.x = viewport.x + viewport.width - UI_PADDING - button.width;
                 button.y = viewport.y + viewport.height - UI_PADDING - button.height;
-                result = ui_button(button, "WAIT", KEY_R, !(m->flags & GlobalFlags_TheEnd));
-                if (result)
-                    m->tooltip = "Pass time and engage in wait activities. SP always restores over time";
+                result = ui_button(button, "WAIT", "Pass time and engage in wait activities. SP always "
+                                    "restores over time", KEY_R, !(m->flags & GlobalFlags_TheEnd));
                 if (result > 0) {
                     ui_log(ZINNWALDITEBROWN, "Resting...");
                     m->encounter.ticks += 300;
@@ -809,60 +805,48 @@ main(int argc, char* argv[])
                 int result;
 
                 if (IsMusicStreamPlaying(m->music)) {
-                    result = ui_button(button, "MUSIC", KEY_NULL, true);
+                    result = ui_button(button, "MUSIC", "Disable background music", KEY_NULL, true);
                     if (result > 0) {
                         StopMusicStream(m->music);
                         PlaySound(m->click);
                     } else if (result < 0) {
                         anyHover = 8;
                     }
-
-                    if (result)
-                        m->tooltip = "Disable background music";
                 } else {
-                    result = ui_button(button, "(music)", KEY_NULL, true);
+                    result = ui_button(button, "(music)", "Enable background music", KEY_NULL, true);
                     if (result > 0) {
                         PlayMusicStream(m->music);
                         PlaySound(m->click);
                     } else if (result < 0) {
                         anyHover = 8;
                     }
-
-                    if (result)
-                        m->tooltip = "Enable background music";
                 }
 
                 button.y += button.height + UI_PADDING;
 
                 if (IsMusicStreamPlaying(m->ambient)) {
-                    result = ui_button(button, "AMBIENCE", KEY_NULL, true);
+                    result = ui_button(button, "AMBIENCE", "Disable ambient sound loop", KEY_NULL, true);
                     if (result > 0) {
                         StopMusicStream(m->ambient);
                         PlaySound(m->click);
                     } else if (result < 0) {
                         anyHover = 9;
                     }
-
-                    if (result)
-                        m->tooltip = "Disable ambient sound loop";
                 } else {
-                    result = ui_button(button, "(ambience)", KEY_NULL, true);
+                    result = ui_button(button, "(ambience)", "Enable ambient sound loop", KEY_NULL, true);
                     if (result > 0) {
                         PlayMusicStream(m->ambient);
                         PlaySound(m->click);
                     } else if (result < 0) {
                         anyHover = 9;
                     }
-
-                    if (result)
-                        m->tooltip = "Enable ambient sound loop";
                 }
 
                 button.y = panel.y;
                 button.x = panel.x + panel.width - button.width;
 
                 if (m->flags & GlobalFlags_ConfirmExit) {
-                    result = ui_button(button, "CONFIRM?", KEY_NULL, true);
+                    result = ui_button(button, "CONFIRM?", "Are you sure you want to quit?", KEY_NULL, true);
                     if (result > 0) {
                         m->flags |= GlobalFlags_RequestQuit;
                     } else  if (result < 0) {
@@ -870,26 +854,20 @@ main(int argc, char* argv[])
                     } else {
                         m->flags &= ~(GlobalFlags_ConfirmExit);
                     }
-
-                    if (result)
-                        m->tooltip = "Are you sure you want to quit?";
                 } else {
-                    result = ui_button(button, "EXIT", KEY_NULL, true);
+                    result = ui_button(button, "EXIT", "Quit the game", KEY_NULL, true);
                     if (result > 0) {
                         m->flags |= GlobalFlags_ConfirmExit;
                         PlaySound(m->click2);
                     } else  if (result < 0) {
                         anyHover = 10;
                     }
-
-                    if (result)
-                        m->tooltip = "Quit the game";
                 }
 
                 button.y += button.height + UI_PADDING;
 
                 if (m->flags & GlobalFlags_MuteSFX) {
-                    result = ui_button(button, "(sfx)", KEY_NULL, true);
+                    result = ui_button(button, "(sfx)", "Enable sound effects", KEY_NULL, true);
                     if (result > 0) {
                         m->flags &= ~(GlobalFlags_MuteSFX);
                         /* I realize there is probably a better way */
@@ -903,11 +881,8 @@ main(int argc, char* argv[])
                     } else  if (result < 0) {
                         anyHover = 11;
                     }
-
-                    if (result)
-                        m->tooltip = "Enable sound effects";
                 } else {
-                    result = ui_button(button, "SFX", KEY_NULL, true);
+                    result = ui_button(button, "SFX", "Disable sound effects", KEY_NULL, true);
                     if (result > 0) {
                         m->flags |= GlobalFlags_MuteSFX;
                         for (int i = 0; i < arrlen(m->footstep); i++)
@@ -919,9 +894,6 @@ main(int argc, char* argv[])
                     } else  if (result < 0) {
                         anyHover = 11;
                     }
-
-                    if (result)
-                        m->tooltip = "Disable sound effects";
                 }
 
                 if (m->map.name[0]) {
@@ -983,7 +955,9 @@ main(int argc, char* argv[])
 
                 position.x = panel.x + UI_PADDING;
                 position.y = panel.y + UI_PADDING;
-                visible = panel.height / m->fonts.text.baseSize + 1;
+                visible = panel.height / m->fonts.text.baseSize;
+                if ((int)panel.height % (int)m->fonts.text.baseSize)
+                    visible += 1;
 
                 DrawTextureRec(m->vellum, panel, (Vector2){panel.x, panel.y}, WHITE);
                 BeginScissorMode(panel.x, panel.y, panel.width, panel.height);
