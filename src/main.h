@@ -38,7 +38,7 @@ typedef struct Memory_ {
     } encounter;
 
     /* UI Resources */
-    char* tooltip;
+    char tooltip[128];
     float fadein;
     LogLine logs[UI_LOGLINE_COUNT];
     uint32_t logCursor; // index to write to next

@@ -107,7 +107,7 @@ ui_log(Color color, char* fmt, ...)
 }
 
 static int
-ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode)
+ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
 {
     Rectangle portrait;
     Texture ptex;
@@ -177,8 +177,8 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
         Rectangle button;
         Vector2 measure;
         Vector2 position;
-        char buffer[32];
-        char* tooltip;
+        char buffer[16];
+        char tooltip[48];
 
         button.x = portrait.x;
         button.y = portrait.y + portrait.height + UI_PADDING;
@@ -192,12 +192,17 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
         }
 
         if (m->flags & GlobalFlags_Encounter) {
-            tooltip = "Cycle through combat actions";
+            snprintf(tooltip, sizeof(tooltip), "Cycle through combat actions");
         } else {
-            tooltip = "Cycle through wait activities";
+            snprintf(tooltip, sizeof(tooltip), "Cycle through wait activities");
         }
 
-        result = ui_button(button, buffer, tooltip, keycode, keycode >= 0 && ch->health > 0);
+        if (hotkey != KEY_NULL) {
+            int len = strlen(tooltip);
+            snprintf(tooltip + len, sizeof(tooltip) - len, " [%i]", hotkey - KEY_ONE + 1);
+        }
+
+        result = ui_button(button, buffer, tooltip, hotkey, hotkey >= 0 && ch->health > 0);
 
         if (result > 0) {
             PlaySound(m->click);
@@ -256,28 +261,28 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
                         DrawTextEx(m->fonts.text, CombatAction_toStringFancy(ch->action), Vector2Floor(position),
                                     m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
-                            m->tooltip = "Attack a random enemy";
+                            snprintf(m->tooltip, sizeof(m->tooltip), "Attack a random enemy");
                     } break;
 
                     case CombatAction_MultiAttack: {
                         DrawTextEx(m->fonts.text, CombatAction_toStringFancy(ch->action), Vector2Floor(position),
                                     m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
-                            m->tooltip = "Will attack multiple times against enemies of lower level";
+                            snprintf(m->tooltip, sizeof(m->tooltip), "Will attack multiple times against enemies of lower level");
                     } break;
 
                     case CombatAction_DefendSelf: {
                         DrawTextEx(m->fonts.text, CombatAction_toStringFancy(ch->action), Vector2Floor(position),
                                     m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
-                            m->tooltip = "Increases defense and reduces chance of being targeted";
+                            snprintf(m->tooltip, sizeof(m->tooltip), "Increases defense and reduces chance of being targeted");
                     } break;
 
                     case CombatAction_GuardOthers: {
                         DrawTextEx(m->fonts.text, CombatAction_toStringFancy(ch->action), Vector2Floor(position),
                                     m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
-                            m->tooltip = "Increases defense slightly and increases chance of being targeted (scales with CHA)";
+                            snprintf(m->tooltip, sizeof(m->tooltip), "Increases defense slightly and increases chance of being targeted (scales with CHA)");
                     } break;
 
                     case CombatAction_Hide: {
@@ -286,21 +291,21 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
                         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position),
                                     m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
-                            m->tooltip = "Attempt to hide in shadows (base chance of success)";
+                            snprintf(m->tooltip, sizeof(m->tooltip), "Attempt to hide in shadows (base chance of success)");
                     } break;
 
                     case CombatAction_CastSpell: {
                         DrawTextEx(m->fonts.text, CombatAction_toStringFancy(ch->action), Vector2Floor(position),
                                     m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
-                            m->tooltip = "Strike multiple enemies with lighting (scales with WIL & CHA, costs a lot of SP)";
+                            snprintf(m->tooltip, sizeof(m->tooltip), "Strike multiple enemies with lighting (scales with WIL & CHA, costs a lot of SP)");
                     } break;
 
                     default: {
                         DrawTextEx(m->fonts.text, CombatAction_toStringFancy(ch->action), Vector2Floor(position),
                                     m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
-                            m->tooltip = "TODO: This action has no tooltip yet";
+                            snprintf(m->tooltip, sizeof(m->tooltip), "TODO: This action has no tooltip yet");
                     } break;
                 }
 
@@ -310,14 +315,14 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
                         DrawTextEx(m->fonts.text, WaitActivity_toStringFancy(ch->activity),
                                     Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
-                            m->tooltip = "Regain additional SP and (if SP is full) HP by resting";
+                            snprintf(m->tooltip, sizeof(m->tooltip), "Regain additional SP and (if SP is full) HP by resting");
                     } break;
 
                     case WaitActivity_Guard: {
                         DrawTextEx(m->fonts.text, WaitActivity_toStringFancy(ch->activity),
                                     Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
-                            m->tooltip = "Stand guard while waiting (less likely to be taken by surprise)";
+                            snprintf(m->tooltip, sizeof(m->tooltip), "Stand guard while waiting (less likely to be taken by surprise)");
                     } break;
 
                     case WaitActivity_Hide: {
@@ -329,21 +334,21 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
                         DrawTextEx(m->fonts.text, buffer, Vector2Floor(position),
                                     m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
-                            m->tooltip = "Hide in ambush while waiting (base chance of success)";
+                            snprintf(m->tooltip, sizeof(m->tooltip), "Hide in ambush while waiting (base chance of success)");
                     } break;
 
                     case WaitActivity_TendWounds: {
                         DrawTextEx(m->fonts.text, WaitActivity_toStringFancy(ch->activity),
                                     Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
-                            m->tooltip = "Restore health points by tending to wounds";
+                            snprintf(m->tooltip, sizeof(m->tooltip), "Restore health points by tending to wounds");
                     } break;
 
                     default: {
                         DrawTextEx(m->fonts.text, WaitActivity_toStringFancy(ch->activity),
                                     Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
                         if (tooltip)
-                            m->tooltip = "TODO: This activity has no tooltip yet";
+                            snprintf(m->tooltip, sizeof(m->tooltip), "TODO: This activity has no tooltip yet");
                     } break;
                 }
             }
@@ -381,20 +386,20 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
         if (ch->health == 0) {
             ui_text(m->fonts.text, "Unconscious", Vector2Floor(position), m->fonts.text.baseSize, 0, MAROON);
             if (util_mouseInRect(tooltip))
-                m->tooltip = "Can be revived with healing or if SP restores to full";
+                snprintf(m->tooltip, sizeof(m->tooltip), "Can be revived with healing or if SP restores to full");
             position.y += m->fonts.text.baseSize;
             tooltip.y += m->fonts.text.baseSize;
         } else if (ch->health < 0) {
             ui_text(m->fonts.text, "DEAD", Vector2Floor(position), m->fonts.text.baseSize, 0, MAROON);
             if (util_mouseInRect(tooltip))
-                m->tooltip = "Rest In Peace";
+                snprintf(m->tooltip, sizeof(m->tooltip), "Rest In Peace");
             position.y += m->fonts.text.baseSize;
             tooltip.y += m->fonts.text.baseSize;
         } else {
             if ((m->flags & GlobalFlags_Encounter) && (ch->flags & CharacterFlags_Surprised)) {
                 ui_text(m->fonts.text, "Surprised", Vector2Floor(position), m->fonts.text.baseSize, 0, PINK);
                 if (util_mouseInRect(tooltip))
-                    m->tooltip = "Cannot act this round. Reduced chance to flee unharmed";
+                    snprintf(m->tooltip, sizeof(m->tooltip), "Cannot act this round. Reduced chance to flee unharmed");
                 position.y += m->fonts.text.baseSize;
                 tooltip.y += m->fonts.text.baseSize;
             }
@@ -403,9 +408,9 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
                 ui_text(m->fonts.text, "Hidden", Vector2Floor(position), m->fonts.text.baseSize, 0, DARKBLUE);
                 if (util_mouseInRect(tooltip)) {
                     if (ch->class == CharacterClass_Thief) {
-                        m->tooltip = "Cannot be attacked. Attacks are more likely to hit and always deal critical damage";
+                        snprintf(m->tooltip, sizeof(m->tooltip), "Cannot be attacked. Attacks are more likely to hit and always deal critical damage");
                     } else {
-                        m->tooltip = "Cannot be attacked. Attacks are more likely to hit";
+                        snprintf(m->tooltip, sizeof(m->tooltip), "Cannot be attacked. Attacks are more likely to hit");
                     }
                 }
                 position.y += m->fonts.text.baseSize;
@@ -415,7 +420,7 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int keycode
             if (ch->stamina <= 0) {
                 ui_text(m->fonts.text, "Exhausted", Vector2Floor(position), m->fonts.text.baseSize, 0, MOSSGREEN);
                 if (util_mouseInRect(tooltip))
-                    m->tooltip = "All actions have reduced chance to succeed. Further SP expenditure may cause damage";
+                    snprintf(m->tooltip, sizeof(m->tooltip), "All actions have reduced chance to succeed. Further SP expenditure may cause damage");
                 position.y += m->fonts.text.baseSize;
                 tooltip.y += m->fonts.text.baseSize;
             }
@@ -450,7 +455,7 @@ ui_button(Rectangle rect, char* text, char* tooltip, int hotkey, bool enabled)
 
         if (util_mouseInRect(rect)) {
             if (tooltip)
-                m->tooltip = tooltip;
+                snprintf(m->tooltip, sizeof(m->tooltip), tooltip);
         } else {
             goto draw;
         }

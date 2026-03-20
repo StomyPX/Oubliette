@@ -179,7 +179,7 @@ main(int argc, char* argv[])
         m->deltaTime = GetFrameTime();
         m->second += m->deltaTime;
         int anyHover = 0;
-        m->tooltip = 0;
+        m->tooltip[0] = 0;
 
         UpdateMusicStream(m->ambient);
         UpdateMusicStream(m->music);
@@ -492,7 +492,7 @@ main(int argc, char* argv[])
                     button.height = 48;
                     button.x = viewport.x + UI_PADDING;
                     button.y = viewport.y + viewport.height - UI_PADDING - button.height;
-                    result = ui_button(button, "FIGHT", "Fight the next round of combat", KEY_F, active);
+                    result = ui_button(button, "FIGHT", "Fight the next round of combat [F]", KEY_F, active);
                     if (result > 0) {
                         PlaySound(m->click);
                         combat_fight();
@@ -502,7 +502,7 @@ main(int argc, char* argv[])
 
                     button.x += button.width + UI_PADDING;
                     result = ui_button(button, "FLEE", "Attempt to escape. Will drain SP and everyone must "
-                                        "save DEX to avoid being hit", KEY_R, active);
+                                        "save DEX to avoid being hit [R]", KEY_R, active);
                     if (result > 0) {
                         PlaySound(m->click);
                         combat_flee();
@@ -539,7 +539,7 @@ main(int argc, char* argv[])
                 button.x = viewport.x + viewport.width - UI_PADDING - button.width;
                 button.y = viewport.y + viewport.height - UI_PADDING - button.height;
                 result = ui_button(button, "WAIT", "Pass time and engage in wait activities. SP always "
-                                    "restores over time", KEY_R, !(m->flags & GlobalFlags_TheEnd));
+                                    "restores over time [R]", KEY_R, !(m->flags & GlobalFlags_TheEnd));
                 if (result > 0) {
                     ui_log(ZINNWALDITEBROWN, "Resting...");
                     m->encounter.ticks += 300;
@@ -943,7 +943,7 @@ main(int argc, char* argv[])
                 position.x = panel.x;
                 position.y = panel.y + panel.height - m->fonts.text.baseSize;
                 panel.height -= UI_PADDING + m->fonts.text.baseSize;
-                if (m->tooltip)
+                if (m->tooltip[0])
                     DrawTextEx(m->fonts.text, m->tooltip, position, m->fonts.text.baseSize, 0, BONE);
             }
 
