@@ -489,7 +489,15 @@ main(int argc, char* argv[])
                             }
                             m->encounter.timer = CombatSpeed_time(m->encounter.speed);
                         } else {
-                            m->encounter.timer -= m->deltaTime;
+                            float dt = m->deltaTime;
+
+                            /* Allow skipping ahead */
+                            if (IsMouseButtonPressed(0) || IsKeyPressed(KEY_SPACE))
+                                m->encounter.timer = 0;
+                            if (IsMouseButtonDown(0) || IsKeyDown(KEY_SPACE))
+                                dt *= 3.f;
+
+                            m->encounter.timer -= dt;
                         }
                     }
 
