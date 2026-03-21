@@ -9,6 +9,7 @@ typedef enum {
     GlobalFlags_ShowCollision       = 1 << 4,
     GlobalFlags_ShowMap             = 1 << 5,
     GlobalFlags_AdvanceTurn         = 1 << 6, // Whether time should be treated as advancing
+    GlobalFlags_CombatRound         = 1 << 6, // These should safely be able to share the same bit
     GlobalFlags_Encounter           = 1 << 7,
     GlobalFlags_GameOver            = 1 << 8,
     GlobalFlags_TheEnd              = 1 << 9,

@@ -1,3 +1,14 @@
+static float
+CombatSpeed_time(CombatSpeed cs)
+{
+    switch (m->encounter.speed) {
+        case CombatSpeed_Instant: return 0.01f;
+        default:
+        case CombatSpeed_Fast: return 0.3f;
+        case CombatSpeed_Slow: return 2.0f;
+    }
+}
+
 static void
 combat_randomEncounter(MonstrousCompendium* monstrous)
 {
@@ -202,24 +213,29 @@ combat_randomEncounter(MonstrousCompendium* monstrous)
 }
 
 static void
-combat_fight(void)
+combat_startFight(void)
 {
     Stack* stack;
     Character* ch;
-    int32_t initHigh = INT32_MIN;
-    int32_t initLow = INT32_MAX;
+    CombatEncounter* enc;
     char buffer[UI_LOGLINE_LENGTH];
     int highCha = 0;
 
     stack = &m->encounter.stack;
+    enc = &m->encounter;
 
-    /* Roll Initiative TODO Actions/Weapons have speed which affects initiative */
+    enc->state = CombatState_Fighting;
+    enc->timer = CombatSpeed_time(enc->speed);
+    enc->initHigh = INT32_MIN;
+    enc->initLow = INT32_MAX;
+
+    /* Roll Initiative */
     for (int i = 0; i < stack->alive; i++) {
         stack->initiative[i] = PcgRandom_roll(&m->rng, 1, 20) + stack->class.initiative;
-        if (stack->initiative[i] > initHigh)
-            initHigh = stack->initiative[i];
-        if (stack->initiative[i] < initLow)
-            initLow = stack->initiative[i];
+        if (stack->initiative[i] > enc->initHigh)
+            enc->initHigh = stack->initiative[i];
+        if (stack->initiative[i] < enc->initLow)
+            enc->initLow = stack->initiative[i];
     }
 
     for (int i = 0; i < arrlen(m->party); i++) {
@@ -231,48 +247,65 @@ combat_fight(void)
             ch->initiative -= 10;
         if (ch->action == CombatAction_CastSpell)
             ch->initiative += 3;
-        if (ch->initiative > initHigh)
-            initHigh = ch->initiative;
-        if (ch->initiative < initLow)
-            initLow = ch->initiative;
+        if (ch->initiative > enc->initHigh)
+            enc->initHigh = ch->initiative;
+        if (ch->initiative < enc->initLow)
+            enc->initLow = ch->initiative;
 
         if (ch->charisma > highCha)
             highCha = ch->charisma;
     }
 
     /* Target Weights based Charisma */
-    int weights[4] = {};
-    int weightTotal = 0;
     for (int i = 0; i < arrlen(m->party); i++) {
         ch = m->party + i;
         if (ch->health > 0 && !(ch->flags & CharacterFlags_Hidden)) {
-            weights[i] = highCha + 6;
+            enc->weights[i] = highCha + 6;
             if (ch->action == CombatAction_GuardOthers) {
-                weights[i] += util_intmax(0, ch->charisma);
-                weights[i] += 2;
+                enc->weights[i] += util_intmax(0, ch->charisma);
+                enc->weights[i] += 2;
             } else {
-                weights[i] -= ch->charisma;
+                enc->weights[i] -= ch->charisma;
             }
 
             if (ch->action == CombatAction_DefendSelf)
-                weights[i] -= 2;
+                enc->weights[i] -= 2;
             switch (ch->class) {
-                default:                        weights[i] += 2; break;
-                case CharacterClass_Warrior:    weights[i] += 4; break;
+                default:                        enc->weights[i] += 2; break;
+                case CharacterClass_Warrior:    enc->weights[i] += 4; break;
                 case CharacterClass_Mage:       break;
             }
-            // TODO Using a melee weapon increases by a further +6
-            weights[i] = util_intmax(1, weights[i]);
-            weightTotal += weights[i];
+            enc->weights[i] = util_intmax(1, enc->weights[i]);
+            enc->weightTotal += enc->weights[i];
         }
     }
 
-    for (int segment = initHigh; segment >= initLow; segment--) {
+    enc->segment = enc->initHigh;
+}
+
+static void
+combat_startFlee(void)
+{
+    ui_log(ZINNWALDITEBROWN, "The party attempts to flee...");
+    m->encounter.state = CombatState_Fleeing;
+    m->encounter.timer = CombatSpeed_time(m->encounter.speed);
+    m->encounter.segment = 0;
+}
+
+static void
+combat_resolveFight(void)
+{
+    bool stop = false;
+    CombatEncounter* enc = &m->encounter;
+    Stack* stack = &enc->stack;
+
+    for (; !stop && enc->segment >= enc->initLow; enc->segment--) {
         /* Player Actions */
         for (int i = 0; i < arrlen(m->party); i++) {
-            ch = m->party + i;
+            Character* ch = m->party + i;
 
-            if (ch->initiative == segment && ch->health > 0 && stack->alive > 0 && !(ch->flags & CharacterFlags_Surprised)) {
+            if (ch->initiative == enc->segment && ch->health > 0 && stack->alive > 0 && !(ch->flags & CharacterFlags_Surprised)) {
+                stop = true;
                 switch (ch->action) {
                     default:
                         TraceLog(LOG_ERROR, "Unknown combat action id: %i, defaulting to attack", ch->action);
@@ -381,7 +414,7 @@ combat_fight(void)
         }
 
         /* Monster attacks */
-        if (weightTotal < 1) {
+        if (enc->weightTotal < 1) {
             if (stack->alive == 1) {
                 ui_log(ZINNWALDITEBROWN, "The %s peers through the darkness but finds nobody to attack",
                         stack->class.truename);
@@ -395,26 +428,27 @@ combat_fight(void)
         }
 
         for (int i = 0; i < stack->alive; i++) {
-            if (stack->initiative[i] == segment) {
+            if (stack->initiative[i] == enc->segment) {
                 /* Select target based on weighting */
-                int targetRoll = PcgRandom_randomu(&m->rng) % weightTotal;
+                int targetRoll = PcgRandom_randomu(&m->rng) % enc->weightTotal;
                 int target;
                 int tohit;
                 int defense;
 
+                stop = true;
                 for (target = 0; target < arrlen(m->party) - 1; target++) {
                     if (m->party[target].health < 1)
                         continue;
                     if (m->party[target].flags & CharacterFlags_Hidden)
                         continue;
-                    if (targetRoll <= weights[target]) {
+                    if (targetRoll <= enc->weights[target]) {
                         break;
                     } else {
-                        targetRoll -= weights[target];
+                        targetRoll -= enc->weights[target];
                     }
                 }
 
-                ch = m->party + target;
+                Character* ch = m->party + target;
                 if (ch->flags & CharacterFlags_Hidden)
                     continue; /* Wha!? Where did he go!? */
                 if (ch->health <= 0)
@@ -464,52 +498,62 @@ combat_fight(void)
         }
     }
 
-    /* Check if the party is still alive */
-    int survivors = 0;
-    for (int i = 0; i < arrlen(m->party); i++) {
-        if (m->party[i].health > 0)
-            survivors += 1;
-        m->party[i].flags &= ~(CharacterFlags_Surprised);
-    }
-
-    if (survivors < 1) {
-        ui_log(MAROON, "GAME OVER!");
-        m->flags |= GlobalFlags_GameOver;
-        ui_dumpCredits();
-
-    } else if (stack->alive < 1) {
-        int xp;
-
-        m->flags &= ~(GlobalFlags_Encounter);
-        ui_log(ORANGE, "Victory!");
-
-        /* Loot and XP */
-        xp = stack->total * stack->class.experience / survivors;
-        ui_log(ZINNWALDITEBROWN, "Survivors gain %i experience points", xp);
+    if (enc->segment <= enc->initLow) {
+        /* Check if the party is still alive */
+        int survivors = 0;
         for (int i = 0; i < arrlen(m->party); i++) {
-            if (m->party[i].health > 0) {
-                char_exp(m->party + i, xp);
-            }
+            if (m->party[i].health > 0)
+                survivors += 1;
+            m->party[i].flags &= ~(CharacterFlags_Surprised);
         }
-    } else {
-        TraceLog(LOG_TRACE, "COMBAT: New Round");
-        stack->status &= (~MonsterStatus_Surprised);
+
+        if (survivors < 1) {
+            ui_log(MAROON, "GAME OVER!");
+            m->flags |= GlobalFlags_GameOver;
+            ui_dumpCredits();
+
+        } else if (stack->alive < 1) {
+            int xp;
+
+            m->flags &= ~(GlobalFlags_Encounter);
+            ui_log(ORANGE, "Victory!");
+
+            /* Loot and XP */
+            xp = stack->total * stack->class.experience / survivors;
+            ui_log(ZINNWALDITEBROWN, "Survivors gain %i experience points", xp);
+            for (int i = 0; i < arrlen(m->party); i++) {
+                if (m->party[i].health > 0) {
+                    char_exp(m->party + i, xp);
+                }
+            }
+        } else {
+            ui_log(ZINNWALDITEBROWN, "New Combat Round...");
+            TraceLog(LOG_TRACE, "COMBAT: New Round");
+            stack->status &= (~MonsterStatus_Surprised);
+        }
+
+        m->encounter.state = CombatState_Menu;
     }
 }
 
 static void
-combat_flee(void)
+combat_resolveFlee(void)
 {
-    ui_log(ZINNWALDITEBROWN, "The party attempts to flee...");
+    bool stop = false;
+
     /* Parting shots */
+    CombatEncounter* enc = &m->encounter;
     MonsterClass* monster = &m->encounter.stack.class;
-    for (int i = 0; i < arrlen(m->party); i++) {
-        Character* c = m->party + i;
+    for (; enc->segment < arrlen(m->party); enc->segment++) {
+        Character* c = m->party + enc->segment;
         int save = c->dexterity - monster->stealth;
         int roll = PcgRandom_roll(&m->rng, 1, 20);
 
         if (c->health < 1)
             continue;
+
+        if (stop)
+            break;
 
         c->stamina -= PcgRandom_roll(&m->rng, 2, 6);
 
@@ -558,11 +602,12 @@ combat_flee(void)
                 ui_log(BLACK, "%s is hit with a parting shot from a %s for %i damage",
                         c->name, monster->truename, damage);
             }
+
+            stop = true;
         }
     }
 
-
-    { /* Check if the party is still alive */
+    if (!stop && enc->segment >= arrlen(m->party)) { /* Check if the party is still alive */
         int survivors = 0;
         for (int i = 0; i < arrlen(m->party); i++) {
             if (m->party[i].health > 0)
@@ -577,6 +622,8 @@ combat_flee(void)
             ui_log(ZINNWALDITEBROWN, "The party escapes");
             m->flags &= ~(GlobalFlags_Encounter);
         }
+
+        m->encounter.state = CombatState_Menu;
     }
 }
 

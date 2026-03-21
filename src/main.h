@@ -7,7 +7,6 @@ typedef struct Memory_ {
     Map map;
     PcgRandom rng; // Primary RNG
     PcgRandom rng2; // Secondary RNG used only for non-mechanical effects
-    MonstrousCompendium monsters;
 
     struct { /* Zone of the screen used by the game under extreme aspect ratios */
         int top, left, bottom, right;
@@ -31,11 +30,8 @@ typedef struct Memory_ {
     Character party[4];
     Sound footstep[11];
 
-    struct {
-        int ticks;
-        Stack stack;
-        Sound klaxon;
-    } encounter;
+    MonstrousCompendium monsters;
+    CombatEncounter encounter;
 
     /* UI Resources */
     char tooltip[128];

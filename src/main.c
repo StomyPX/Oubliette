@@ -112,6 +112,8 @@ main(int argc, char* argv[])
     PcgRandom_init(&m->rng2, util_rdtsc());
     monster_init(&m->monsters);
 
+    m->encounter.speed = CombatSpeed_Instant;
+
     for (unsigned i = 0; i < arrlen(m->footstep); i++) {
         char buf[32];
         snprintf(buf, sizeof(buf), "data/sounds/footstep_%02u.wav", i);
@@ -468,13 +470,35 @@ main(int argc, char* argv[])
                     Vector2 position, dims;
                     Rectangle button, frame;
                     int result;
-                    bool active = !(m->flags & GlobalFlags_GameOver);
+                    bool active = true;
+
+                    if (m->flags & GlobalFlags_GameOver)
+                        active = false;
+
+                    if (m->encounter.state != CombatState_Menu) {
+                        active = false;
+                        if (m->encounter.timer <= 0.f) {
+                            switch (m->encounter.state) {
+                                default:
+                                case CombatState_Fighting: {
+                                    combat_resolveFight();
+                                } break;
+                                case CombatState_Fleeing: {
+                                    combat_resolveFlee();
+                                } break;
+                            }
+                            m->encounter.timer = CombatSpeed_time(m->encounter.speed);
+                        } else {
+                            m->encounter.timer -= m->deltaTime;
+                        }
+                    }
 
                     if (stack->alive == 1) {
                         snprintf(buffer, sizeof(buffer), stack->class.truename);
                     } else {
                         snprintf(buffer, sizeof(buffer), "%u %s", stack->alive, stack->class.truenamePlural);
                     }
+
                     dims = MeasureTextEx(m->fonts.title, buffer, m->fonts.title.baseSize, 0);
                     frame.x = viewport.x + UI_PADDING;
                     frame.y = viewport.y + UI_PADDING;
@@ -495,7 +519,7 @@ main(int argc, char* argv[])
                     result = ui_button(button, "FIGHT", "Fight the next round of combat [F]", KEY_F, active);
                     if (result > 0) {
                         PlaySound(m->click);
-                        combat_fight();
+                        combat_startFight();
                     } else if (result < 0) {
                         anyHover = 2;
                     }
@@ -505,7 +529,7 @@ main(int argc, char* argv[])
                                         "save DEX to avoid being hit [R]", KEY_R, active);
                     if (result > 0) {
                         PlaySound(m->click);
-                        combat_flee();
+                        combat_startFlee();
                     } else if (result < 0) {
                         anyHover = 1;
                     }
@@ -870,7 +894,7 @@ main(int argc, char* argv[])
                     result = ui_button(button, "(sfx)", "Enable sound effects", KEY_NULL, true);
                     if (result > 0) {
                         m->flags &= ~(GlobalFlags_MuteSFX);
-                        /* I realize there is probably a better way */
+                        /* I realize there is probably a better way TODO Make a global union for all sfx */
                         for (int i = 0; i < arrlen(m->footstep); i++)
                             SetSoundVolume(m->footstep[i], 1.f);
                         SetSoundVolume(m->encounter.klaxon, 1.f);
@@ -1040,7 +1064,7 @@ main(int argc, char* argv[])
             }
 
             if (m->flags & GlobalFlags_PartyStats) {
-                char buf[160] = {0};
+                char buf[256] = {0};
                 Vector2 position = (Vector2){GetRenderWidth() - 160, UI_SIDE_PANEL_HEADER + UI_PADDING * 2};
                 int danger = -1;
                 if (m->flags & GlobalFlags_MissionAccomplished) {
@@ -1055,6 +1079,7 @@ main(int argc, char* argv[])
                         "Camera: %4.1f, %4.1f\n"
                         "Tile: %2i, %2i [%i]\n"
                         "Enc. Ticks: %i/%i %s\n"
+                        "Enc. State: %i %05.2f\n"
                         "Dungeon Lv%i Size %i\n"
                         "Seed: %llu\n",
                         GetFPS(),
@@ -1063,6 +1088,7 @@ main(int argc, char* argv[])
                         m->partyX, m->partyY, map_tileIndex(m->partyX, m->partyY),
                         m->encounter.ticks, m->map.encounterFreq,
                         m->flags & GlobalFlags_IgnoreEncounters ? "OFF" : "",
+                        m->encounter.speed, m->encounter.timer,
                         danger + 2, m->map.chamberCount,
                         m->map.seed);
                 ui_text(GetFontDefault(), buf, position, GetFontDefault().baseSize, 1, BONE);

@@ -55,7 +55,7 @@ typedef struct
     uint32_t total;
     int64_t health[MONSTER_STACK_MAX];
     int32_t initiative[MONSTER_STACK_MAX];
-} Stack;
+} Stack; // TODO Consider renaming to MonsterStack
 
 static void monster_init(MonstrousCompendium* monstrous);
 static void monster_cleanup(MonstrousCompendium* monstrous);
