@@ -95,36 +95,3 @@ platform_dlclose(DLHandle lib)
     #endif
 }
 
-// TODO Remove this, redundant with callback in util
-static void
-platform_read(char* path, char** outContents, size_t* outSize)
-{
-    PHYSFS_File* file;
-    int64_t size, bytesRead;
-    uint8_t *contents;
-
-    file = PHYSFS_openRead(path);
-    if (!file) goto fail;
-
-    size = PHYSFS_fileLength(file);
-    if (size <= 0) goto fail;
-
-    contents = malloc(size);
-    bytesRead = PHYSFS_readBytes(file, contents, size);
-    if (bytesRead < size) {
-        free(contents);
-        goto fail;
-    }
-
-    *outContents = contents;
-    *outSize = size;
-    PHYSFS_close(file);
-    return;
-
-fail:
-    TraceLog(LOG_WARNING, "PhysFS: %s", PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
-    PHYSFS_close(file);
-    *outContents = 0;
-    *outSize = 0;
-}
-

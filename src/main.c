@@ -691,7 +691,6 @@ main(int argc, char* argv[])
                         }
                     }
 
-                    /* TODO switch to using util_traverse */
                     if (direction >= 0) {
                         unsigned targetTile, currentTile;
                         bool successful = false;
