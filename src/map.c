@@ -39,22 +39,6 @@ map_passagesMax(int w, int h)
     return w * h * 4;
 }
 
-static Rectangle
-map_subImageUV(int num)
-{
-    if (num == 0 || num > 16) {
-        return (Rectangle){0, 0, 1, 1};
-    } else {
-        Rectangle r;
-        int i = num - 1;
-        r.x = (float)(i % 4) * 0.25f;
-        r.y = (float)(i / 4) * 0.25f;
-        r.width = 0.25f;
-        r.height = 0.25f;
-        return r;
-    }
-}
-
 static Camera3D
 map_cameraForTile(Map* map, int x, int y, Facing facing)
 {

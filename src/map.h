@@ -70,7 +70,6 @@ static Vector3 map_tileCorner(Map* map, int x, int y);
 static int map_tileIndex(Map* map, int x, int y); // Negative indicates invalid
 static int map_chambersMax(int w, int h);
 static int map_passagesMax(int w, int h);
-static Rectangle map_subImageUV(int num); /* Starts at 1 */
 static Camera3D map_cameraForTile(Map* map, int x, int y, Facing facing);
 
 /* Returns non-zero on success */
