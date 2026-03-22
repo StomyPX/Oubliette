@@ -1,4 +1,4 @@
-#define TILE_COUNT 48
+#define TILE_COUNT_MAX 128
 #define TILE_SIDE_LENGTH 3.f
 #define MAP_ATLAS_SUBIMAGE_COUNT 16
 #define CAMERA_HEIGHT 1.6f
@@ -26,20 +26,20 @@ typedef struct {
     int x, y;
     int w, h;
 } MapChamber;
-#define MAP_CHAMBERS_MAX (TILE_COUNT * 2)
 
 /* Unresolved Passage */
 typedef struct {
     int x, y;
     Facing facing; // Same as party: 0 is north, continue clockwise
 } MapPassage;
-#define MAP_PASSAGES_MAX (TILE_COUNT * 8)
 
 /* Map is centered on origin, such that the floor is at z==0 and the first tile (index==0) is in the
- * Northwest at (-TILE_COUNT/2 * TILE_SIDE_LENGTH, TILE_COUNT/2 * TILE_SIDE_LENGTH) */
+ * Northwest at (-map->width/2 * TILE_SIDE_LENGTH, map->height/2 * TILE_SIDE_LENGTH) */
 typedef struct {
     char        name    [32];
-    TileFlags   tiles   [TILE_COUNT * TILE_COUNT];
+    TileFlags   tiles [TILE_COUNT_MAX * TILE_COUNT_MAX];
+    unsigned    width;
+    unsigned    height;
     Model       wall;
     Texture     wallTex;
     Model       flor;
@@ -56,21 +56,22 @@ typedef struct {
     PcgRandom   rng;
     uint64_t    seed;
     int         chamberCount;
-    MapChamber  chambers[MAP_CHAMBERS_MAX];
+    MapChamber  chambers [TILE_COUNT_MAX * TILE_COUNT_MAX];
     int         passageCount;
-    MapPassage  passages[MAP_PASSAGES_MAX];
+    MapPassage  passages [TILE_COUNT_MAX * TILE_COUNT_MAX * 4];
 
     int         entryX, entryY;
     int         goalX, goalY;
     int         encounterFreq;  /* Multiple of encounter ticks before rolling. 100 ticks is roughly one minute */
 } Map;
 
-static Vector3 map_tileCenter(int x, int y);
-static Vector3 map_tileCorner(int x, int y);
-static int map_tileIndex(int x, int y); // Negative indicates invalid
+static Vector3 map_tileCenter(Map* map, int x, int y);
+static Vector3 map_tileCorner(Map* map, int x, int y);
+static int map_tileIndex(Map* map, int x, int y); // Negative indicates invalid
+static int map_chambersMax(int w, int h);
+static int map_passagesMax(int w, int h);
 static Rectangle map_subImageUV(int num); /* Starts at 1 */
-
-static Camera3D map_cameraForTile(int x, int y, Facing facing);
+static Camera3D map_cameraForTile(Map* map, int x, int y, Facing facing);
 
 /* Returns non-zero on success */
 static void map_generate(Map* map, uint64_t seed);

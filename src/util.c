@@ -48,7 +48,7 @@ Facing_toString(Facing facing)
     }
 }
 
-static unsigned
+static void
 util_traverse(Facing facing, int inx, int iny, int forward, int right, int* outX, int* outY)
 {
     int x, y;
@@ -78,7 +78,6 @@ util_traverse(Facing facing, int inx, int iny, int forward, int right, int* outX
         *outX = x;
     if (outY)
         *outY = y;
-    return x + y * TILE_COUNT;
 }
 
 static bool

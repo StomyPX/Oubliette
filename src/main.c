@@ -163,7 +163,7 @@ main(int argc, char* argv[])
     m->partyY = m->map.entryY + 1;
     m->partyMoveFreq = 0.2f;
 
-    m->camera = map_cameraForTile(m->partyX, m->partyY, m->partyFacing);
+    m->camera = map_cameraForTile(&m->map, m->partyX, m->partyY, m->partyFacing);
 
     SetTargetFPS(200); /* TODO Make configurable, prefer VSync */
 
@@ -373,32 +373,32 @@ main(int argc, char* argv[])
 
             rlDisableDepthMask();
             if (m->flags & GlobalFlags_EditorMode)
-                DrawGrid(TILE_COUNT + 1, TILE_SIDE_LENGTH);
+                DrawGrid(util_intmax(m->map.width, m->map.height) + 1, TILE_SIDE_LENGTH);
 
             if (m->flags & GlobalFlags_ShowCollision) {
                 // TODO Draw inward in a spiral pattern
                 float size = TILE_SIDE_LENGTH + 0.05f;
-                for (int x = 0; x < TILE_COUNT; x++) {
-                    for (int y = 0; y < TILE_COUNT; y++) {
+                for (int x = 0; x < m->map.width; x++) {
+                    for (int y = 0; y < m->map.height; y++) {
                         if (abs(x - m->partyX) > 4 || abs(y - m->partyY) > 4)
                             continue;
 
-                        int index = x + y * TILE_COUNT;
+                        int index = x + y * m->map.width;
                         if (!(m->map.tiles[index] & TileFlags_AllowEntry)) {
-                            Vector3 position = map_tileCenter(x, y);
+                            Vector3 position = map_tileCenter(&m->map, x, y);
                             DrawCube(position, size, size, size, CLIP_COLOR);
                             DrawCubeWires(position, size, size, size, LIGHTGRAY);
                         }
 
                         if (!(m->map.tiles[index] & TileFlags_AllowEast)) {
-                            Vector3 position = map_tileCenter(x, y);
+                            Vector3 position = map_tileCenter(&m->map, x, y);
                             position.x += (float)TILE_SIDE_LENGTH / 2.f;
                             DrawCube(position, 0.1f, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, WALLCLIP_COLOR);
                             DrawCubeWires(position, 0.1f, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, LIGHTGRAY);
                         }
 
                         if (!(m->map.tiles[index] & TileFlags_AllowSouth)) {
-                            Vector3 position = map_tileCenter(x, y);
+                            Vector3 position = map_tileCenter(&m->map, x, y);
                             position.z += (float)TILE_SIDE_LENGTH / 2.f;
                             DrawCube(position, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, 0.1f, WALLCLIP_COLOR);
                             DrawCubeWires(position, TILE_SIDE_LENGTH, TILE_SIDE_LENGTH, 0.1f, LIGHTGRAY);
@@ -410,9 +410,9 @@ main(int argc, char* argv[])
             if (m->flags & GlobalFlags_EditorMode) { /* Party location indicator */
                 Camera3D c;
                 Vector3 start, end, center;
-                c = map_cameraForTile(m->partyX, m->partyY, m->partyFacing);
+                c = map_cameraForTile(&m->map, m->partyX, m->partyY, m->partyFacing);
 
-                start = map_tileCenter(m->partyX, m->partyY);
+                start = map_tileCenter(&m->map, m->partyX, m->partyY);
                 end = c.position;
                 start.y = end.y;
                 DrawCylinderWiresEx(start, end, 0.001f, 0.2f, 6, SKYBLUE);
@@ -696,11 +696,11 @@ main(int argc, char* argv[])
                         unsigned targetTile, currentTile;
                         bool successful = false;
 
-                        currentTile = m->partyX + m->partyY * TILE_COUNT;
+                        currentTile = m->partyX + m->partyY * m->map.width;
                         switch (direction % 4) {
                             case 0: { /* North */
-                                targetTile = m->partyX + (m->partyY - 1) * TILE_COUNT;
-                                if (targetTile < TILE_COUNT * TILE_COUNT
+                                targetTile = m->partyX + (m->partyY - 1) * m->map.width;
+                                if (targetTile < m->map.width * m->map.height
                                     && m->map.tiles[targetTile] & TileFlags_AllowEntry
                                     && m->map.tiles[targetTile] & TileFlags_AllowSouth
                                     && m->partyY > 0)
@@ -713,11 +713,11 @@ main(int argc, char* argv[])
                             } break;
 
                             case 1: { /* East */
-                                targetTile = m->partyX + 1 + m->partyY * TILE_COUNT;
-                                if (targetTile < TILE_COUNT * TILE_COUNT
+                                targetTile = m->partyX + 1 + m->partyY * m->map.width;
+                                if (targetTile < m->map.width * m->map.height
                                     && m->map.tiles[targetTile] & TileFlags_AllowEntry
                                     && m->map.tiles[currentTile] & TileFlags_AllowEast
-                                    && m->partyX + 1 < TILE_COUNT)
+                                    && m->partyX + 1 < m->map.width)
                                 {
                                     m->partyX += 1;
                                     successful = true;
@@ -727,11 +727,11 @@ main(int argc, char* argv[])
                             } break;
 
                             case 2: { /* South */
-                                targetTile = m->partyX + (m->partyY + 1) * TILE_COUNT;
-                                if (targetTile < TILE_COUNT * TILE_COUNT
+                                targetTile = m->partyX + (m->partyY + 1) * m->map.width;
+                                if (targetTile < m->map.width * m->map.height
                                     && m->map.tiles[targetTile] & TileFlags_AllowEntry
                                     && m->map.tiles[currentTile] & TileFlags_AllowSouth
-                                    && m->partyY + 1 < TILE_COUNT)
+                                    && m->partyY + 1 < m->map.height)
                                 {
                                     m->partyY += 1;
                                     successful = true;
@@ -741,8 +741,8 @@ main(int argc, char* argv[])
                             } break;
 
                             case 3: { /* West */
-                                targetTile = m->partyX - 1 + m->partyY * TILE_COUNT;
-                                if (targetTile < TILE_COUNT * TILE_COUNT
+                                targetTile = m->partyX - 1 + m->partyY * m->map.width;
+                                if (targetTile < m->map.width * m->map.height
                                     && m->map.tiles[targetTile] & TileFlags_AllowEntry
                                     && m->map.tiles[targetTile] & TileFlags_AllowEast
                                     && m->partyX > 0)
@@ -820,7 +820,7 @@ main(int argc, char* argv[])
                         m->partyFacing %= 4;
                     }
 
-                    int index = map_tileIndex(m->partyX, m->partyY);
+                    int index = map_tileIndex(&m->map, m->partyX, m->partyY);
                     if (index >= 0) {
                         m->map.tiles[index] |= TileFlags_Visited;
                     }
@@ -1068,8 +1068,6 @@ main(int argc, char* argv[])
                 int danger = -1;
                 if (m->flags & GlobalFlags_MissionAccomplished) {
                     danger = 1;
-                //} else if (abs(m->partyX - m->map.entryX) + abs(m->partyY - m->map.entryY) > TILE_COUNT / 3) {
-                    //danger = 0;
                 }
 
                 snprintf(buf, sizeof(buf),
@@ -1084,7 +1082,7 @@ main(int argc, char* argv[])
                         GetFPS(),
                         //m->flags & GlobalFlags_EditorMode ? "ON" : "off",
                         m->camera.position.x, m->camera.position.z,
-                        m->partyX, m->partyY, map_tileIndex(m->partyX, m->partyY),
+                        m->partyX, m->partyY, map_tileIndex(&m->map, m->partyX, m->partyY),
                         m->encounter.ticks, m->map.encounterFreq,
                         m->flags & GlobalFlags_IgnoreEncounters ? "OFF" : "",
                         m->encounter.speed, m->encounter.timer,
@@ -1097,7 +1095,7 @@ main(int argc, char* argv[])
                 ext_CImguiNewFrame(m);
                 if (m->flags & GlobalFlags_ShowMap) {
                     bool show = 1;
-                    char buffer[TILE_COUNT * 2 + 1] = {};
+                    char buffer[TILE_COUNT_MAX * 2 + 1] = {};
 
                     {
                         ImGuiWindowFlags flags = 0;
@@ -1106,9 +1104,9 @@ main(int argc, char* argv[])
                         m->ext.cimgui.Begin("Map Overview", &show, flags);
                     }
 
-                    for (int y = 0; y < TILE_COUNT; y++) {
-                        for (int x = 0; x < TILE_COUNT; x++) {
-                            TileFlags t = m->map.tiles[x + y * TILE_COUNT];
+                    for (int y = 0; y < m->map.height; y++) {
+                        for (int x = 0; x < m->map.width; x++) {
+                            TileFlags t = m->map.tiles[x + y * m->map.width];
 
                             if (m->partyX == x && m->partyY == y) {
                                 switch (m->partyFacing) {
@@ -1213,7 +1211,7 @@ main(int argc, char* argv[])
 
             // TODO if not in a menu or encounter
             if (!(m->flags & GlobalFlags_EditorMode)) {
-                Camera intended = map_cameraForTile(m->partyX, m->partyY, m->partyFacing);
+                Camera intended = map_cameraForTile(&m->map, m->partyX, m->partyY, m->partyFacing);
                 float lerp = Clamp(m->deltaTime * 10.0f, 0.f, 1.f);
                 m->camera.position = Vector3Lerp(m->camera.position, intended.position, lerp);
                 m->camera.target = Vector3Lerp(m->camera.target, intended.target, lerp);

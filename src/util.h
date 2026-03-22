@@ -30,7 +30,7 @@ typedef enum {
 } Facing;
 
 static const char* Facing_toString(Facing facing);
-static unsigned util_traverse(Facing facing, int inx, int iny, int forward, int right, int* outX, int* outY);
+static void util_traverse(Facing facing, int inx, int iny, int forward, int right, int* outX, int* outY);
 static bool util_facingNorthSouth(Facing facing);
 
 typedef enum: unsigned short {

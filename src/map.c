@@ -1,30 +1,42 @@
 
 static Vector3
-map_tileCenter(int x, int y)
+map_tileCenter(Map* map, int x, int y)
 {
     Vector3 v;
-    v.x = ((float)x - (float)TILE_COUNT / 2 + 0.5f) * TILE_SIDE_LENGTH;
+    v.x = ((float)x - (float)map->width / 2 + 0.5f) * TILE_SIDE_LENGTH;
     v.y = TILE_SIDE_LENGTH / 2.f;
-    v.z = ((float)y - (float)TILE_COUNT / 2 + 0.5f) * TILE_SIDE_LENGTH;
+    v.z = ((float)y - (float)map->height / 2 + 0.5f) * TILE_SIDE_LENGTH;
     return v;
 }
 
 static Vector3
-map_tileCorner(int x, int y)
+map_tileCorner(Map* map, int x, int y)
 {
     Vector3 v;
-    v.x = ((float)x - (float)TILE_COUNT / 2) * TILE_SIDE_LENGTH;
+    v.x = ((float)x - (float)map->width / 2) * TILE_SIDE_LENGTH;
     v.y = 0;
-    v.z = ((float)y - (float)TILE_COUNT / 2) * TILE_SIDE_LENGTH;
+    v.z = ((float)y - (float)map->height / 2) * TILE_SIDE_LENGTH;
     return v;
 }
 
 static int
-map_tileIndex(int x, int y)
+map_tileIndex(Map* map, int x, int y)
 {
-    if (x < 0 || x >= TILE_COUNT || y < 0 || y >= TILE_COUNT)
+    if (x < 0 || x >= map->width || y < 0 || y >= map->height)
         return -1;
-    return x + y * TILE_COUNT;
+    return x + y * map->width;
+}
+
+static int
+map_chambersMax(int w, int h)
+{
+    return w * h;
+}
+
+static int
+map_passagesMax(int w, int h)
+{
+    return w * h * 4;
 }
 
 static Rectangle
@@ -44,11 +56,11 @@ map_subImageUV(int num)
 }
 
 static Camera3D
-map_cameraForTile(int x, int y, Facing facing)
+map_cameraForTile(Map* map, int x, int y, Facing facing)
 {
     Camera c = {0};
 
-    c.position = map_tileCenter(x, y);
+    c.position = map_tileCenter(map, x, y);
     c.position.y = CAMERA_HEIGHT;
     c.target = c.position;
     c.target.y = 0.f;
@@ -107,10 +119,18 @@ map_generate(Map* map, uint64_t seed)
     SetMaterialTexture(&map->entry.materials[1], MATERIAL_MAP_DIFFUSE, map->ceilingTex);
     SetMaterialTexture(&map->entry.materials[2], MATERIAL_MAP_DIFFUSE, map->entryTex);
 
+    /* TODO This can later be made configurable */
+    map->width = 48;
+    map->height = 48;
+
+    memset(map->tiles, 0, sizeof(map->tiles));
+    memset(map->chambers, 0, sizeof(map->chambers));
+    memset(map->passages, 0, sizeof(map->passages));
+
     // Starting location
-    map->entryX = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 2) + TILE_COUNT / 4;
-    map->entryY = PcgRandom_randomu(&map->rng) % (TILE_COUNT / 4);
-    map->tiles[map->entryX + map->entryY * TILE_COUNT] = TileFlags_Filled | TileFlags_AllowEntry;
+    map->entryX = PcgRandom_randomu(&map->rng) % (map->width / 2) + map->height / 4;
+    map->entryY = PcgRandom_randomu(&map->rng) % (map->height / 4);
+    map->tiles[map->entryX + map->entryY * map->width] = TileFlags_Filled | TileFlags_AllowEntry;
 
     // Build out the map, recursively resolving passages
     //for (int i = 0; i < 3 && map->chamberCount < 3; i++) {
@@ -125,7 +145,7 @@ map_generate(Map* map, uint64_t seed)
         MapChamber mc = map->chambers[i];
         int x = mc.x + mc.w / 2;
         int y = mc.y + mc.h / 2;
-        int index = map_tileIndex(x, y);
+        int index = map_tileIndex(map, x, y);
         if (index >= 0) {
             int distance = abs(x - map->entryX) + abs(y - map->entryY);
             if (distance > farthest) {
@@ -153,9 +173,8 @@ map_generate(Map* map, uint64_t seed)
 static void
 map_generateLoop(Map* map)
 {
-    for (int i = 0;
-        i < TILE_COUNT * TILE_COUNT && map->passageCount > 0 && map->chamberCount < MAP_CHAMBERS_MAX;
-        i++)
+    for (int i = 0; i < map->width * map->height && map->passageCount > 0
+        && map->chamberCount < map_chambersMax(map->width, map->height); i++)
     {
         int randomPassage = PcgRandom_randomu(&map->rng) % map->passageCount;
         MapPassage p = map->passages[randomPassage];
@@ -179,7 +198,7 @@ map_generatePassage(Map* map, MapPassage u)
     for (stepsTaken = 0; stepsTaken < steps && success; stepsTaken++) {
         if (!map_generateStepForward(map, &u.x, &u.y, u.facing)) {
             /* If we're stopped, at least make the target enterable */
-            int index = map_tileIndex(u.x, u.y);
+            int index = map_tileIndex(map, u.x, u.y);
             if (index >= 0)
                 map->tiles[index] |= TileFlags_AllowEntry;
             break;
@@ -212,7 +231,7 @@ map_generatePassage(Map* map, MapPassage u)
                 } break;
             }
             map->passages[map->passageCount++] = u;
-            int index = map_tileIndex(u.x, u.y);
+            int index = map_tileIndex(map, u.x, u.y);
             if (index >= 0)
                 map->tiles[index] |= TileFlags_Terminator;
         }
@@ -225,41 +244,43 @@ map_generateStepForward(Map* map, int* x, int* y, Facing facing)
     int target; // Tile directly in front
     int wall; // Tile that controls passage between current and target
     int x2, y2;
+    int x3, y3;
 
     util_traverse(facing, *x, *y, 1, 0, &x2, &y2);
-    target = map_tileIndex(x2, y2);
+    target = map_tileIndex(map, x2, y2);
     if (target < 0)
         return false;
 
+    /* TODO Instead of checking bounds, just try the expected x and y and see if tileIndex return non-negative */
     switch (facing) {
         default: /* North */ {
-            if (*y <= 0) return false; // Edge of the map
-            wall = util_traverse(facing, *x, *y, 1, 0, 0, 0);
-            if (wall > TILE_COUNT * TILE_COUNT)
+            util_traverse(facing, *x, *y, 1, 0, &x3, &y3);
+            wall = map_tileIndex(map, x3, y3);
+            if (wall < 0)
                 return false;
             map->tiles[wall] |= TileFlags_AllowSouth;
             *y -= 1;
         } break;
         case Facing_East: {
-            if (*x >= TILE_COUNT - 1) return false; // Edge of the map
-            wall = util_traverse(facing, *x, *y, 0, 0, 0, 0);
-            if (wall > TILE_COUNT * TILE_COUNT)
+            util_traverse(facing, *x, *y, 0, 0, &x3, &y3);
+            wall = map_tileIndex(map, x3, y3);
+            if (wall < 0)
                 return false;
             map->tiles[wall] |= TileFlags_AllowEast;
             *x += 1;
         } break;
         case Facing_South: {
-            if (*y >= TILE_COUNT - 1) return false; // Edge of the map
-            wall = util_traverse(facing, *x, *y, 0, 0, 0, 0);
-            if (wall > TILE_COUNT * TILE_COUNT)
+            util_traverse(facing, *x, *y, 0, 0, &x3, &y3);
+            wall = map_tileIndex(map, x3, y3);
+            if (wall < 0)
                 return false;
             map->tiles[wall] |= TileFlags_AllowSouth;
             *y += 1;
         } break;
         case Facing_West: {
-            if (*x <= 0) return false; // Edge of the map
-            wall = util_traverse(facing, *x, *y, 1, 0, 0, 0);
-            if (wall > TILE_COUNT * TILE_COUNT)
+            util_traverse(facing, *x, *y, 1, 0, &x3, &y3);
+            wall = map_tileIndex(map, x3, y3);
+            if (wall < 0)
                 return false;
             map->tiles[wall] |= TileFlags_AllowEast;
             *x -= 1;
@@ -281,13 +302,13 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
     uint32_t exitD6;
     uint32_t rectD6;
 
-    if (map->chamberCount >= MAP_CHAMBERS_MAX) {
+    if (map->chamberCount >= map_chambersMax(map->width, map->height)) {
         util_err(0, "MAP: Exceeded maximum chambers!");
     }
 
     #if DEBUG_MODE
     { /* Debugging */
-        int index = map_tileIndex(x, y);
+        int index = map_tileIndex(map, x, y);
         if (index >= 0)
             map->tiles[index] |= TileFlags_Builder;
     }
@@ -341,7 +362,7 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
      * This is a huge pain in the ass, we need to check beforehand if there's a separating wall and rebuild
      * it if the step results in a failure. */
     {
-        int index = map_tileIndex(x, y);
+        int index = map_tileIndex(map, x, y);
         int restoreIndex;
         int restoreWall;
         int wall = -1;
@@ -351,12 +372,12 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
         restoreIndex = map->tiles[index];
         switch (facing) {
             case Facing_North: {
-                wall = map_tileIndex(x, y - 1);
+                wall = map_tileIndex(map, x, y - 1);
                 if (wall >= 0)
                     restoreWall = map->tiles[wall];
             } break;
             case Facing_West: {
-                wall = map_tileIndex(x - 1, y);
+                wall = map_tileIndex(map, x - 1, y);
                 if (wall >= 0)
                     restoreWall = map->tiles[wall];
             } break;
@@ -379,7 +400,7 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
     /* Bore out collision area */
     for (int i = 0; i < c.w; i++) {
         for (int j = 0; j < c.h; j++) {
-            int index = map_tileIndex(c.x + i, c.y + j);
+            int index = map_tileIndex(map, c.x + i, c.y + j);
             if (map->tiles[index] < 0)
                 continue;
 
@@ -399,11 +420,11 @@ map_generateChamber(Map* map, int x, int y, Facing facing)
 
     /* Generate exits */
     exitD6 = PcgRandom_roll(&map->rng, 1, 6);
-    if (map->chamberCount % 8 == 1 && map->chamberCount <= MAP_CHAMBERS_MAX / 4)
+    if (map->chamberCount % 8 == 1 && map->chamberCount <= map_chambersMax(map->width, map->height) / 4)
         exitD6 += 3;
-    if (map->chamberCount > MAP_CHAMBERS_MAX / 2)
+    if (map->chamberCount > map_chambersMax(map->width, map->height) / 2)
         exitD6 -= 1;
-    if (map->chamberCount > MAP_CHAMBERS_MAX * 3 / 4)
+    if (map->chamberCount > map_chambersMax(map->width, map->height) * 3 / 4)
         exitD6 -= 2;
     exitD6 = Clamp(exitD6, 0, 6);
     switch (exitD6) {
@@ -449,7 +470,7 @@ map_generateChamberRandomPassage(Map* map, MapChamber chamber, Facing facing)
     int index;
     int next, nx, ny;
 
-    if (map->passageCount >= MAP_PASSAGES_MAX) {
+    if (map->passageCount >= map_passagesMax(map->width, map->height)) {
         util_err(0, "MAP: Exceeded maximum passages!");
         return;
     }
@@ -474,9 +495,9 @@ map_generateChamberRandomPassage(Map* map, MapChamber chamber, Facing facing)
         } break;
     }
 
-    index = map_tileIndex(passage.x, passage.y);
+    index = map_tileIndex(map, passage.x, passage.y);
     util_traverse(facing, passage.x, passage.y, 1, 0, &nx, &ny);
-    next = map_tileIndex(nx, ny);
+    next = map_tileIndex(map, nx, ny);
 
     if (index >= 0 && next >= 0 && !(map->tiles[next] & TileFlags_Chamber)) {
         map->passages[map->passageCount++] = passage;
@@ -510,7 +531,7 @@ map_draw(Map* map, Color light, float visibility, float power)
     Color color;
 
     if (m->flags & GlobalFlags_EditorMode) {
-        position = map_tileCenter(m->partyX, m->partyY);
+        position = map_tileCenter(map, m->partyX, m->partyY);
         position.y += CAMERA_HEIGHT;
     } else {
         position = m->camera.position;
@@ -521,14 +542,14 @@ map_draw(Map* map, Color light, float visibility, float power)
         int x = m->partyX - radius - 1 + i;
         for (int j = 0; j < total; j++) {
             int y = m->partyY - radius - 1 + j;
-            int index = x + y * TILE_COUNT;
+            int index = x + y * map->width;
 
-            if (x < 0 || x >= TILE_COUNT || y < 0 || y >= TILE_COUNT)
+            if (x < 0 || x >= map->width || y < 0 || y >= map->height)
                 continue;
 
-            if (!(m->map.tiles[index] & TileFlags_AllowEast) || x == TILE_COUNT - 1) {
-                origin = map_tileCorner(x + 1, y + 1);
-                center = map_tileCenter(x, y);
+            if (!(m->map.tiles[index] & TileFlags_AllowEast) || x == map->width - 1) {
+                origin = map_tileCorner(map, x + 1, y + 1);
+                center = map_tileCenter(map, x, y);
                 center.x += TILE_SIDE_LENGTH / 2.f;
                 center.y += TILE_SIDE_LENGTH / 2.f;
                 distance = Vector3Distance(position, center);
@@ -536,9 +557,9 @@ map_draw(Map* map, Color light, float visibility, float power)
                 DrawModelEx(map->wall, origin, up, -90.f, one, color);
             }
 
-            if (!(m->map.tiles[index] & TileFlags_AllowSouth) || y == TILE_COUNT - 1) {
-                origin = map_tileCorner(x + 1, y + 1);
-                center = map_tileCenter(x, y);
+            if (!(m->map.tiles[index] & TileFlags_AllowSouth) || y == map->height - 1) {
+                origin = map_tileCorner(map, x + 1, y + 1);
+                center = map_tileCenter(map, x, y);
                 center.z += TILE_SIDE_LENGTH / 2.f;
                 center.y += TILE_SIDE_LENGTH / 2.f;
                 distance = Vector3Distance(position, center);
@@ -547,8 +568,8 @@ map_draw(Map* map, Color light, float visibility, float power)
             }
 
             if (x == 0) { /* West Edge */
-                origin = map_tileCorner(x, y + 1);
-                center = map_tileCenter(x, y);
+                origin = map_tileCorner(map, x, y + 1);
+                center = map_tileCenter(map, x, y);
                 center.x -= TILE_SIDE_LENGTH / 2.f;
                 center.y += TILE_SIDE_LENGTH / 2.f;
                 distance = Vector3Distance(position, center);
@@ -557,8 +578,8 @@ map_draw(Map* map, Color light, float visibility, float power)
             }
 
             if (y == 0) { /* North Edge */
-                origin = map_tileCorner(x + 1, y);
-                center = map_tileCenter(x, y);
+                origin = map_tileCorner(map, x + 1, y);
+                center = map_tileCenter(map, x, y);
                 center.z += TILE_SIDE_LENGTH / 2.f;
                 center.y += TILE_SIDE_LENGTH / 2.f;
                 distance = Vector3Distance(position, center);
@@ -568,8 +589,8 @@ map_draw(Map* map, Color light, float visibility, float power)
 
             /* floor */
             if (map->tiles[index] & (TileFlags_AllowEntry | TileFlags_Filled)) {
-                origin = map_tileCorner(x + 1, y + 1);
-                center = map_tileCenter(x, y);
+                origin = map_tileCorner(map, x + 1, y + 1);
+                center = map_tileCenter(map, x, y);
                 distance = Vector3Distance(position, center);
                 color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
                 DrawModel(map->flor, origin, 1.f, color);
@@ -577,8 +598,8 @@ map_draw(Map* map, Color light, float visibility, float power)
 
             /* ceiling */
             if ((map->tiles[index] & TileFlags_AllowEntry) && !(map->tiles[index] & TileFlags_Filled)) {
-                origin = map_tileCorner(x + 1, y + 1);
-                center = map_tileCenter(x, y);
+                origin = map_tileCorner(map, x + 1, y + 1);
+                center = map_tileCenter(map, x, y);
                 center.y += TILE_SIDE_LENGTH;
                 distance = Vector3Distance(position, center);
                 color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
@@ -587,8 +608,8 @@ map_draw(Map* map, Color light, float visibility, float power)
 
             /* Entrance Ladder */
             if (x == map->entryX && y == map->entryY) {
-                origin = map_tileCorner(x + 1, y + 1);
-                center = map_tileCenter(x, y);
+                origin = map_tileCorner(map, x + 1, y + 1);
+                center = map_tileCenter(map, x, y);
                 center.y += TILE_SIDE_LENGTH;
                 distance = Vector3Distance(position, center);
                 color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
@@ -597,8 +618,8 @@ map_draw(Map* map, Color light, float visibility, float power)
 
             /* Tomb */
             if (x == map->goalX && y == map->goalY) {
-                origin = map_tileCorner(x + 1, y + 1);
-                center = map_tileCenter(x, y);
+                origin = map_tileCorner(map, x + 1, y + 1);
+                center = map_tileCenter(map, x, y);
                 center.y += TILE_SIDE_LENGTH;
                 distance = Vector3Distance(position, center);
                 color = ColorLerp(light, BLACK, powf(Clamp(distance / visibility, 0.f, 1.f), power));
@@ -608,21 +629,21 @@ map_draw(Map* map, Color light, float visibility, float power)
             #if DEBUG_MODE
             if (m->flags & GlobalFlags_ShowTileFlags) {
                 if (map->tiles[index] & TileFlags_Passage) {
-                    center = map_tileCenter(x, y);
+                    center = map_tileCenter(map, x, y);
                     float side = 0.6f;
                     center.y -= 1.f;
                     DrawCube(center, side, side, side, BLACK);
                     DrawCubeWires(center, side, side, side, GRAY);
                 }
                 if (map->tiles[index] & TileFlags_Next) {
-                    center = map_tileCenter(x, y);
+                    center = map_tileCenter(map, x, y);
                     float side = 0.4f;
                     center.y -= 1.5f;
                     DrawCube(center, side, side, side, WHITE);
                     DrawCubeWires(center, side, side, side, GRAY);
                 }
                 if (map->tiles[index] & TileFlags_Filled) {
-                    center = map_tileCenter(x, y);
+                    center = map_tileCenter(map, x, y);
                     center.x += 1.f;
                     center.z += 1.f;
                     center.y -= 1.f;
@@ -631,7 +652,7 @@ map_draw(Map* map, Color light, float visibility, float power)
                     DrawCubeWires(center, side, 1.f, side, GRAY);
                 }
                 if (map->tiles[index] & TileFlags_Feature) {
-                    center = map_tileCenter(x, y);
+                    center = map_tileCenter(map, x, y);
                     center.x -= 1.f;
                     center.z -= 1.f;
                     center.y -= 1.f;
@@ -640,7 +661,7 @@ map_draw(Map* map, Color light, float visibility, float power)
                     DrawCubeWires(center, side, 1.f, side, GRAY);
                 }
                 if (map->tiles[index] & TileFlags_Visited) {
-                    center = map_tileCenter(x, y);
+                    center = map_tileCenter(map, x, y);
                     center.x += 1.f;
                     center.z -= 1.f;
                     center.y -= 1.5f;
@@ -649,7 +670,7 @@ map_draw(Map* map, Color light, float visibility, float power)
                     DrawCubeWires(center, side, side, side, GRAY);
                 }
                 if (map->tiles[index] & TileFlags_Chamber) {
-                    center = map_tileCenter(x, y);
+                    center = map_tileCenter(map, x, y);
                     center.x -= 1.f;
                     center.z += 1.f;
                     center.y -= 1.5f;
@@ -658,21 +679,21 @@ map_draw(Map* map, Color light, float visibility, float power)
                     DrawCubeWires(center, side, side, side, GRAY);
                 }
                 if (map->tiles[index] & TileFlags_Terminator) {
-                    center = map_tileCenter(x, y);
+                    center = map_tileCenter(map, x, y);
                     float side = 0.4f;
                     center.y += 1.0f;
                     DrawCube(center, side, side, side, RED);
                     DrawCubeWires(center, side, side, side, GRAY);
                 }
                 if (map->tiles[index] & TileFlags_Builder) {
-                    center = map_tileCenter(x, y);
+                    center = map_tileCenter(map, x, y);
                     float side = 0.4f;
                     center.y += 2.0f;
                     DrawCube(center, side, side, side, SKYBLUE);
                     DrawCubeWires(center, side, side, side, GRAY);
                 }
                 if (map->tiles[index] & TileFlags_Failure) {
-                    center = map_tileCenter(x, y);
+                    center = map_tileCenter(map, x, y);
                     float side = 0.6f;
                     center.y += 1.5f;
                     DrawCube(center, side, side, side, ORANGE);
@@ -690,8 +711,8 @@ static bool
 map_floodTest(Map* map)
 {
     int64_t tocheck;
-    int start = map_tileIndex(map->entryX, map->entryY);
-    int goal = map_tileIndex(map->goalX, map->goalY);
+    int start = map_tileIndex(map, map->entryX, map->entryY);
+    int goal = map_tileIndex(map, map->goalX, map->goalY);
 
     if (start < 0) {
         TraceLog(LOG_FATAL, "Invalid starting tile [%i, %i]! This should be impossible!",
@@ -713,9 +734,9 @@ map_floodTest(Map* map)
 
     /* Flood fill loop */
     for (uint32_t i = 0; i < UINT32_MAX && tocheck > 0; i++) {
-        for (int y = 0; y < TILE_COUNT; y++) {
-            for (int x = 0; x < TILE_COUNT; x++) {
-                int index = map_tileIndex(x, y);
+        for (int y = 0; y < map->height; y++) {
+            for (int x = 0; x < map->width; x++) {
+                int index = map_tileIndex(map, x, y);
                 if (index < 0)
                     TraceLog(LOG_ERROR, "Invalid tile index [%i, %i], this shouldn't happen", x, y);
 
@@ -733,10 +754,10 @@ map_floodTest(Map* map)
                     }
                     */
 
-                    neighbors[0] = map_tileIndex(x, y - 1); // North
-                    neighbors[1] = map_tileIndex(x, y + 1); // South
-                    neighbors[2] = map_tileIndex(x + 1, y); // East
-                    neighbors[3] = map_tileIndex(x - 1, y); // West
+                    neighbors[0] = map_tileIndex(map, x, y - 1); // North
+                    neighbors[1] = map_tileIndex(map, x, y + 1); // South
+                    neighbors[2] = map_tileIndex(map, x + 1, y); // East
+                    neighbors[3] = map_tileIndex(map, x - 1, y); // West
 
                     for (int n = 0; n < arrlen(neighbors); n++) {
                         if (index >= 0) {
