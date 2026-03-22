@@ -209,7 +209,7 @@ combat_randomEncounter(MonstrousCompendium* monstrous)
         }
     }
 
-    PlaySound(m->encounter.klaxon);
+    PlaySound(m->klaxon);
 }
 
 static void

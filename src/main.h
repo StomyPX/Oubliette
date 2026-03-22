@@ -28,7 +28,6 @@ typedef struct Memory_ {
     float partyMoveTimer;
     float partyMoveFreq; /* Number of seconds between repeat moves when holding the buttons down */
     Character party[4];
-    Sound footstep[11];
 
     MonstrousCompendium monsters;
     CombatEncounter encounter;
@@ -44,11 +43,20 @@ typedef struct Memory_ {
     Texture marble;
     Texture vellum;
     Texture dead;
-    Sound hover;
-    Sound click;
-    Sound click2;
     Music ambient;
     Music music;
+
+    /* Sound Clips */
+    union {
+        Sound sfx[15];
+        struct {
+            Sound footstep[11];
+            Sound hover;
+            Sound click;
+            Sound click2;
+            Sound klaxon;
+        };
+    };
 } Memory;
 
 static Memory* m = 0;

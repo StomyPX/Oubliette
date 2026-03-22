@@ -35,9 +35,6 @@ typedef struct
     // Target Selection
     int weights[4];
     int weightTotal;
-
-    // Assets
-    Sound klaxon;
 } CombatEncounter;
 
 static void combat_randomEncounter(MonstrousCompendium* monstrous);

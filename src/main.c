@@ -125,7 +125,7 @@ main(int argc, char* argv[])
     m->fonts.title = LoadFontEx("data/fonts/Coelacanth.otf", 64, 0, 0);
     m->fonts.big = LoadFontEx("data/fonts/Coelacanth.otf", 200, 0, 0);
 
-    m->encounter.klaxon = LoadSound("data/sounds/encounter_bell.wav");
+    m->klaxon = LoadSound("data/sounds/encounter_bell.wav");
 
     m->border = LoadTexture("data/textures/panel-border.png");
     m->marble = LoadTexture("data/textures/Marble023B.png");
@@ -902,13 +902,8 @@ main(int argc, char* argv[])
                     result = ui_button(button, "(sfx)", "Enable sound effects", KEY_NULL, true);
                     if (result > 0) {
                         m->flags &= ~(GlobalFlags_MuteSFX);
-                        /* I realize there is probably a better way TODO Make a global union for all sfx */
-                        for (int i = 0; i < arrlen(m->footstep); i++)
-                            SetSoundVolume(m->footstep[i], 1.f);
-                        SetSoundVolume(m->encounter.klaxon, 1.f);
-                        SetSoundVolume(m->hover, 1.f);
-                        SetSoundVolume(m->click, 1.f);
-                        SetSoundVolume(m->click2, 1.f);
+                        for (int i = 0; i < arrlen(m->sfx); i++)
+                            SetSoundVolume(m->sfx[i], 1.f);
                         PlaySound(m->click);
                     } else  if (result < 0) {
                         anyHover = 11;
@@ -917,12 +912,8 @@ main(int argc, char* argv[])
                     result = ui_button(button, "SFX", "Disable sound effects", KEY_NULL, true);
                     if (result > 0) {
                         m->flags |= GlobalFlags_MuteSFX;
-                        for (int i = 0; i < arrlen(m->footstep); i++)
-                            SetSoundVolume(m->footstep[i], 0.f);
-                        SetSoundVolume(m->encounter.klaxon, 0.f);
-                        SetSoundVolume(m->hover, 0.f);
-                        SetSoundVolume(m->click, 0.f);
-                        SetSoundVolume(m->click2, 0.f);
+                        for (int i = 0; i < arrlen(m->sfx); i++)
+                            SetSoundVolume(m->sfx[i], 0.f);
                     } else  if (result < 0) {
                         anyHover = 11;
                     }
@@ -1234,23 +1225,19 @@ main(int argc, char* argv[])
         lastHover = anyHover;
     }
 
-    for (unsigned i = 0; i < arrlen(m->footstep); i++) {
-        UnloadSound(m->footstep[i]);
-    }
     UnloadFont(m->fonts.text);
     UnloadFont(m->fonts.heading);
     UnloadFont(m->fonts.title);
     UnloadFont(m->fonts.big);
-    UnloadSound(m->encounter.klaxon);
     UnloadTexture(m->border);
     UnloadTexture(m->marble);
     UnloadTexture(m->vellum);
-    UnloadSound(m->hover);
-    UnloadSound(m->click);
-    UnloadSound(m->click2);
 
     UnloadMusicStream(m->ambient);
     UnloadMusicStream(m->music);
+
+    for (int i = 0; i < arrlen(m->sfx); i++)
+        UnloadSound(m->sfx[i]);
 
     for (int i = 0; i < arrlen(m->party); i++)
         char_free(m->party + i);
