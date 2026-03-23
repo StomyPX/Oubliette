@@ -228,6 +228,8 @@ combat_startFight(void)
     enc->timer = CombatSpeed_time(enc->speed);
     enc->initHigh = INT32_MIN;
     enc->initLow = INT32_MAX;
+    enc->weightTotal = 0;
+    memset(enc->weights, 0, sizeof(enc->weights));
 
     /* Roll Initiative */
     for (int i = 0; i < stack->alive; i++) {
@@ -508,6 +510,15 @@ combat_resolveFight(void)
                         int shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
                         SetSoundPitch(m->hit[clip], 1.f + (float)shift * 0.01f);
                         PlaySound(m->hit[clip]);
+
+                        shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
+                        if (ch->flags & CharacterFlags_Female) {
+                            SetSoundPitch(m->deathFemale, 1.f + (float)shift * 0.01f);
+                            PlaySound(m->deathFemale);
+                        } else {
+                            SetSoundPitch(m->deathMale, 1.f + (float)shift * 0.01f);
+                            PlaySound(m->deathMale);
+                        }
                         stop = true;
                     } else if (damage > 0) {
                         ui_log(BLACK, "A %s strikes %s for %i damage",
@@ -637,6 +648,15 @@ combat_resolveFlee(void)
                 int shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
                 SetSoundPitch(m->hit[clip], 1.f + (float)shift * 0.01f);
                 PlaySound(m->hit[clip]);
+
+                shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
+                if (c->flags & CharacterFlags_Female) {
+                    SetSoundPitch(m->deathFemale, 1.f + (float)shift * 0.01f);
+                    PlaySound(m->deathFemale);
+                } else {
+                    SetSoundPitch(m->deathMale, 1.f + (float)shift * 0.01f);
+                    PlaySound(m->deathMale);
+                }
             } else if (damage > 0) {
                 ui_log(BLACK, "%s is hit with a parting shot from a %s for %i damage",
                         c->name, monster->truename, damage);

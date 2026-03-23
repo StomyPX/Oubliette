@@ -48,7 +48,7 @@ typedef struct Memory_ {
 
     /* Sound Clips */
     union {
-        Sound sfx[27]; // TODO Final total 43
+        Sound sfx[29];
         struct {
             Sound footstep[11];
             Sound hover;
@@ -59,13 +59,15 @@ typedef struct Memory_ {
             Sound hit[4];
             Sound whiff[4];
             Sound critical;
-            //Sound ouchMale[4];
-            //Sound ouchFemale[4];
-            //Sound deathMale[4];
-            //Sound deathFemale[4];
+            // TODO Hurt?
+            Sound deathMale;
+            Sound deathFemale;
             Sound chainLightning;
             Sound hide;
             Sound experience;
+            // TODO Objective
+            // TODO Game Over
+            // TODO Victory
         };
     };
 } Memory;

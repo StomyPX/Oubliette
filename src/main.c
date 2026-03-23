@@ -149,7 +149,8 @@ main(int argc, char* argv[])
     m->whiff[2] = LoadSound("data/sounds/whiff_02.wav");
     m->whiff[3] = LoadSound("data/sounds/whiff_03.wav");
     m->critical = LoadSound("data/sounds/crit.wav");
-    // TODO Remaining sounds
+    m->deathMale = LoadSound("data/sounds/death_male.wav");
+    m->deathFemale = LoadSound("data/sounds/death_female.wav");
     m->chainLightning = LoadSound("data/sounds/lightning.wav");
     m->hide = LoadSound("data/sounds/whoosh.wav");
     m->experience = LoadSound("data/sounds/exp.wav");
