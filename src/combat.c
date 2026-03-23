@@ -305,14 +305,24 @@ combat_resolveFight(void)
             Character* ch = m->party + i;
 
             if (ch->initiative == enc->segment && ch->health > 0 && stack->alive > 0 && !(ch->flags & CharacterFlags_Surprised)) {
-                stop = true;
                 switch (ch->action) {
                     default:
                         TraceLog(LOG_ERROR, "Unknown combat action id: %i, defaulting to attack", ch->action);
-                    case CombatAction_Attack: combat_attack(ch, stack); break;
-                    case CombatAction_MultiAttack: combat_multiAttack(ch, stack); break;
+
+                    case CombatAction_Attack: {
+                        combat_attack(ch, stack);
+                        stop = true;
+                    } break;
+
+                    case CombatAction_MultiAttack: {
+                        combat_multiAttack(ch, stack);
+                        stop = true;
+                    } break;
+
                     case CombatAction_DefendSelf: break;
+
                     case CombatAction_GuardOthers: break;
+
                     case CombatAction_Hide: {
                         int danger = -1;
                         if (m->flags & GlobalFlags_MissionAccomplished) {
@@ -325,7 +335,13 @@ combat_resolveFight(void)
                         }
 
                         if (PcgRandom_roll(&m->rng, 1, 100) < chance) {
-                            ui_log(DARKBLUE, "%s melds with the shadows", ch->name);
+                            if (!(ch->flags & CharacterFlags_Hidden)) {
+                                ui_log(DARKBLUE, "%s melds with the shadows", ch->name);
+                                int shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
+                                SetSoundPitch(m->hide, 1.f + (float)shift * 0.01f);
+                                PlaySound(m->hide);
+                                stop = true;
+                            }
                             ch->flags |= CharacterFlags_Hidden;
                         }
 
@@ -333,6 +349,7 @@ combat_resolveFight(void)
                             ch->stamina -= 1;
                         }
                     } break;
+
                     case CombatAction_CastSpell: {
                         bool plural = stack->alive != 1;
                         int drain = 0;
@@ -355,6 +372,10 @@ combat_resolveFight(void)
 
                         ui_log(SKYBLUE, "%s casts Chain Lightning at the %s", ch->name,
                                 plural ? stack->class.truenamePlural : stack->class.truename);
+
+                        int shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
+                        SetSoundPitch(m->chainLightning, 1.f + (float)shift * 0.01f);
+                        PlaySound(m->chainLightning);
                         for (int i = 0; i < stack->alive && damage > 0; i++) {
                             int index = (i + target) % stack->alive;
                             if (damage < stack->health[index]) {
@@ -388,6 +409,7 @@ combat_resolveFight(void)
                             }
                         }
 
+                        stop = true;
                         ch->flags &= ~(CharacterFlags_Hidden);
                     }
                 }
@@ -406,6 +428,7 @@ combat_resolveFight(void)
                     if (ch->health <= 0) {
                         ch->health = 0;
                         ui_log(MAROON, "%s collapses from exhaustion!", ch->name);
+                        stop = true;
                     }
                 }
             }
@@ -420,6 +443,7 @@ combat_resolveFight(void)
                 ui_log(ZINNWALDITEBROWN, "The %s peer through the darkness but find nobody to attack",
                         stack->class.truenamePlural);
             }
+            stop = true;
             continue;
         } else if (stack->status & MonsterStatus_Surprised) {
             continue;
@@ -433,7 +457,6 @@ combat_resolveFight(void)
                 int tohit;
                 int defense;
 
-                stop = true;
                 for (target = 0; target < arrlen(m->party) - 1; target++) {
                     if (m->party[target].health < 1)
                         continue;
@@ -480,9 +503,21 @@ combat_resolveFight(void)
                                 stack->class.truename, ch->name, damage,
                                 (ch->flags & CharacterFlags_Female) ? "her" : "him");
                         ch->stamina = 0;
+
+                        int clip = PcgRandom_randomu(&m->rng2) % arrlen(m->hit);
+                        int shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
+                        SetSoundPitch(m->hit[clip], 1.f + (float)shift * 0.01f);
+                        PlaySound(m->hit[clip]);
+                        stop = true;
                     } else if (damage > 0) {
                         ui_log(BLACK, "A %s strikes %s for %i damage",
                                 stack->class.truename, ch->name, damage);
+
+                        int clip = PcgRandom_randomu(&m->rng2) % arrlen(m->hit);
+                        int shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
+                        SetSoundPitch(m->hit[clip], 1.f + (float)shift * 0.01f);
+                        PlaySound(m->hit[clip]);
+                        stop = true;
                     } else {
                         TraceLog(LOG_TRACE, "LOG: A %s swings at %s but %s armor deflects all damage",
                                 stack->class.truename, ch->name,
@@ -496,7 +531,7 @@ combat_resolveFight(void)
         }
     }
 
-    if (enc->segment <= enc->initLow) {
+    if (enc->segment < enc->initLow) {
         /* Check if the party is still alive */
         int survivors = 0;
         for (int i = 0; i < arrlen(m->party); i++) {
@@ -515,6 +550,7 @@ combat_resolveFight(void)
 
             m->flags &= ~(GlobalFlags_Encounter);
             ui_log(ORANGE, "Victory!");
+            PlaySound(m->experience);
 
             /* Loot and XP */
             xp = stack->total * stack->class.experience / survivors;
@@ -596,9 +632,19 @@ combat_resolveFlee(void)
                 ui_log(MAROON, "%s is hit with a parting shot from a %s for %i damage, killing %s!",
                         c->name, monster->truename, damage,
                         (c->flags & CharacterFlags_Female) ? "her" : "him");
+
+                int clip = PcgRandom_randomu(&m->rng2) % arrlen(m->hit);
+                int shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
+                SetSoundPitch(m->hit[clip], 1.f + (float)shift * 0.01f);
+                PlaySound(m->hit[clip]);
             } else if (damage > 0) {
                 ui_log(BLACK, "%s is hit with a parting shot from a %s for %i damage",
                         c->name, monster->truename, damage);
+
+                int clip = PcgRandom_randomu(&m->rng2) % arrlen(m->hit);
+                int shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
+                SetSoundPitch(m->hit[clip], 1.f + (float)shift * 0.01f);
+                PlaySound(m->hit[clip]);
             }
 
             stop = true;
@@ -682,6 +728,10 @@ combat_attack(Character* ch, Stack* stack)
                     if (ch->class == CharacterClass_Thief) {
                         damage += ch->level;
                     }
+
+                    int shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
+                    SetSoundPitch(m->critical, 1.f + (float)shift * 0.01f);
+                    PlaySound(m->critical);
                 }
             }
 
@@ -697,6 +747,11 @@ combat_attack(Character* ch, Stack* stack)
                     ch->flags &= ~(CharacterFlags_Hidden);
             }
             stack->health[target] -= damage;
+
+            int clip = PcgRandom_randomu(&m->rng2) % arrlen(m->hit);
+            int shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
+            SetSoundPitch(m->hit[clip], 1.f + (float)shift * 0.01f);
+            PlaySound(m->hit[clip]);
         } else {
             if (ch->flags & CharacterFlags_Hidden) {
                 int chance = char_hideChance(ch);
@@ -704,6 +759,11 @@ combat_attack(Character* ch, Stack* stack)
                     ch->flags &= ~(CharacterFlags_Hidden);
             }
             ui_log(ZINNWALDITEBROWN, "%s swings but misses", ch->name);
+
+            int clip = PcgRandom_randomu(&m->rng2) % arrlen(m->whiff);
+            int shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
+            SetSoundPitch(m->whiff[clip], 1.f + (float)shift * 0.01f);
+            PlaySound(m->whiff[clip]);
         }
     }
 

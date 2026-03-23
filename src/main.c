@@ -112,34 +112,47 @@ main(int argc, char* argv[])
     PcgRandom_init(&m->rng2, util_rdtsc());
     monster_init(&m->monsters);
 
-    m->encounter.speed = CombatSpeed_Instant;
-
-    for (unsigned i = 0; i < arrlen(m->footstep); i++) {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "data/sounds/footstep_%02u.wav", i);
-        m->footstep[i] = LoadSound(buf);
-    }
+    m->encounter.speed = CombatSpeed_Fast;
 
     m->fonts.text = LoadFontEx("data/fonts/CrimsonText-Bold.ttf", 24, 0, 0);
     m->fonts.heading = LoadFontEx("data/fonts/CoelacanthBold.otf", 30, 0, 0);
     m->fonts.title = LoadFontEx("data/fonts/Coelacanth.otf", 64, 0, 0);
     m->fonts.big = LoadFontEx("data/fonts/Coelacanth.otf", 200, 0, 0);
 
-    m->klaxon = LoadSound("data/sounds/encounter_bell.wav");
-
     m->border = LoadTexture("data/textures/panel-border.png");
     m->marble = LoadTexture("data/textures/Marble023B.png");
     m->vellum = LoadTexture("data/textures/parchment_2.png");
     m->dead = LoadTexture("data/textures/dead.jpg");
-    m->hover = LoadSound("data/sounds/button_hover.wav");
-    m->click = LoadSound("data/sounds/button_click.wav");
-    m->click2 = LoadSound("data/sounds/button_click2.wav");
 
     m->ambient = LoadMusicStream("darkambient.mp3");
     SetMusicVolume(m->ambient, 0.3f);
     PlayMusicStream(m->ambient);
     m->music = LoadMusicStream("weltherrscherer.ogg");
     PlayMusicStream(m->music);
+
+    for (unsigned i = 0; i < arrlen(m->footstep); i++) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "data/sounds/footstep_%02u.wav", i);
+        m->footstep[i] = LoadSound(buf);
+    }
+    m->hover = LoadSound("data/sounds/button_hover.wav");
+    m->click = LoadSound("data/sounds/button_click.wav");
+    m->click2 = LoadSound("data/sounds/button_click2.wav");
+    m->klaxon = LoadSound("data/sounds/encounter_bell.wav");
+
+    m->hit[0] = LoadSound("data/sounds/hit_00.wav");
+    m->hit[1] = LoadSound("data/sounds/hit_01.wav");
+    m->hit[2] = LoadSound("data/sounds/hit_02.wav");
+    m->hit[3] = LoadSound("data/sounds/hit_03.wav");
+    m->whiff[0] = LoadSound("data/sounds/whiff_00.wav");
+    m->whiff[1] = LoadSound("data/sounds/whiff_01.wav");
+    m->whiff[2] = LoadSound("data/sounds/whiff_02.wav");
+    m->whiff[3] = LoadSound("data/sounds/whiff_03.wav");
+    m->critical = LoadSound("data/sounds/crit.wav");
+    // TODO Remaining sounds
+    m->chainLightning = LoadSound("data/sounds/lightning.wav");
+    m->hide = LoadSound("data/sounds/whoosh.wav");
+    m->experience = LoadSound("data/sounds/exp.wav");
 
     for (int i = 0; i < arrlen(m->party); i++) {
         m->party[i] = char_random();
