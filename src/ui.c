@@ -508,7 +508,12 @@ ui_dumpCredits(void)
     ui_log(ZINNWALDITEBROWN, "Featuring public domain artwork by:");
     ui_log(ZINNWALDITEBROWN, " Sidney Sime, Harry Clarke, Alfred Kubin, Henry Justice Ford, and others");
     ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "Music Track: \"Welt Herrscherer Theme\" by yd (CC0, opengameart.org)");
+    ui_log(ZINNWALDITEBROWN, "Music:");
+    ui_log(ZINNWALDITEBROWN, " \"Specters of the Enclave\" by Eliot Corley from ChaosIsHarmony (CC-BY 3.0, opengameart.org)");
+    ui_log(ZINNWALDITEBROWN, " \"Welt Herrscherer Theme\" by yd (CC0, opengameart.org)");
+    ui_log(ZINNWALDITEBROWN, " \"Apologies to JSB\" by Yubatake (CC-BY 3.0, opengameart.org)");
+    ui_log(ZINNWALDITEBROWN, " \"Lament for a Warrior's Soul\" by RandomMind (CC0, opengameart.org)");
+    ui_log(ZINNWALDITEBROWN, " ");
     ui_log(ZINNWALDITEBROWN, "Ambient Track: \"Dark Ambient\" by Alexandr Zhelanov (CC-BY 3.0, opengameart.org)");
     ui_log(ZINNWALDITEBROWN, "   https://soundcloud.com/alexandr-zhelanov");
     ui_log(ZINNWALDITEBROWN, "Sound Effects from freesound.org. Artists:");

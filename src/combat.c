@@ -554,7 +554,9 @@ combat_resolveFight(void)
         if (survivors < 1) {
             ui_log(MAROON, "GAME OVER!");
             m->flags |= GlobalFlags_GameOver;
+            PlaySound(m->gameOver);
             ui_dumpCredits();
+            main_changeSong(&m->music.failure - &m->music.ambient);
 
         } else if (stack->alive < 1) {
             int xp;
@@ -681,7 +683,9 @@ combat_resolveFlee(void)
         if (survivors < 1) {
             ui_log(BLACK, "GAME OVER!");
             m->flags |= GlobalFlags_GameOver;
+            PlaySound(m->gameOver);
             ui_dumpCredits();
+            main_changeSong(&m->music.failure - &m->music.ambient);
         } else {
             ui_log(ZINNWALDITEBROWN, "The party escapes");
             m->flags &= ~(GlobalFlags_Encounter);

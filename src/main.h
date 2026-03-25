@@ -43,12 +43,22 @@ typedef struct Memory_ {
     Texture marble;
     Texture vellum;
     Texture dead;
-    Music ambient;
-    Music music;
+
+    union {
+        Music all[5];
+        struct {
+            Music ambient;
+            Music intro;
+            Music general;
+            Music failure;
+            Music victory;
+            int track; // 0 means nothing is playing (ambient doesn't count)
+        };
+    } music;
 
     /* Sound Clips */
     union {
-        Sound sfx[29];
+        Sound sfx[32];
         struct {
             Sound footstep[11];
             Sound hover;
@@ -65,11 +75,13 @@ typedef struct Memory_ {
             Sound chainLightning;
             Sound hide;
             Sound experience;
-            // TODO Objective
-            // TODO Game Over
-            // TODO Victory
+            Sound objective;
+            Sound gameOver;
+            Sound victory;
         };
     };
 } Memory;
 
 static Memory* m = 0;
+
+static void main_changeSong(int track);

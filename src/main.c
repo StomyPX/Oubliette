@@ -124,11 +124,18 @@ main(int argc, char* argv[])
     m->vellum = LoadTexture("data/textures/parchment_2.png");
     m->dead = LoadTexture("data/textures/dead.jpg");
 
-    m->ambient = LoadMusicStream("darkambient.mp3");
-    SetMusicVolume(m->ambient, 0.3f);
-    PlayMusicStream(m->ambient);
-    m->music = LoadMusicStream("weltherrscherer.ogg");
-    PlayMusicStream(m->music);
+    m->music.ambient = LoadMusicStream("darkambient.mp3");
+    m->music.intro   = LoadMusicStream("specters.mp3");
+    m->music.general = LoadMusicStream("weltherrscherer.ogg");
+    m->music.failure = LoadMusicStream("apologies.ogg");
+    m->music.victory = LoadMusicStream("lament.mp3");
+
+    SetMusicVolume(m->music.ambient, 0.3f);
+    /* The order of these matters for some unknown reason, otherwise the ambient track doesn't play */
+    main_changeSong(&m->music.general - &m->music.ambient);
+    PlayMusicStream(m->music.ambient);
+
+    util_log(LOG_WARNING, "Ambient stream playing: %s", IsMusicStreamPlaying(m->music.ambient) ? "true" : "false");
 
     for (unsigned i = 0; i < arrlen(m->footstep); i++) {
         char buf[32];
@@ -154,6 +161,9 @@ main(int argc, char* argv[])
     m->chainLightning = LoadSound("data/sounds/lightning.wav");
     m->hide = LoadSound("data/sounds/whoosh.wav");
     m->experience = LoadSound("data/sounds/exp.wav");
+    m->objective = LoadSound("data/sounds/discovery.wav");
+    m->gameOver = LoadSound("data/sounds/game_over.wav");
+    m->victory = LoadSound("data/sounds/victory.wav");
 
     for (int i = 0; i < arrlen(m->party); i++) {
         m->party[i] = char_random();
@@ -197,8 +207,8 @@ main(int argc, char* argv[])
         int anyHover = 0;
         m->tooltip[0] = 0;
 
-        UpdateMusicStream(m->ambient);
-        UpdateMusicStream(m->music);
+        UpdateMusicStream(m->music.ambient);
+        UpdateMusicStream(m->music.all[m->music.track]);
 
         if (IsKeyPressed(KEY_F4) && (IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT)))
             m->flags |= GlobalFlags_RequestQuit;
@@ -807,6 +817,7 @@ main(int argc, char* argv[])
                                 m->flags |= GlobalFlags_MissionAccomplished;
                                 ui_log(MINDAROGREEN, "Dread fills your heart as you open the tomb of the Last King");
                                 ui_log(ZINNWALDITEBROWN, "The deed is done, return to the entrance");
+                                PlaySound(m->objective);
                             } else if ((m->flags & GlobalFlags_MissionAccomplished)
                                         && m->partyX == m->map.entryX && m->partyY == m->map.entryY)
                             {
@@ -814,6 +825,8 @@ main(int argc, char* argv[])
                                 m->encounter.ticks = 0;
                                 ui_log(MINDAROGREEN, "You climb out of the Oubliette, to a new and uncertain future...");
                                 ui_dumpCredits();
+                                PlaySound(m->victory);
+                                main_changeSong(&m->music.victory - &m->music.ambient);
                             }
                         } else {
                             /* Tick up very slightly */
@@ -849,10 +862,10 @@ main(int argc, char* argv[])
                 button.height = 48;
                 int result;
 
-                if (IsMusicStreamPlaying(m->music)) {
+                if (IsMusicStreamPlaying(m->music.all[m->music.track])) {
                     result = ui_button(button, "MUSIC", "Disable background music", KEY_NULL, true);
                     if (result > 0) {
-                        StopMusicStream(m->music);
+                        StopMusicStream(m->music.all[m->music.track]);
                         PlaySound(m->click);
                     } else if (result < 0) {
                         anyHover = 8;
@@ -860,7 +873,7 @@ main(int argc, char* argv[])
                 } else {
                     result = ui_button(button, "(music)", "Enable background music", KEY_NULL, true);
                     if (result > 0) {
-                        PlayMusicStream(m->music);
+                        PlayMusicStream(m->music.all[m->music.track]);
                         PlaySound(m->click);
                     } else if (result < 0) {
                         anyHover = 8;
@@ -869,10 +882,10 @@ main(int argc, char* argv[])
 
                 button.y += button.height + UI_PADDING;
 
-                if (IsMusicStreamPlaying(m->ambient)) {
+                if (IsMusicStreamPlaying(m->music.ambient)) {
                     result = ui_button(button, "AMBIENCE", "Disable ambient sound loop", KEY_NULL, true);
                     if (result > 0) {
-                        StopMusicStream(m->ambient);
+                        StopMusicStream(m->music.ambient);
                         PlaySound(m->click);
                     } else if (result < 0) {
                         anyHover = 9;
@@ -880,7 +893,7 @@ main(int argc, char* argv[])
                 } else {
                     result = ui_button(button, "(ambience)", "Enable ambient sound loop", KEY_NULL, true);
                     if (result > 0) {
-                        PlayMusicStream(m->ambient);
+                        PlayMusicStream(m->music.ambient);
                         PlaySound(m->click);
                     } else if (result < 0) {
                         anyHover = 9;
@@ -1244,8 +1257,8 @@ main(int argc, char* argv[])
     UnloadTexture(m->marble);
     UnloadTexture(m->vellum);
 
-    UnloadMusicStream(m->ambient);
-    UnloadMusicStream(m->music);
+    for (int i = 0; i < arrlen(m->music.all); i++)
+        UnloadMusicStream(m->music.all[i]);
 
     for (int i = 0; i < arrlen(m->sfx); i++)
         UnloadSound(m->sfx[i]);
@@ -1265,3 +1278,20 @@ main(int argc, char* argv[])
     return 0;
 }
 
+static void
+main_changeSong(int track)
+{
+    if (track == m->music.track)
+        return;
+
+    if (m->music.track > 0 && IsMusicStreamPlaying(m->music.all[m->music.track])) {
+        StopMusicStream(m->music.all[m->music.track]);
+    }
+
+    if (track > arrlen(m->music.all) || track < 1) {
+        m->music.track = 0;
+    } else {
+        m->music.track = track;
+        PlayMusicStream(m->music.all[track]);
+    }
+}
