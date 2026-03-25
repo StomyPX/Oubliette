@@ -22,3 +22,10 @@ typedef enum {
     GlobalFlags_ShowTooltips        = 1 << 16,
 } GlobalFlags_t; /* Need to append Type to avoid clash with symbols on windows */
 
+typedef struct
+{
+    Color color;
+    float flash;
+    float shake;
+} Effects;
+

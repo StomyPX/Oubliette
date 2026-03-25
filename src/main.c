@@ -123,6 +123,7 @@ main(int argc, char* argv[])
     m->marble = LoadTexture("data/textures/Marble023B.png");
     m->vellum = LoadTexture("data/textures/parchment_2.png");
     m->dead = LoadTexture("data/textures/dead.jpg");
+    m->flash = LoadTexture("data/textures/portrait_flash.png");
 
     m->music.ambient = LoadMusicStream("darkambient.mp3");
     m->music.intro   = LoadMusicStream("specters.mp3");
@@ -490,6 +491,15 @@ main(int argc, char* argv[])
 
                 DrawTexturePro(*tex, portrait, viewport, (Vector2){0,0}, 0.f, WHITE);
 
+                if (stack->effects.flash > 0.f) {
+                    Color fcolor = ColorAlpha(stack->effects.color, stack->effects.flash);
+                    DrawTexturePro(m->flash, (Rectangle){0, 0, m->flash.width, m->flash.height},
+                                    viewport, (Vector2){0,0}, 0.f, fcolor);
+                }
+
+                stack->effects.flash -= GetFrameTime() * 2.f;
+                stack->effects.shake -= GetFrameTime() * 10.f;
+
                 { /* Combat UI */
                     Vector2 position, dims;
                     Rectangle button, frame;
@@ -655,6 +665,8 @@ main(int argc, char* argv[])
                                                 ch->name, patient->name, healing);
                                     }
                                     patient->health += healing;
+                                    patient->effects.color = MINDAROGREEN;
+                                    patient->effects.flash = 1.f;
                                     ch->stamina -= 1;
                                 } else {
                                     /* TODO Need to make this rest Stamina regain into a function */
@@ -1256,6 +1268,7 @@ main(int argc, char* argv[])
     UnloadTexture(m->border);
     UnloadTexture(m->marble);
     UnloadTexture(m->vellum);
+    UnloadTexture(m->flash);
 
     for (int i = 0; i < arrlen(m->music.all); i++)
         UnloadMusicStream(m->music.all[i]);

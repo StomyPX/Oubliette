@@ -13,6 +13,15 @@ typedef enum
     //GuiLayout_Tall, TODO 2x2 cards along the bottom
 } GuiLayout;
 
+typedef enum
+{
+    GuiMenu_None = 0,
+    GuiMenu_Intro,
+    GuiMenu_Settings,
+    GuiMenu_NewGame,
+    GuiMenu_Pause,
+} GuiMenu;
+
 typedef struct
 {
     char text[UI_LOGLINE_LENGTH];

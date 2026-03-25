@@ -373,7 +373,15 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
         color = ColorLerp(YELLOW, color, Clamp((ch->health * 1.1f) / (float)char_maxHealth(*ch), 0.f, 1.f));
         color = ColorLerp(MAROON, color, Clamp((ch->health * 2.f) / (float)char_maxHealth(*ch), 0.f, 1.f));
 
+        /* TODO Shake/Zoom using scaled sinwave */
+
         DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, color);
+
+        if (ch->effects.flash > 0.f) {
+            Color fcolor = ColorAlpha(ch->effects.color, ch->effects.flash);
+            DrawTexturePro(m->flash, (Rectangle){0, 0, m->flash.width, m->flash.height},
+                            portrait, zero, 0.f, fcolor);
+        }
 
         /* Write status effects over the portrait */
         BeginScissorMode(portrait.x, portrait.y, portrait.width, portrait.height);
@@ -429,6 +437,9 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
 
         ui_border(m->border, portrait, BONE);
     }
+
+    ch->effects.flash -= GetFrameTime() * 2.f;
+    ch->effects.shake -= GetFrameTime() * 10.f;
 
     return result;
 }

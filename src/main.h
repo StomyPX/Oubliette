@@ -43,6 +43,7 @@ typedef struct Memory_ {
     Texture marble;
     Texture vellum;
     Texture dead;
+    Texture flash;
 
     union {
         Music all[5];

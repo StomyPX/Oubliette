@@ -63,6 +63,7 @@ combat_randomEncounter(MonstrousCompendium* monstrous)
     m->encounter.stack.total += monster->groupModifier;
     m->encounter.stack.total = util_intclamp(m->encounter.stack.total, 1, MONSTER_STACK_MAX);
     m->encounter.stack.alive = m->encounter.stack.total;
+    m->encounter.stack.effects.flash = 0.f;
 
     /* Encounter message */
     if (m->encounter.stack.total == 1) {
@@ -394,6 +395,8 @@ combat_resolveFight(void)
                                 }
                             }
                             stack->health[index] -= damage;
+                            stack->effects.color = MAROON;
+                            stack->effects.flash = 1.f;
                             damage -= PcgRandom_roll(&m->rng, 1, 4);
                         }
 
@@ -500,6 +503,7 @@ combat_resolveFight(void)
                         } break;
                     }
                     damage = util_intmax(0, damage);
+
                     if (damage >= ch->health) {
                         ui_log(MAROON, "A %s strikes %s for %i damage and kills %s!",
                                 stack->class.truename, ch->name, damage,
@@ -534,7 +538,10 @@ combat_resolveFight(void)
                                 stack->class.truename, ch->name,
                                 ch->flags & CharacterFlags_Female ? "her" : "his");
                     }
+
                     ch->health -= damage;
+                    ch->effects.color = MAROON;
+                    ch->effects.flash = 1.f;
                 } else {
                     TraceLog(LOG_TRACE, "LOG: A %s swings at %s but misses", stack->class.truename, ch->name);
                 }
@@ -638,9 +645,14 @@ combat_resolveFlee(void)
                     damage -= 1;
                 } break;
             }
+
             if (damage < 0)
                 damage = 0;
+
             c->health -= damage;
+            c->effects.color = MAROON;
+            c->effects.flash = 1.f;
+
             if (c->health <= 0) {
                 ui_log(MAROON, "%s is hit with a parting shot from a %s for %i damage, killing %s!",
                         c->name, monster->truename, damage,
@@ -771,6 +783,8 @@ combat_attack(Character* ch, Stack* stack)
                     ch->flags &= ~(CharacterFlags_Hidden);
             }
             stack->health[target] -= damage;
+            stack->effects.color = MAROON;
+            stack->effects.flash = 1.f;
 
             int clip = PcgRandom_randomu(&m->rng2) % arrlen(m->hit);
             int shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
