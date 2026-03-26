@@ -123,6 +123,7 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
     portrait.height = portrait.width;
     position.x = portrait.x + portrait.width + UI_PADDING;
     position.y = portrait.y;
+    portrait.y -= (float)UI_PADDING * ch->effects.bumpSmooth;
 
     card = RectangleFloor(card);
     portrait = RectangleFloor(portrait);
@@ -438,8 +439,7 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
         ui_border(m->border, portrait, BONE);
     }
 
-    ch->effects.flash -= GetFrameTime() * 2.f;
-    ch->effects.shake -= GetFrameTime() * 10.f;
+    PortraitEffects_update(&ch->effects, GetFrameTime());
 
     return result;
 }

@@ -33,6 +33,16 @@ static const char* Facing_toString(Facing facing);
 static void util_traverse(Facing facing, int inx, int iny, int forward, int right, int* outX, int* outY);
 static bool util_facingNorthSouth(Facing facing);
 
+typedef struct
+{
+    Color color;
+    float flash;
+    bool bump;
+    float bumpSmooth;
+} PortraitEffects;
+
+static void PortraitEffects_update(PortraitEffects* p, float deltaTime);
+
 typedef enum: unsigned short {
     LogChannel_None = 0,
 } LogChannel;

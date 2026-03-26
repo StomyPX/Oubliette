@@ -63,7 +63,7 @@ combat_randomEncounter(MonstrousCompendium* monstrous)
     m->encounter.stack.total += monster->groupModifier;
     m->encounter.stack.total = util_intclamp(m->encounter.stack.total, 1, MONSTER_STACK_MAX);
     m->encounter.stack.alive = m->encounter.stack.total;
-    m->encounter.stack.effects.flash = 0.f;
+    memset(&m->encounter.stack.effects, 0, sizeof(m->encounter.stack.effects));
 
     /* Encounter message */
     if (m->encounter.stack.total == 1) {
@@ -216,7 +216,7 @@ combat_randomEncounter(MonstrousCompendium* monstrous)
 static void
 combat_startFight(void)
 {
-    Stack* stack;
+    MonsterStack* stack;
     Character* ch;
     CombatEncounter* enc;
     char buffer[UI_LOGLINE_LENGTH];
@@ -300,7 +300,7 @@ combat_resolveFight(void)
 {
     bool stop = false;
     CombatEncounter* enc = &m->encounter;
-    Stack* stack = &enc->stack;
+    MonsterStack* stack = &enc->stack;
 
     for (; !stop && enc->segment >= enc->initLow; enc->segment--) {
         /* Player Actions */
@@ -315,11 +315,13 @@ combat_resolveFight(void)
                     case CombatAction_Attack: {
                         combat_attack(ch, stack);
                         stop = true;
+                        ch->effects.bump = true;
                     } break;
 
                     case CombatAction_MultiAttack: {
                         combat_multiAttack(ch, stack);
                         stop = true;
+                        ch->effects.bump = true;
                     } break;
 
                     case CombatAction_DefendSelf: break;
@@ -344,6 +346,7 @@ combat_resolveFight(void)
                                 SetSoundPitch(m->hide, 1.f + (float)shift * 0.01f);
                                 PlaySound(m->hide);
                                 stop = true;
+                                ch->effects.bump = true;
                             }
                             ch->flags |= CharacterFlags_Hidden;
                         }
@@ -363,6 +366,7 @@ combat_resolveFight(void)
                         if (drain > 0) {
                             ch->stamina -= drain;
                         }
+                        ch->effects.bump = true;
 
                         int target = PcgRandom_randomu(&m->rng) % stack->alive;
                         int damage = PcgRandom_roll(&m->rng, 3 + ch->level / 3, 6);
@@ -395,7 +399,7 @@ combat_resolveFight(void)
                                 }
                             }
                             stack->health[index] -= damage;
-                            stack->effects.color = MAROON;
+                            stack->effects.color = SKYBLUE;
                             stack->effects.flash = 1.f;
                             damage -= PcgRandom_roll(&m->rng, 1, 4);
                         }
@@ -524,6 +528,11 @@ combat_resolveFight(void)
                             PlaySound(m->deathMale);
                         }
                         stop = true;
+
+                        ch->health -= damage;
+                        ch->effects.color = MAROON;
+                        ch->effects.flash = 1.f;
+                        stack->effects.bump = true;
                     } else if (damage > 0) {
                         ui_log(BLACK, "A %s strikes %s for %i damage",
                                 stack->class.truename, ch->name, damage);
@@ -533,15 +542,16 @@ combat_resolveFight(void)
                         SetSoundPitch(m->hit[clip], 1.f + (float)shift * 0.01f);
                         PlaySound(m->hit[clip]);
                         stop = true;
+
+                        ch->health -= damage;
+                        ch->effects.color = MAROON;
+                        ch->effects.flash = 1.f;
+                        stack->effects.bump = true;
                     } else {
                         TraceLog(LOG_TRACE, "LOG: A %s swings at %s but %s armor deflects all damage",
                                 stack->class.truename, ch->name,
                                 ch->flags & CharacterFlags_Female ? "her" : "his");
                     }
-
-                    ch->health -= damage;
-                    ch->effects.color = MAROON;
-                    ch->effects.flash = 1.f;
                 } else {
                     TraceLog(LOG_TRACE, "LOG: A %s swings at %s but misses", stack->class.truename, ch->name);
                 }
@@ -708,7 +718,7 @@ combat_resolveFlee(void)
 }
 
 static void
-combat_attack(Character* ch, Stack* stack)
+combat_attack(Character* ch, MonsterStack* stack)
 {
     int target = PcgRandom_randomu(&m->rng) % stack->alive;
     int damageDie = 6; // TODO Determined by weapon
@@ -748,6 +758,8 @@ combat_attack(Character* ch, Stack* stack)
 
             damage += PcgRandom_roll(&m->rng, 1, damageDie);
 
+            stack->effects.color = MAROON;
+            stack->effects.flash = 1.f;
             { /* check for critical hit */
                 if (ch->class == CharacterClass_Thief) {
                     if (ch->flags & CharacterFlags_Hidden) {
@@ -761,6 +773,8 @@ combat_attack(Character* ch, Stack* stack)
                     damage += PcgRandom_roll(&m->rng, 1, damageDie);
                     verb = "critically hits";
                     color = WHITE;
+                    stack->effects.color = ORANGE;
+                    stack->effects.flash = 1.2f;
                     if (ch->class == CharacterClass_Thief) {
                         damage += ch->level;
                     }
@@ -783,8 +797,6 @@ combat_attack(Character* ch, Stack* stack)
                     ch->flags &= ~(CharacterFlags_Hidden);
             }
             stack->health[target] -= damage;
-            stack->effects.color = MAROON;
-            stack->effects.flash = 1.f;
 
             int clip = PcgRandom_randomu(&m->rng2) % arrlen(m->hit);
             int shift = (int)(PcgRandom_randomu(&m->rng2) % 11) - 5;
@@ -823,7 +835,7 @@ combat_attack(Character* ch, Stack* stack)
 }
 
 static void
-combat_multiAttack(Character* ch, Stack* stack)
+combat_multiAttack(Character* ch, MonsterStack* stack)
 {
     int attacks = 1;
     if (ch->level > stack->class.hitDice) {

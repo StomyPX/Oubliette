@@ -71,7 +71,7 @@ typedef struct {
     int64_t experience;
     uint8_t level;
 
-    Effects effects;
+    PortraitEffects effects;
 } Character;
 
 static Character char_random(void); // Roll up an entirely random character, name will be blank on failure

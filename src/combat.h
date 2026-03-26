@@ -21,7 +21,7 @@ typedef enum
 typedef struct
 {
     // Enemies
-    Stack stack;
+    MonsterStack stack;
 
     // Time Tracking
     CombatState state;
@@ -46,5 +46,5 @@ static void combat_resolveFight(void);
 static void combat_resolveFlee(void);
 
 // Actions
-static void combat_attack(Character* c, Stack* s);
-static void combat_multiAttack(Character* c, Stack* s);
+static void combat_attack(Character* c, MonsterStack* s);
+static void combat_multiAttack(Character* c, MonsterStack* s);

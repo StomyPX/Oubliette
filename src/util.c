@@ -90,6 +90,26 @@ util_facingNorthSouth(Facing facing)
     }
 }
 
+static void
+PortraitEffects_update(PortraitEffects* p, float deltaTime)
+{
+    const float speed = 20.f;
+    if (p->bump) {
+        p->bumpSmooth += deltaTime * speed;
+    } else {
+        p->bumpSmooth -= deltaTime * speed;
+    }
+
+    if (p->bumpSmooth >= 1.f)
+        p->bump = false;
+
+    p->bumpSmooth = util_floatclamp(p->bumpSmooth, 0.f, 1.f);
+
+    p->flash -= deltaTime * 2.f;
+    if (p->flash < 0.f)
+        p->flash = 0.f;
+}
+
 #define UTIL_LOGLINE_COUNT 64
 #define UTIL_LOGLINE_LENGTH 128
 

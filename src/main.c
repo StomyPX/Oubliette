@@ -459,14 +459,16 @@ main(int argc, char* argv[])
             if (m->flags & GlobalFlags_Encounter) {
                 Texture* tex;
                 Rectangle portrait = {};
+                Rectangle viewport2;
                 char buffer[128];
-                Stack* stack;
+                MonsterStack* stack;
 
                 stack = &m->encounter.stack;
                 tex = &m->encounter.stack.class.texture;
 
                 portrait.width = tex->width;
                 portrait.height = tex->height;
+                viewport.y += (float)UI_PADDING * stack->effects.bumpSmooth;
                 DrawRectangleRec(viewport, BLACK);
 
                 { /* Aspect Correction */
@@ -497,8 +499,7 @@ main(int argc, char* argv[])
                                     viewport, (Vector2){0,0}, 0.f, fcolor);
                 }
 
-                stack->effects.flash -= GetFrameTime() * 2.f;
-                stack->effects.shake -= GetFrameTime() * 10.f;
+                PortraitEffects_update(&stack->effects, GetFrameTime());
 
                 { /* Combat UI */
                     Vector2 position, dims;
@@ -665,7 +666,7 @@ main(int argc, char* argv[])
                                                 ch->name, patient->name, healing);
                                     }
                                     patient->health += healing;
-                                    patient->effects.color = MINDAROGREEN;
+                                    patient->effects.color = GREEN;
                                     patient->effects.flash = 1.f;
                                     ch->stamina -= 1;
                                 } else {
