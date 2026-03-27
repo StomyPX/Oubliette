@@ -209,7 +209,15 @@ main(int argc, char* argv[])
         m->tooltip[0] = 0;
 
         UpdateMusicStream(m->music.ambient);
-        UpdateMusicStream(m->music.all[m->music.track]);
+
+        if (m->music.delay <= 0.f) {
+            UpdateMusicStream(m->music.all[m->music.track]);
+        } else {
+            m->music.delay -= m->deltaTime;
+            if (m->music.delay <= 0.f) {
+                m->music.delay = 0.f;
+            }
+        }
 
         if (IsKeyPressed(KEY_F4) && (IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT)))
             m->flags |= GlobalFlags_RequestQuit;
@@ -840,6 +848,7 @@ main(int argc, char* argv[])
                                 ui_dumpCredits();
                                 PlaySound(m->victory);
                                 main_changeSong(&m->music.victory - &m->music.ambient);
+                                m->music.delay = 3.f;
                             }
                         } else {
                             /* Tick up very slightly */

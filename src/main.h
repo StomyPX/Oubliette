@@ -54,6 +54,7 @@ typedef struct Memory_ {
             Music failure;
             Music victory;
             int track; // 0 means nothing is playing (ambient doesn't count)
+            float delay;
         };
     } music;
 
