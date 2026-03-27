@@ -16,10 +16,9 @@ typedef enum
 typedef enum
 {
     GuiMenu_None = 0,
-    GuiMenu_Intro,
     GuiMenu_Settings,
     GuiMenu_NewGame,
-    GuiMenu_Pause,
+    GuiMenu_Actions,
 } GuiMenu;
 
 typedef struct
@@ -27,6 +26,8 @@ typedef struct
     char text[UI_LOGLINE_LENGTH];
     Color color;
 } LogLine;
+
+/* Elements */
 
 static void ui_text(Font font, const char* text, Vector2 position, float fontSize, int spacing, Color tint);
 static void ui_border(Texture border, Rectangle rec, Color color);
@@ -38,3 +39,7 @@ static int ui_characterHudCard(Character* c, Rectangle r, int portraitSize, int 
 static int ui_button(Rectangle rect, char* text, char* tooltip, int hotkey, bool enabled);
 
 static void ui_dumpCredits(void);
+
+/* Menus */
+
+static void ui_settings(void);

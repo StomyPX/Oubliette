@@ -4,9 +4,10 @@
 
 typedef enum
 {
-    CombatSpeed_Instant = -1,
-    CombatSpeed_Fast = 0,
-    CombatSpeed_Slow = 1,
+    CombatSpeed_Instant = 0,
+    CombatSpeed_Fast = 1,
+    CombatSpeed_Slow = 2,
+    CombatSpeed_Count = 3,
 } CombatSpeed;
 
 static float CombatSpeed_time(CombatSpeed cs);

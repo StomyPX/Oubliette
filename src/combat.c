@@ -5,7 +5,7 @@ CombatSpeed_time(CombatSpeed cs)
         case CombatSpeed_Instant: return 0.01f;
         default:
         case CombatSpeed_Fast: return 0.3f;
-        case CombatSpeed_Slow: return 2.0f;
+        case CombatSpeed_Slow: return 1.0f;
     }
 }
 

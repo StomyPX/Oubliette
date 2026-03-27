@@ -33,6 +33,7 @@ typedef struct Memory_ {
     CombatEncounter encounter;
 
     /* UI Resources */
+    GuiMenu menu;
     char tooltip[128];
     float fadein;
     LogLine logs[UI_LOGLINE_COUNT];

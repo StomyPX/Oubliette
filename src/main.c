@@ -518,6 +518,9 @@ main(int argc, char* argv[])
                     if (m->flags & GlobalFlags_GameOver)
                         active = false;
 
+                    if (m->menu != GuiMenu_None)
+                        active = false;
+
                     if (m->encounter.state != CombatState_Menu) {
                         active = false;
                         if (m->encounter.timer <= 0.f) {
@@ -614,7 +617,8 @@ main(int argc, char* argv[])
                 button.x = viewport.x + viewport.width - UI_PADDING - button.width;
                 button.y = viewport.y + viewport.height - UI_PADDING - button.height;
                 result = ui_button(button, "WAIT", "Pass time and engage in wait activities. SP always "
-                                    "restores over time [R]", KEY_R, !(m->flags & GlobalFlags_TheEnd));
+                                    "restores over time [R]", KEY_R,
+                                    m->menu == GuiMenu_None && !(m->flags & GlobalFlags_TheEnd));
                 if (result > 0) {
                     ui_log(ZINNWALDITEBROWN, "Resting...");
                     m->encounter.ticks += 300;
@@ -885,7 +889,7 @@ main(int argc, char* argv[])
                 int result;
 
                 if (IsMusicStreamPlaying(m->music.all[m->music.track])) {
-                    result = ui_button(button, "MUSIC", "Disable background music", KEY_NULL, true);
+                    result = ui_button(button, "MUSIC", "Disable background music", KEY_NULL, m->menu == GuiMenu_None);
                     if (result > 0) {
                         StopMusicStream(m->music.all[m->music.track]);
                         PlaySound(m->click);
@@ -893,7 +897,7 @@ main(int argc, char* argv[])
                         anyHover = 8;
                     }
                 } else {
-                    result = ui_button(button, "(music)", "Enable background music", KEY_NULL, true);
+                    result = ui_button(button, "(music)", "Enable background music", KEY_NULL, m->menu == GuiMenu_None);
                     if (result > 0) {
                         PlayMusicStream(m->music.all[m->music.track]);
                         PlaySound(m->click);
@@ -905,7 +909,7 @@ main(int argc, char* argv[])
                 button.y += button.height + UI_PADDING;
 
                 if (IsMusicStreamPlaying(m->music.ambient)) {
-                    result = ui_button(button, "AMBIENCE", "Disable ambient sound loop", KEY_NULL, true);
+                    result = ui_button(button, "AMBIENCE", "Disable ambient sound loop", KEY_NULL, m->menu == GuiMenu_None);
                     if (result > 0) {
                         StopMusicStream(m->music.ambient);
                         PlaySound(m->click);
@@ -913,7 +917,7 @@ main(int argc, char* argv[])
                         anyHover = 9;
                     }
                 } else {
-                    result = ui_button(button, "(ambience)", "Enable ambient sound loop", KEY_NULL, true);
+                    result = ui_button(button, "(ambience)", "Enable ambient sound loop", KEY_NULL, m->menu == GuiMenu_None);
                     if (result > 0) {
                         PlayMusicStream(m->music.ambient);
                         PlaySound(m->click);
@@ -926,7 +930,7 @@ main(int argc, char* argv[])
                 button.x = panel.x + panel.width - button.width;
 
                 if (m->flags & GlobalFlags_ConfirmExit) {
-                    result = ui_button(button, "CONFIRM?", "Are you sure you want to quit?", KEY_NULL, true);
+                    result = ui_button(button, "CONFIRM?", "Are you sure you want to quit?", KEY_NULL, m->menu == GuiMenu_None);
                     if (result > 0) {
                         m->flags |= GlobalFlags_RequestQuit;
                     } else  if (result < 0) {
@@ -935,7 +939,7 @@ main(int argc, char* argv[])
                         m->flags &= ~(GlobalFlags_ConfirmExit);
                     }
                 } else {
-                    result = ui_button(button, "EXIT", "Quit the game", KEY_NULL, true);
+                    result = ui_button(button, "EXIT", "Quit the game", KEY_NULL, m->menu == GuiMenu_None);
                     if (result > 0) {
                         m->flags |= GlobalFlags_ConfirmExit;
                         PlaySound(m->click2);
@@ -946,6 +950,17 @@ main(int argc, char* argv[])
 
                 button.y += button.height + UI_PADDING;
 
+                #if 1
+                result = ui_button(button, "OPTIONS", "Adjust settings or return to main menu",
+                                    KEY_ESCAPE, m->menu == GuiMenu_None);
+                if (result > 0) {
+                    m->menu = GuiMenu_Settings;
+                    PlaySound(m->click);
+                } else if (result < 0) {
+                    anyHover = 11;
+                }
+
+                #else
                 if (m->flags & GlobalFlags_MuteSFX) {
                     result = ui_button(button, "(sfx)", "Enable sound effects", KEY_NULL, true);
                     if (result > 0) {
@@ -966,6 +981,7 @@ main(int argc, char* argv[])
                         anyHover = 11;
                     }
                 }
+                #endif
 
                 if (m->map.name[0]) {
                     Vector2 position;
@@ -980,7 +996,7 @@ main(int argc, char* argv[])
             }
 
             { /* Character Cards */
-                bool active = !(m->flags & (GlobalFlags_GameOver | GlobalFlags_TheEnd));
+                bool active = m->menu == GuiMenu_None && !(m->flags & (GlobalFlags_GameOver | GlobalFlags_TheEnd));
                 if (ui_characterHudCard(m->party + 0, card, portraitSize, active ? KEY_ONE : -1))
                     anyHover = 4;
 
@@ -1203,6 +1219,140 @@ main(int argc, char* argv[])
 
             util_drawLog();
         }
+
+        if (m->menu != GuiMenu_None) {
+            Rectangle window, button;
+            Vector2 position, dims;
+            int result;
+            char buffer[32];
+
+            DrawRectangle(0, 0, GetRenderWidth(), GetRenderHeight(), ColorAlpha(BLACK, 0.8f));
+
+            button.width = 140;
+            button.height = 48;
+            window.width = button.width * 3 + UI_PADDING * 4;
+            window.height = button.height * 8 + UI_PADDING * 9;
+            window.x = GetRenderWidth() / 2 - window.width / 2;
+            window.y = GetRenderHeight() / 2 - window.height / 2;
+            DrawTexturePro(m->vellum, window, window, (Vector2){0,0}, 0.f, WHITE);
+
+            dims = MeasureTextEx(m->fonts.title, "Options", m->fonts.title.baseSize, 0.f);
+            position.x = window.x + window.width / 2 - dims.x / 2;
+            position.y = window.y + UI_PADDING;
+            ui_text(m->fonts.title, "Options", position, m->fonts.title.baseSize, 0.f, BONE);
+
+            button.x = window.x + window.width - UI_PADDING - button.width * 1.5f;
+            button.y = position.y + dims.y + UI_PADDING;
+            dims = MeasureTextEx(m->fonts.heading, "Music", m->fonts.heading.baseSize, 0.f);
+            position.x = button.x - UI_PADDING * 2 - dims.x;
+            position.y = button.y + button.height / 2 - dims.y / 2;
+            DrawTextEx(m->fonts.heading, "Music", position, m->fonts.heading.baseSize, 0.f, ZINNWALDITEBROWN);
+            if (IsMusicStreamPlaying(m->music.all[m->music.track])) {
+                result = ui_button(button, "ON", "Disable background music", KEY_NULL, true);
+                if (result > 0) {
+                    StopMusicStream(m->music.all[m->music.track]);
+                    PlaySound(m->click);
+                } else if (result < 0) {
+                    anyHover = 8;
+                }
+            } else {
+                result = ui_button(button, "(off)", "Enable background music", KEY_NULL, true);
+                if (result > 0) {
+                    PlayMusicStream(m->music.all[m->music.track]);
+                    PlaySound(m->click);
+                } else if (result < 0) {
+                    anyHover = 8;
+                }
+            }
+
+            button.y += button.height + UI_PADDING;
+            dims = MeasureTextEx(m->fonts.heading, "Sound Effects", m->fonts.heading.baseSize, 0.f);
+            position.x = button.x - UI_PADDING * 2 - dims.x;
+            position.y = button.y + button.height / 2 - dims.y / 2;
+            DrawTextEx(m->fonts.heading, "Sound Effects", position, m->fonts.heading.baseSize, 0.f, ZINNWALDITEBROWN);
+            if (m->flags & GlobalFlags_MuteSFX) {
+                result = ui_button(button, "(off)", "Enable sound effects", KEY_NULL, true);
+                if (result > 0) {
+                    m->flags &= ~(GlobalFlags_MuteSFX);
+                    for (int i = 0; i < arrlen(m->sfx); i++)
+                        SetSoundVolume(m->sfx[i], 1.f);
+                    PlaySound(m->click);
+                } else  if (result < 0) {
+                    anyHover = 11;
+                }
+            } else {
+                result = ui_button(button, "ON", "Disable sound effects", KEY_NULL, true);
+                if (result > 0) {
+                    m->flags |= GlobalFlags_MuteSFX;
+                    for (int i = 0; i < arrlen(m->sfx); i++)
+                        SetSoundVolume(m->sfx[i], 0.f);
+                } else  if (result < 0) {
+                    anyHover = 11;
+                }
+            }
+
+            button.y += button.height + UI_PADDING;
+            dims = MeasureTextEx(m->fonts.heading, "Ambient Loop", m->fonts.heading.baseSize, 0.f);
+            position.x = button.x - UI_PADDING * 2 - dims.x;
+            position.y = button.y + button.height / 2 - dims.y / 2;
+            DrawTextEx(m->fonts.heading, "Ambient Loop", position, m->fonts.heading.baseSize, 0.f, ZINNWALDITEBROWN);
+            if (IsMusicStreamPlaying(m->music.ambient)) {
+                result = ui_button(button, "ON", "Disable ambient sound loop", KEY_NULL, true);
+                if (result > 0) {
+                    StopMusicStream(m->music.ambient);
+                    PlaySound(m->click);
+                } else if (result < 0) {
+                    anyHover = 9;
+                }
+            } else {
+                result = ui_button(button, "(off)", "Enable ambient sound loop", KEY_NULL, true);
+                if (result > 0) {
+                    PlayMusicStream(m->music.ambient);
+                    PlaySound(m->click);
+                } else if (result < 0) {
+                    anyHover = 9;
+                }
+            }
+
+            button.y += button.height + UI_PADDING;
+            dims = MeasureTextEx(m->fonts.heading, "Combat Speed", m->fonts.heading.baseSize, 0.f);
+            position.x = button.x - UI_PADDING * 2 - dims.x;
+            position.y = button.y + button.height / 2 - dims.y / 2;
+            DrawTextEx(m->fonts.heading, "Combat Speed", position, m->fonts.heading.baseSize, 0.f, ZINNWALDITEBROWN);
+            memset(buffer, 0, sizeof(buffer));
+            switch (m->encounter.speed) {
+                default:
+                case CombatSpeed_Instant: { snprintf(buffer, sizeof(buffer), "INSTANT"); } break;
+                case CombatSpeed_Fast:    { snprintf(buffer, sizeof(buffer), "FAST"); } break;
+                case CombatSpeed_Slow:    { snprintf(buffer, sizeof(buffer), "SLOW"); } break;
+            }
+            result = ui_button(button, buffer, "Change how fast combat rounds resolve. "
+                                "Can always press Space to skip ahead", KEY_NULL, true);
+            if (result > 0) {
+                m->encounter.speed = (m->encounter.speed + 1) % CombatSpeed_Count;
+                PlaySound(m->click);
+            } else if (result < 0) {
+                anyHover = 10;
+            }
+
+            button.x = window.x + window.width / 2 - button.width / 2;
+            button.y = window.y + window.height - UI_PADDING - button.height;
+            result = ui_button(button, "BACK", "Return to the game", KEY_ESCAPE, true);
+            if (result > 0) {
+                m->menu = GuiMenu_None;
+                PlaySound(m->click);
+            } else  if (result < 0) {
+                anyHover = 12;
+            }
+
+            ui_border(m->border, window, BONE);
+
+            position.x = UI_PADDING * 2;
+            position.y = GetRenderHeight() - m->fonts.text.baseSize - UI_PADDING;
+            if (m->tooltip[0])
+                ui_text(m->fonts.text, m->tooltip, position, m->fonts.text.baseSize, 0, BONE);
+        }
+
         EndDrawing();
 
         /* Encounter Checks */
