@@ -19,6 +19,7 @@ typedef enum
     GuiScreen_Options,
     GuiScreen_Intro,
     GuiScreen_NewGame,
+    GuiScreen_Outro,
     GuiScreen_Credits,
 } GuiScreen;
 

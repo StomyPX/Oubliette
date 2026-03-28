@@ -411,17 +411,24 @@ main(int argc, char* argv[])
 static void
 main_changeSong(int track)
 {
+    bool play = true;
+
     if (track == m->music.track)
         return;
 
-    if (m->music.track > 0 && IsMusicStreamPlaying(m->music.all[m->music.track])) {
-        StopMusicStream(m->music.all[m->music.track]);
+    if (m->music.track > 0) {
+        if (IsMusicStreamPlaying(m->music.all[m->music.track])) {
+            StopMusicStream(m->music.all[m->music.track]);
+        } else {
+            play = false;
+        }
     }
 
     if (track > arrlen(m->music.all) || track < 1) {
         m->music.track = 0;
     } else {
         m->music.track = track;
-        PlayMusicStream(m->music.all[track]);
+        if (play)
+            PlayMusicStream(m->music.all[track]);
     }
 }
