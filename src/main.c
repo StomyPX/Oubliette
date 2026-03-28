@@ -348,7 +348,7 @@ main(int argc, char* argv[])
             ini_property_add(ini, section, key, strlen(key), val, strlen(val));
 
             key = "enable tooltips";
-            val = !(m->flags & GlobalFlags_MuteSFX) ? "true" : "false";
+            val = (m->flags & GlobalFlags_ShowTooltips) ? "true" : "false";
             ini_property_add(ini, section, key, strlen(key), val, strlen(val));
 
             key = "enable fullscreen";
