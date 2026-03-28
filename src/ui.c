@@ -451,6 +451,7 @@ ui_button(Rectangle rect, char* text, char* tooltip, int hotkey, bool enabled)
     Vector2 measure;
     Vector2 position;
 
+    m->elementCount++;
     { /* Input Checks */
         Vector2 mouse;
 
@@ -504,6 +505,9 @@ draw:
         EndScissorMode();
         ui_border(m->border, rect, BONE);
     }
+
+    if (result != 0)
+        m->elementHover = m->elementCount;
 
     return result;
 }

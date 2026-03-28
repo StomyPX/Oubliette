@@ -200,12 +200,13 @@ main(int argc, char* argv[])
 
     ui_log(ZINNWALDITEBROWN, "Oubliette, Version 1.2");
 
-    int lastHover = 0;
     while (!WindowShouldClose() && !(m->flags & GlobalFlags_RequestQuit)) {
         /* Update */
         m->deltaTime = GetFrameTime();
         m->second += m->deltaTime;
-        int anyHover = 0;
+        m->elementHoverLast = m->elementHover;
+        m->elementHover = 0;
+        m->elementCount = 0;
         m->tooltip[0] = 0;
 
         UpdateMusicStream(m->music.ambient);
@@ -574,8 +575,6 @@ main(int argc, char* argv[])
                     if (result > 0) {
                         PlaySound(m->click);
                         combat_startFight();
-                    } else if (result < 0) {
-                        anyHover = 2;
                     }
 
                     button.x += button.width + UI_PADDING;
@@ -584,8 +583,6 @@ main(int argc, char* argv[])
                     if (result > 0) {
                         PlaySound(m->click);
                         combat_startFlee();
-                    } else if (result < 0) {
-                        anyHover = 1;
                     }
                 }
 
@@ -693,8 +690,6 @@ main(int argc, char* argv[])
                     }
 
                     PlaySound(m->click);
-                } else if (result < 0) {
-                    anyHover = 3;
                 }
 
                 if (!(m->flags & GlobalFlags_EditorMode)) { /* Movement Keys
@@ -895,8 +890,6 @@ main(int argc, char* argv[])
                 if (result > 0) {
                     m->menu = GuiMenu_Settings;
                     PlaySound(m->click);
-                } else if (result < 0) {
-                    anyHover = 11;
                 }
 
                 if (m->map.name[0]) {
@@ -913,32 +906,28 @@ main(int argc, char* argv[])
 
             { /* Character Cards */
                 bool active = m->menu == GuiMenu_None && !(m->flags & (GlobalFlags_GameOver | GlobalFlags_TheEnd));
-                if (ui_characterHudCard(m->party + 0, card, portraitSize, active ? KEY_ONE : -1))
-                    anyHover = 4;
+                ui_characterHudCard(m->party + 0, card, portraitSize, active ? KEY_ONE : -1);
 
                 if (layout == GuiLayout_Ultrawide) {
                     card.y += card.height + UI_PADDING;
                 } else {
                     card.x += card.width + UI_PADDING;
                 }
-                if (ui_characterHudCard(m->party + 1, card, portraitSize, active ? KEY_TWO : -1))
-                    anyHover = 5;
+                ui_characterHudCard(m->party + 1, card, portraitSize, active ? KEY_TWO : -1);
 
                 if (layout == GuiLayout_Ultrawide) {
                     card.y += card.height + UI_PADDING;
                 } else {
                     card.x += card.width + UI_PADDING;
                 }
-                if (ui_characterHudCard(m->party + 2, card, portraitSize, active ? KEY_THREE : -1))
-                    anyHover = 6;
+                ui_characterHudCard(m->party + 2, card, portraitSize, active ? KEY_THREE : -1);
 
                 if (layout == GuiLayout_Ultrawide) {
                     card.y += card.height + UI_PADDING;
                 } else {
                     card.x += card.width + UI_PADDING;
                 }
-                if (ui_characterHudCard(m->party + 3, card, portraitSize, active ? KEY_FOUR : -1))
-                    anyHover = 7;
+                ui_characterHudCard(m->party + 3, card, portraitSize, active ? KEY_FOUR : -1);
             }
 
             if (m->flags & GlobalFlags_ShowTooltips) { /* Tooltips */
@@ -947,7 +936,7 @@ main(int argc, char* argv[])
                 position.y = panel.y + panel.height - m->fonts.text.baseSize;
                 panel.height -= UI_PADDING + m->fonts.text.baseSize;
                 if (m->tooltip[0])
-                    DrawTextEx(m->fonts.text, m->tooltip, position, m->fonts.text.baseSize, 0, BONE);
+                    ui_text(m->fonts.text, m->tooltip, position, m->fonts.text.baseSize, 0, BONE);
             }
 
             { /* Side Panel */
@@ -1168,16 +1157,12 @@ main(int argc, char* argv[])
                 if (result > 0) {
                     StopMusicStream(m->music.all[m->music.track]);
                     PlaySound(m->click);
-                } else if (result < 0) {
-                    anyHover = 8;
                 }
             } else {
                 result = ui_button(button, "(off)", "Enable background music", KEY_NULL, true);
                 if (result > 0) {
                     PlayMusicStream(m->music.all[m->music.track]);
                     PlaySound(m->click);
-                } else if (result < 0) {
-                    anyHover = 8;
                 }
             }
 
@@ -1193,8 +1178,6 @@ main(int argc, char* argv[])
                     for (int i = 0; i < arrlen(m->sfx); i++)
                         SetSoundVolume(m->sfx[i], 1.f);
                     PlaySound(m->click);
-                } else  if (result < 0) {
-                    anyHover = 11;
                 }
             } else {
                 result = ui_button(button, "ON", "Disable sound effects", KEY_NULL, true);
@@ -1202,8 +1185,6 @@ main(int argc, char* argv[])
                     m->flags |= GlobalFlags_MuteSFX;
                     for (int i = 0; i < arrlen(m->sfx); i++)
                         SetSoundVolume(m->sfx[i], 0.f);
-                } else  if (result < 0) {
-                    anyHover = 11;
                 }
             }
 
@@ -1217,16 +1198,12 @@ main(int argc, char* argv[])
                 if (result > 0) {
                     StopMusicStream(m->music.ambient);
                     PlaySound(m->click);
-                } else if (result < 0) {
-                    anyHover = 9;
                 }
             } else {
                 result = ui_button(button, "(off)", "Enable ambient sound loop", KEY_NULL, true);
                 if (result > 0) {
                     PlayMusicStream(m->music.ambient);
                     PlaySound(m->click);
-                } else if (result < 0) {
-                    anyHover = 9;
                 }
             }
 
@@ -1247,8 +1224,6 @@ main(int argc, char* argv[])
             if (result > 0) {
                 m->encounter.speed = (m->encounter.speed + 1) % CombatSpeed_Count;
                 PlaySound(m->click);
-            } else if (result < 0) {
-                anyHover = 10;
             }
 
             button.x = window.x + window.width / 2 - button.width / 2;
@@ -1258,8 +1233,6 @@ main(int argc, char* argv[])
             if (result > 0) {
                 m->menu = GuiMenu_None;
                 PlaySound(m->click);
-            } else  if (result < 0) {
-                anyHover = 12;
             }
 
             button.x += button.width + UI_PADDING;
@@ -1267,9 +1240,7 @@ main(int argc, char* argv[])
                 result = ui_button(button, "CONFIRM?", "Are you sure you want to quit?", KEY_NULL, true);
                 if (result > 0) {
                     m->flags |= GlobalFlags_RequestQuit;
-                } else  if (result < 0) {
-                    anyHover = 10;
-                } else {
+                } else if (result == 0) {
                     m->flags &= ~(GlobalFlags_ConfirmExit);
                 }
             } else {
@@ -1277,17 +1248,29 @@ main(int argc, char* argv[])
                 if (result > 0) {
                     m->flags |= GlobalFlags_ConfirmExit;
                     PlaySound(m->click2);
-                } else  if (result < 0) {
-                    anyHover = 10;
                 }
             }
 
             ui_border(m->border, window, BONE);
 
-            position.x = UI_PADDING * 2;
-            position.y = GetRenderHeight() - m->fonts.text.baseSize - UI_PADDING;
-            if (m->tooltip[0])
-                ui_text(m->fonts.text, m->tooltip, position, m->fonts.text.baseSize, 0, BONE);
+            { /* Tooltip pane */
+                Rectangle pane;
+                Vector2 position;
+                const int EXTRA_PADDING = 16;
+
+                pane.width = GetRenderWidth() + EXTRA_PADDING * 2;
+                pane.height = m->fonts.text.baseSize + UI_PADDING * 2 + EXTRA_PADDING;
+                pane.x = -EXTRA_PADDING;
+                pane.y = GetRenderHeight() - (m->fonts.text.baseSize + UI_PADDING * 2);
+                DrawTexturePro(m->marble, pane, pane, (Vector2){0,0}, 0.f, DARKBROWN);
+
+                position.x = UI_PADDING * 2;
+                position.y = GetRenderHeight() - m->fonts.text.baseSize - UI_PADDING;
+                if (m->tooltip[0])
+                    ui_text(m->fonts.text, m->tooltip, position, m->fonts.text.baseSize, 0, BONE);
+
+                ui_border(m->border, pane, BONE);
+            }
         }
 
         EndDrawing();
@@ -1353,9 +1336,8 @@ main(int argc, char* argv[])
             }
         }
 
-        if (anyHover && lastHover != anyHover)
+        if (m->elementHover && m->elementHoverLast != m->elementHover)
             PlaySound(m->hover);
-        lastHover = anyHover;
     }
 
     UnloadFont(m->fonts.text);

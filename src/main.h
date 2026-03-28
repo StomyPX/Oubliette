@@ -45,6 +45,9 @@ typedef struct Memory_ {
     Texture vellum;
     Texture dead;
     Texture flash;
+    int elementCount;
+    int elementHover;
+    int elementHoverLast;
 
     union {
         Music all[5];
