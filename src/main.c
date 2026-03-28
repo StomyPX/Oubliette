@@ -96,6 +96,7 @@ main(int argc, char* argv[])
 
     m = RL_MALLOC(sizeof(Memory));
     memset(m, 0, sizeof(Memory));
+    ext_init(&m->ext);
 
     /* TODO Always on in debug mode, requires cmdline switch "--editor" in release mode */
     #if DEBUG_MODE
@@ -105,15 +106,61 @@ main(int argc, char* argv[])
     #endif
     m->flags |= GlobalFlags_ShowTooltips;
 
-    // TODO settings.ini
+    m->encounter.speed = CombatSpeed_Fast;
+
+    if (PHYSFS_exists("settings.ini")) {
+        char* content;
+
+        content = util_readFileData("settings.ini", 0);
+        if (content) {
+            ini_t* ini = ini_load(content, 0);
+
+            if (ini) {
+                int section, props;
+                char* sectionName = "Options";
+
+                TraceLog(LOG_TRACE, "INI: Loading options from settings.ini");
+                section = ini_find_section(ini, sectionName, strlen(sectionName));
+                props = ini_property_count(ini, section);
+                for (unsigned i = 0; i < props; i++) {
+                    char* key = (char*)ini_property_name(ini, section, i);
+                    char* val = (char*)ini_property_value(ini, section, i);
+
+                    if (strcmp(key, "enable music") == 0 && util_stricmp(val, "false") == 0) {
+                        m->flags |= GlobalFlags_MusicStartMuted;
+                    } else if (strcmp(key, "enable ambience") == 0 && util_stricmp(val, "false") == 0) {
+                        m->flags |= GlobalFlags_AmbientStartMuted;
+                    } else if (strcmp(key, "enable sfx") == 0 && util_stricmp(val, "false") == 0) {
+                        m->flags |= GlobalFlags_MuteSFX;
+                    } else if (strcmp(key, "enable fullscreen") == 0 && util_stricmp(val, "false") != 0) {
+                        ToggleBorderlessWindowed();
+                    } else if (strcmp(key, "enable tooltips") == 0 && util_stricmp(val, "false") == 0) {
+                        m->flags &= ~(GlobalFlags_ShowTooltips);
+                    } else if (strcmp(key, "combat speed") == 0) {
+                        if (util_stricmp(val, "instant") == 0) {
+                            m->encounter.speed = CombatSpeed_Instant;
+                        } else if (util_stricmp(val, "fast") == 0) {
+                            m->encounter.speed = CombatSpeed_Fast;
+                        } else if (util_stricmp(val, "slow") == 0) {
+                            m->encounter.speed = CombatSpeed_Slow;
+                        } else {
+                            TraceLog(LOG_DEBUG, "INI: Unknown value for combat speed: %s, "
+                                    "defaulting to fast", val);
+                        }
+                    }
+                }
+
+                ini_destroy(ini);
+            }
+
+            MemFree(content);
+        }
+    }
     // TODO ArgParser
 
-    ext_init(&m->ext);
     PcgRandom_init(&m->rng, util_rdtsc());
     PcgRandom_init(&m->rng2, util_rdtsc());
     monster_init(&m->monsters);
-
-    m->encounter.speed = CombatSpeed_Fast;
 
     m->fonts.text = LoadFontEx("data/fonts/CrimsonText-Bold.ttf", 24, 0, 0);
     m->fonts.heading = LoadFontEx("data/fonts/CoelacanthBold.otf", 30, 0, 0);
@@ -139,7 +186,10 @@ main(int argc, char* argv[])
     main_changeSong(&m->music.general - &m->music.ambient);
     PlayMusicStream(m->music.ambient);
 
-    util_log(LOG_WARNING, "Ambient stream playing: %s", IsMusicStreamPlaying(m->music.ambient) ? "true" : "false");
+    if (m->flags & GlobalFlags_MusicStartMuted)
+        StopMusicStream(m->music.all[m->music.track]);
+    if (m->flags & GlobalFlags_AmbientStartMuted)
+        StopMusicStream(m->music.ambient);
 
     for (unsigned i = 0; i < arrlen(m->footstep); i++) {
         char buf[32];
@@ -168,6 +218,11 @@ main(int argc, char* argv[])
     m->objective = LoadSound("data/sounds/discovery.wav");
     m->gameOver = LoadSound("data/sounds/game_over.wav");
     m->victory = LoadSound("data/sounds/victory.wav");
+
+    if (m->flags & GlobalFlags_MuteSFX) {
+        for (int i = 0; i < arrlen(m->sfx); i++)
+            SetSoundVolume(m->sfx[i], 0.f);
+    }
 
     for (int i = 0; i < arrlen(m->party); i++) {
         m->party[i] = char_random();
@@ -211,7 +266,8 @@ main(int argc, char* argv[])
         m->tooltip[0] = 0;
         m->flags &= ~(GlobalFlags_IgnoreInput);
 
-        UpdateMusicStream(m->music.ambient);
+        if (m->map.name[0])
+            UpdateMusicStream(m->music.ambient);
 
         if (m->music.delay <= 0.f) {
             UpdateMusicStream(m->music.all[m->music.track]);
@@ -265,6 +321,61 @@ main(int argc, char* argv[])
             PlaySound(m->hover);
     }
 
+    /* Cleanup before quit */
+
+    { /* Save Settings */
+        ini_t* ini = ini_create(0);
+
+        if (ini) {
+            char* key = "Options";
+            char* val;
+            int section;
+            char* content;
+            int size;
+
+            section = ini_section_add(ini, key, strlen(key));
+
+            key = "enable music";
+            val = IsMusicStreamPlaying(m->music.all[m->music.track]) ? "true" : "false";
+            ini_property_add(ini, section, key, strlen(key), val, strlen(val));
+
+            key = "enable ambience";
+            val = IsMusicStreamPlaying(m->music.ambient) ? "true" : "false";
+            ini_property_add(ini, section, key, strlen(key), val, strlen(val));
+
+            key = "enable sfx";
+            val = !(m->flags & GlobalFlags_MuteSFX) ? "true" : "false";
+            ini_property_add(ini, section, key, strlen(key), val, strlen(val));
+
+            key = "enable tooltips";
+            val = !(m->flags & GlobalFlags_MuteSFX) ? "true" : "false";
+            ini_property_add(ini, section, key, strlen(key), val, strlen(val));
+
+            key = "enable fullscreen";
+            val = IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE) ? "true" : "false";
+            ini_property_add(ini, section, key, strlen(key), val, strlen(val));
+
+            key = "combat speed";
+            switch (m->encounter.speed) {
+                case CombatSpeed_Instant: val = "instant"; break;
+                default:
+                case CombatSpeed_Fast: val = "fast"; break;
+                case CombatSpeed_Slow: val = "slow"; break;
+            }
+            ini_property_add(ini, section, key, strlen(key), val, strlen(val));
+
+            size = ini_save(ini, 0, 0);
+            content = MemAlloc(size);
+            size = ini_save(ini, content, size);
+            ini_destroy(ini);
+
+            util_writeFileData("settings.ini", content, size);
+            MemFree(content);
+        } else {
+            TraceLog(LOG_ERROR, "Could not create ini context, settings will not be saved");
+        }
+    }
+
     UnloadFont(m->fonts.text);
     UnloadFont(m->fonts.heading);
     UnloadFont(m->fonts.title);
@@ -273,6 +384,8 @@ main(int argc, char* argv[])
     UnloadTexture(m->marble);
     UnloadTexture(m->vellum);
     UnloadTexture(m->flash);
+    UnloadTexture(m->options);
+    UnloadTexture(m->panel);
 
     for (int i = 0; i < arrlen(m->music.all); i++)
         UnloadMusicStream(m->music.all[i]);
