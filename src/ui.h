@@ -15,11 +15,11 @@ typedef enum
 
 typedef enum
 {
-    GuiMenu_None = 0,
-    GuiMenu_Settings,
-    GuiMenu_NewGame,
-    GuiMenu_Actions,
-} GuiMenu;
+    GuiScreen_None = 0,
+    GuiScreen_Options,
+    GuiScreen_NewGame,
+    GuiScreen_Actions,
+} GuiScreen;
 
 typedef struct
 {
@@ -34,12 +34,13 @@ static void ui_border(Texture border, Rectangle rec, Color color);
 
 /* Default color: ZINNWALDITEBROWN */
 static void ui_log(Color color, char* fmt, ...);
-static int ui_characterHudCard(Character* c, Rectangle r, int portraitSize, int keycode);
 /* -1 on hover, 1 on LMB down */
 static int ui_button(Rectangle rect, char* text, char* tooltip, int hotkey, bool enabled);
 
 static void ui_dumpCredits(void);
+static int ui_characterHudCard(Character* c, Rectangle r, int portraitSize, int keycode);
+static void ui_tooltipPane(void);
 
-/* Menus */
+/* Screens */
 
-static void ui_settings(void);
+static void ui_options(void);

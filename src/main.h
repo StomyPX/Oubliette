@@ -33,7 +33,7 @@ typedef struct Memory_ {
     CombatEncounter encounter;
 
     /* UI Resources */
-    GuiMenu menu;
+    GuiScreen screen;
     char tooltip[128];
     float fadein;
     LogLine logs[UI_LOGLINE_COUNT];
@@ -45,6 +45,8 @@ typedef struct Memory_ {
     Texture vellum;
     Texture dead;
     Texture flash;
+    Texture options;
+    Texture panel;
     int elementCount;
     int elementHover;
     int elementHoverLast;

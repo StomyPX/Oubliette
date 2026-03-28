@@ -107,6 +107,102 @@ ui_log(Color color, char* fmt, ...)
 }
 
 static int
+ui_button(Rectangle rect, char* text, char* tooltip, int hotkey, bool enabled)
+{
+    int result = 0;
+    Vector2 measure;
+    Vector2 position;
+
+    m->elementCount++;
+    { /* Input Checks */
+        Vector2 mouse;
+
+        if (!enabled)
+            goto draw;
+
+        if (IsKeyPressed(hotkey)) {
+            result = 1;
+            goto draw;
+        } else if (IsKeyDown(hotkey)) {
+            result = -1;
+        }
+
+        if (util_mouseInRect(rect)) {
+            if (tooltip)
+                snprintf(m->tooltip, sizeof(m->tooltip), tooltip);
+        } else {
+            goto draw;
+        }
+
+        result = -1;
+
+        if (IsMouseButtonPressed(0)) {
+            result = 1;
+        }
+    }
+
+draw:
+    rect = RectangleFloor(rect);
+    measure = MeasureTextEx(m->fonts.heading, text, m->fonts.heading.baseSize, 0);
+    position.x = floorf(rect.x + rect.width / 2 - measure.x / 2);
+    position.y = floorf(rect.y + rect.height / 2 - measure.y / 2);
+    if (result && (IsMouseButtonDown(0) || IsKeyDown(hotkey))) { // Down
+        Color fade = ColorLerp(MAROON, BLACK, 0.6f);
+        position.y += 1;
+        DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, fade);
+        BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
+        ui_text(m->fonts.heading, text, position, m->fonts.heading.baseSize, 0, MOSSGREEN);
+        EndScissorMode();
+        ui_border(m->border, rect, MINDAROGREEN);
+    } else if (result < 0) { // Hover
+        DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, MAROON);
+        BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
+        ui_text(m->fonts.heading, text, position, m->fonts.heading.baseSize, 0, MINDAROGREEN);
+        EndScissorMode();
+        ui_border(m->border, rect, MINDAROGREEN);
+    } else { // Normal
+        DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, MAROON);
+        BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
+        ui_text(m->fonts.heading, text, position, m->fonts.heading.baseSize, 0, BONE);
+        EndScissorMode();
+        ui_border(m->border, rect, BONE);
+    }
+
+    if (result != 0)
+        m->elementHover = m->elementCount;
+
+    return result;
+}
+
+static void
+ui_dumpCredits(void)
+{
+    ui_log(ZINNWALDITEBROWN, " ");
+    ui_log(ZINNWALDITEBROWN, "CREDITS:");
+    ui_log(ZINNWALDITEBROWN, " ");
+    ui_log(ZINNWALDITEBROWN, "Programming, Design, 3D Models: Stomy (stomygame.itch.io)");
+    ui_log(ZINNWALDITEBROWN, " ");
+    ui_log(ZINNWALDITEBROWN, "Featuring public domain artwork by:");
+    ui_log(ZINNWALDITEBROWN, " Sidney Sime, Harry Clarke, Alfred Kubin, Henry Justice Ford, and others");
+    ui_log(ZINNWALDITEBROWN, " ");
+    ui_log(ZINNWALDITEBROWN, "Music:");
+    ui_log(ZINNWALDITEBROWN, " \"Specters of the Enclave\" by Eliot Corley from ChaosIsHarmony (CC-BY 3.0, opengameart.org)");
+    ui_log(ZINNWALDITEBROWN, " \"Welt Herrscherer Theme\" by yd (CC0, opengameart.org)");
+    ui_log(ZINNWALDITEBROWN, " \"Apologies to JSB\" by Yubatake (CC-BY 3.0, opengameart.org)");
+    ui_log(ZINNWALDITEBROWN, " \"Lament for a Warrior's Soul\" by RandomMind (CC0, opengameart.org)");
+    ui_log(ZINNWALDITEBROWN, " ");
+    ui_log(ZINNWALDITEBROWN, "Ambient Track: \"Dark Ambient\" by Alexandr Zhelanov (CC-BY 3.0, opengameart.org)");
+    ui_log(ZINNWALDITEBROWN, "   https://soundcloud.com/alexandr-zhelanov");
+    ui_log(ZINNWALDITEBROWN, "Sound Effects from freesound.org. Artists:");
+    ui_log(ZINNWALDITEBROWN, "   nomiqbomi, el_boss, tom_a73, kyles, Aerny");
+    ui_log(ZINNWALDITEBROWN, " ");
+    ui_log(ZINNWALDITEBROWN, "Delven Textures by Bradley D. (https://strideh.itch.io)");
+    ui_log(ZINNWALDITEBROWN, "Torment Textures by Bradley D. (https://strideh.itch.io)");
+    ui_log(ZINNWALDITEBROWN, "Additional CC0 textures by sean10m, Kenney");
+    ui_log(ZINNWALDITEBROWN, "Stone Coffin model by Yughues");
+}
+
+static int
 ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
 {
     Rectangle portrait;
@@ -444,98 +540,23 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
     return result;
 }
 
-static int
-ui_button(Rectangle rect, char* text, char* tooltip, int hotkey, bool enabled)
-{
-    int result = 0;
-    Vector2 measure;
-    Vector2 position;
-
-    m->elementCount++;
-    { /* Input Checks */
-        Vector2 mouse;
-
-        if (!enabled)
-            goto draw;
-
-        if (IsKeyPressed(hotkey)) {
-            result = 1;
-            goto draw;
-        } else if (IsKeyDown(hotkey)) {
-            result = -1;
-        }
-
-        if (util_mouseInRect(rect)) {
-            if (tooltip)
-                snprintf(m->tooltip, sizeof(m->tooltip), tooltip);
-        } else {
-            goto draw;
-        }
-
-        result = -1;
-
-        if (IsMouseButtonPressed(0)) {
-            result = 1;
-        }
-    }
-
-draw:
-    rect = RectangleFloor(rect);
-    measure = MeasureTextEx(m->fonts.heading, text, m->fonts.heading.baseSize, 0);
-    position.x = floorf(rect.x + rect.width / 2 - measure.x / 2);
-    position.y = floorf(rect.y + rect.height / 2 - measure.y / 2);
-    if (result && (IsMouseButtonDown(0) || IsKeyDown(hotkey))) { // Down
-        Color fade = ColorLerp(MAROON, BLACK, 0.6f);
-        position.y += 1;
-        DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, fade);
-        BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
-        ui_text(m->fonts.heading, text, position, m->fonts.heading.baseSize, 0, MOSSGREEN);
-        EndScissorMode();
-        ui_border(m->border, rect, MINDAROGREEN);
-    } else if (result < 0) { // Hover
-        DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, MAROON);
-        BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
-        ui_text(m->fonts.heading, text, position, m->fonts.heading.baseSize, 0, MINDAROGREEN);
-        EndScissorMode();
-        ui_border(m->border, rect, MINDAROGREEN);
-    } else { // Normal
-        DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, MAROON);
-        BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
-        ui_text(m->fonts.heading, text, position, m->fonts.heading.baseSize, 0, BONE);
-        EndScissorMode();
-        ui_border(m->border, rect, BONE);
-    }
-
-    if (result != 0)
-        m->elementHover = m->elementCount;
-
-    return result;
-}
-
 static void
-ui_dumpCredits(void)
+ui_tooltipPane(void)
 {
-    ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "CREDITS:");
-    ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "Programming, Design, 3D Models: Stomy (stomygame.itch.io)");
-    ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "Featuring public domain artwork by:");
-    ui_log(ZINNWALDITEBROWN, " Sidney Sime, Harry Clarke, Alfred Kubin, Henry Justice Ford, and others");
-    ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "Music:");
-    ui_log(ZINNWALDITEBROWN, " \"Specters of the Enclave\" by Eliot Corley from ChaosIsHarmony (CC-BY 3.0, opengameart.org)");
-    ui_log(ZINNWALDITEBROWN, " \"Welt Herrscherer Theme\" by yd (CC0, opengameart.org)");
-    ui_log(ZINNWALDITEBROWN, " \"Apologies to JSB\" by Yubatake (CC-BY 3.0, opengameart.org)");
-    ui_log(ZINNWALDITEBROWN, " \"Lament for a Warrior's Soul\" by RandomMind (CC0, opengameart.org)");
-    ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "Ambient Track: \"Dark Ambient\" by Alexandr Zhelanov (CC-BY 3.0, opengameart.org)");
-    ui_log(ZINNWALDITEBROWN, "   https://soundcloud.com/alexandr-zhelanov");
-    ui_log(ZINNWALDITEBROWN, "Sound Effects from freesound.org. Artists:");
-    ui_log(ZINNWALDITEBROWN, "   nomiqbomi, el_boss, tom_a73, kyles, Aerny");
-    ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "Delven Textures by Bradley D. (https://strideh.itch.io)");
-    ui_log(ZINNWALDITEBROWN, "Torment Textures by Bradley D. (https://strideh.itch.io)");
-    ui_log(ZINNWALDITEBROWN, "Additional CC0 textures by sean10m, Kenney");
-    ui_log(ZINNWALDITEBROWN, "Stone Coffin model by Yughues");
+    Rectangle pane;
+    Vector2 position;
+    const int EXTRA_PADDING = 16;
+
+    pane.width = GetRenderWidth() + EXTRA_PADDING * 2;
+    pane.height = m->fonts.text.baseSize + UI_PADDING * 2 + EXTRA_PADDING;
+    pane.x = -EXTRA_PADDING;
+    pane.y = GetRenderHeight() - (m->fonts.text.baseSize + UI_PADDING * 2);
+    DrawTexturePro(m->marble, pane, pane, (Vector2){0,0}, 0.f, DARKBROWN);
+
+    position.x = UI_PADDING * 2;
+    position.y = GetRenderHeight() - m->fonts.text.baseSize - UI_PADDING;
+    if (m->tooltip[0])
+        ui_text(m->fonts.text, m->tooltip, position, m->fonts.text.baseSize, 0, BONE);
+
+    ui_border(m->border, pane, BONE);
 }
