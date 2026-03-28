@@ -717,7 +717,7 @@ ui_dungeon(void)
 
             /* Find scroll point first */
             for (unsigned i = 0; i < UI_LOGLINE_COUNT; i++) {
-                unsigned index = (i + m->logCursor + 1) % UI_LOGLINE_COUNT;
+                unsigned index = (i + m->logCursor) % UI_LOGLINE_COUNT;
                 if (m->logs[index].text[0]) {
                     count++;
                 }
@@ -727,7 +727,7 @@ ui_dungeon(void)
             if (scrollMax < 0) {
                 scrollMax = 0;
             } else {
-                position.y -= scrollMax * m->fonts.text.baseSize;
+                position.y -= (scrollMax + 1) * m->fonts.text.baseSize;
                 position.y -= (int)panel.height % m->fonts.text.baseSize;
                 position.y += m->logScrollSmooth;
             }
