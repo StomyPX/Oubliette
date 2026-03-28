@@ -883,74 +883,13 @@ main(int argc, char* argv[])
 
             { /* Options */
                 Rectangle button;
-                button = panel;
-                button.width = 140;
-                button.height = 48;
                 int result;
 
-                if (IsMusicStreamPlaying(m->music.all[m->music.track])) {
-                    result = ui_button(button, "MUSIC", "Disable background music", KEY_NULL, m->menu == GuiMenu_None);
-                    if (result > 0) {
-                        StopMusicStream(m->music.all[m->music.track]);
-                        PlaySound(m->click);
-                    } else if (result < 0) {
-                        anyHover = 8;
-                    }
-                } else {
-                    result = ui_button(button, "(music)", "Enable background music", KEY_NULL, m->menu == GuiMenu_None);
-                    if (result > 0) {
-                        PlayMusicStream(m->music.all[m->music.track]);
-                        PlaySound(m->click);
-                    } else if (result < 0) {
-                        anyHover = 8;
-                    }
-                }
-
-                button.y += button.height + UI_PADDING;
-
-                if (IsMusicStreamPlaying(m->music.ambient)) {
-                    result = ui_button(button, "AMBIENCE", "Disable ambient sound loop", KEY_NULL, m->menu == GuiMenu_None);
-                    if (result > 0) {
-                        StopMusicStream(m->music.ambient);
-                        PlaySound(m->click);
-                    } else if (result < 0) {
-                        anyHover = 9;
-                    }
-                } else {
-                    result = ui_button(button, "(ambience)", "Enable ambient sound loop", KEY_NULL, m->menu == GuiMenu_None);
-                    if (result > 0) {
-                        PlayMusicStream(m->music.ambient);
-                        PlaySound(m->click);
-                    } else if (result < 0) {
-                        anyHover = 9;
-                    }
-                }
-
+                button.width = 140;
+                button.height = 48;
                 button.y = panel.y;
                 button.x = panel.x + panel.width - button.width;
 
-                if (m->flags & GlobalFlags_ConfirmExit) {
-                    result = ui_button(button, "CONFIRM?", "Are you sure you want to quit?", KEY_NULL, m->menu == GuiMenu_None);
-                    if (result > 0) {
-                        m->flags |= GlobalFlags_RequestQuit;
-                    } else  if (result < 0) {
-                        anyHover = 10;
-                    } else {
-                        m->flags &= ~(GlobalFlags_ConfirmExit);
-                    }
-                } else {
-                    result = ui_button(button, "EXIT", "Quit the game", KEY_NULL, m->menu == GuiMenu_None);
-                    if (result > 0) {
-                        m->flags |= GlobalFlags_ConfirmExit;
-                        PlaySound(m->click2);
-                    } else  if (result < 0) {
-                        anyHover = 10;
-                    }
-                }
-
-                button.y += button.height + UI_PADDING;
-
-                #if 1
                 result = ui_button(button, "OPTIONS", "Adjust settings or return to main menu",
                                     KEY_ESCAPE, m->menu == GuiMenu_None);
                 if (result > 0) {
@@ -960,33 +899,10 @@ main(int argc, char* argv[])
                     anyHover = 11;
                 }
 
-                #else
-                if (m->flags & GlobalFlags_MuteSFX) {
-                    result = ui_button(button, "(sfx)", "Enable sound effects", KEY_NULL, true);
-                    if (result > 0) {
-                        m->flags &= ~(GlobalFlags_MuteSFX);
-                        for (int i = 0; i < arrlen(m->sfx); i++)
-                            SetSoundVolume(m->sfx[i], 1.f);
-                        PlaySound(m->click);
-                    } else  if (result < 0) {
-                        anyHover = 11;
-                    }
-                } else {
-                    result = ui_button(button, "SFX", "Disable sound effects", KEY_NULL, true);
-                    if (result > 0) {
-                        m->flags |= GlobalFlags_MuteSFX;
-                        for (int i = 0; i < arrlen(m->sfx); i++)
-                            SetSoundVolume(m->sfx[i], 0.f);
-                    } else  if (result < 0) {
-                        anyHover = 11;
-                    }
-                }
-                #endif
-
                 if (m->map.name[0]) {
                     Vector2 position;
                     Vector2 dimensions = MeasureTextEx(m->fonts.title, m->map.name, m->fonts.title.baseSize, 0);
-                    position.x = panel.x + panel.width / 2 - dimensions.x / 2;
+                    position.x = panel.x + (panel.width - button.width - UI_PADDING) / 2 - dimensions.x / 2;
                     position.y = panel.y + UI_SIDE_PANEL_HEADER / 2.f - dimensions.y / 2.f;
                     ui_text(m->fonts.title, m->map.name, Vector2Floor(position), m->fonts.title.baseSize, 0, BONE);
                 }
@@ -1337,12 +1253,33 @@ main(int argc, char* argv[])
 
             button.x = window.x + window.width / 2 - button.width / 2;
             button.y = window.y + window.height - UI_PADDING - button.height;
-            result = ui_button(button, "BACK", "Return to the game", KEY_ESCAPE, true);
+            button.x -= (button.width + UI_PADDING) / 2;
+            result = ui_button(button, "RESUME", "Return to the game", KEY_ESCAPE, true);
             if (result > 0) {
                 m->menu = GuiMenu_None;
                 PlaySound(m->click);
             } else  if (result < 0) {
                 anyHover = 12;
+            }
+
+            button.x += button.width + UI_PADDING;
+            if (m->flags & GlobalFlags_ConfirmExit) {
+                result = ui_button(button, "CONFIRM?", "Are you sure you want to quit?", KEY_NULL, true);
+                if (result > 0) {
+                    m->flags |= GlobalFlags_RequestQuit;
+                } else  if (result < 0) {
+                    anyHover = 10;
+                } else {
+                    m->flags &= ~(GlobalFlags_ConfirmExit);
+                }
+            } else {
+                result = ui_button(button, "EXIT", "Quit the game and return to desktop", KEY_NULL, true);
+                if (result > 0) {
+                    m->flags |= GlobalFlags_ConfirmExit;
+                    PlaySound(m->click2);
+                } else  if (result < 0) {
+                    anyHover = 10;
+                }
             }
 
             ui_border(m->border, window, BONE);
