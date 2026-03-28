@@ -142,6 +142,10 @@ ui_button(Rectangle rect, char* text, char* tooltip, int hotkey, bool enabled)
     }
 
 draw:
+    if (result > 0 && (m->flags & GlobalFlags_IgnoreInput)) {
+        result = 0;
+    }
+
     rect = RectangleFloor(rect);
     measure = MeasureTextEx(m->fonts.heading, text, m->fonts.heading.baseSize, 0);
     position.x = floorf(rect.x + rect.width / 2 - measure.x / 2);

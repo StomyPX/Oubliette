@@ -633,6 +633,7 @@ ui_dungeon(void)
                                 KEY_ESCAPE, m->screen == GuiScreen_None);
             if (result > 0) {
                 m->screen = GuiScreen_Options;
+                m->flags |= GlobalFlags_IgnoreInput;
                 PlaySound(m->click);
             }
 
@@ -1112,10 +1113,17 @@ ui_options(void)
     if (result > 0) {
         m->screen = GuiScreen_None;
         PlaySound(m->click);
+        m->flags |= GlobalFlags_IgnoreInput;
     }
 
     button.x += button.width + UI_PADDING;
-    ui_button(button, "EXIT", "TODO: Exit current game and return to main menu", KEY_NULL, true);
+    if (m->map.name[0]) {
+        result = ui_button(button, "EXIT", "TODO: Exit current game and return to main menu", KEY_NULL, true);
+        if (result > 0) {
+            PlaySound(m->click);
+            m->flags |= GlobalFlags_IgnoreInput;
+        }
+    }
 
     button.x += button.width + UI_PADDING;
     if (m->flags & GlobalFlags_ConfirmQuit) {

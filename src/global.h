@@ -20,5 +20,6 @@ typedef enum {
     GlobalFlags_IgnoreEncounters    = 1 << 14,
     GlobalFlags_ShowTileFlags       = 1 << 15,
     GlobalFlags_ShowTooltips        = 1 << 16,
+    GlobalFlags_IgnoreInput         = 1 << 17,
 } GlobalFlags_t; /* Need to append Type to avoid clash with symbols on windows */
 

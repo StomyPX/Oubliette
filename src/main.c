@@ -209,6 +209,7 @@ main(int argc, char* argv[])
         m->elementHover = 0;
         m->elementCount = 0;
         m->tooltip[0] = 0;
+        m->flags &= ~(GlobalFlags_IgnoreInput);
 
         UpdateMusicStream(m->music.ambient);
 
