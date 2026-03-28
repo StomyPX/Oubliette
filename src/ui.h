@@ -17,9 +17,15 @@ typedef enum
 {
     GuiScreen_None = 0,
     GuiScreen_Options,
+    GuiScreen_Intro,
     GuiScreen_NewGame,
-    GuiScreen_Actions,
+    GuiScreen_Credits,
 } GuiScreen;
+
+typedef enum
+{
+    GuiPopup_Actions,
+} GuiPopup;
 
 typedef struct
 {
@@ -43,4 +49,5 @@ static void ui_tooltipPane(void);
 
 /* Screens */
 
+static void ui_dungeon(void); /* Primary gameplay screen */
 static void ui_options(void);

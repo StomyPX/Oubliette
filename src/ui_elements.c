@@ -474,12 +474,6 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
 
         DrawTexturePro(ptex, (Rectangle){0, 0, ptex.width, ptex.height}, portrait, zero, 0.f, color);
 
-        if (ch->effects.flash > 0.f) {
-            Color fcolor = ColorAlpha(ch->effects.color, ch->effects.flash);
-            DrawTexturePro(m->flash, (Rectangle){0, 0, m->flash.width, m->flash.height},
-                            portrait, zero, 0.f, fcolor);
-        }
-
         /* Write status effects over the portrait */
         BeginScissorMode(portrait.x, portrait.y, portrait.width, portrait.height);
         position.x = portrait.x + UI_PADDING;
@@ -533,6 +527,12 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
         EndScissorMode();
 
         ui_border(m->border, portrait, BONE);
+    }
+
+    if (ch->effects.flash > 0.f) {
+        Color fcolor = ColorAlpha(ch->effects.color, ch->effects.flash);
+        DrawTexturePro(m->flash, (Rectangle){0, 0, m->flash.width, m->flash.height},
+                        card, zero, 0.f, fcolor);
     }
 
     PortraitEffects_update(&ch->effects, GetFrameTime());

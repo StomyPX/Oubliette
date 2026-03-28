@@ -50,6 +50,7 @@ typedef struct Memory_ {
     int elementCount;
     int elementHover;
     int elementHoverLast;
+    Vector2 dragStart;
 
     union {
         Music all[5];
