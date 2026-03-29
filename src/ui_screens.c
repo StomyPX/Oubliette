@@ -46,7 +46,7 @@ ui_mainMenu(void)
 
             position.y = m->area.top + m->area.height / 2 - UI_PADDING * 2;
             position.y -= f->baseSize;
-            if (position.y + button.height * 5 + UI_PADDING * 8 + m->fonts.text.baseSize + f->baseSize > m->area.bottom) {
+            if (position.y + button.height * 4 + UI_PADDING * 7 + m->fonts.text.baseSize + f->baseSize > m->area.bottom) {
                 position.y = m->area.top + UI_PADDING * 2;
             }
 
@@ -56,11 +56,6 @@ ui_mainMenu(void)
 
         button.x = position.x;
         button.y = position.y;
-
-        result = ui_button(button, "INTRODUCTION", "TODO: Not implemented yet", KEY_NULL, m->screen == GuiScreen_None);
-        if (result > 0) {
-            PlaySound(m->click);
-        }
 
         button.y += button.height + UI_PADDING;
         result = ui_button(button, "START GAME", "Start a new game", KEY_NULL, m->screen == GuiScreen_None);
@@ -102,8 +97,10 @@ ui_mainMenu(void)
         }
 
         button.y += button.height + UI_PADDING;
-        result = ui_button(button, "CREDITS", "TODO: Not implemented yet", KEY_NULL, m->screen == GuiScreen_None);
+        result = ui_button(button, "CREDITS", "View game credits", KEY_NULL, m->screen == GuiScreen_None);
         if (result > 0) {
+            m->screen = GuiScreen_Credits;
+            m->flags |= GlobalFlags_IgnoreInput;
             PlaySound(m->click);
         }
 
@@ -134,6 +131,8 @@ ui_mainMenu(void)
             Color color = ColorAlpha(BLACK, 1.f - m->fadein * 2.f);
             DrawRectangle(0, 0, GetRenderWidth(), GetRenderHeight(), color);
         }
+
+        util_drawLog();
     }
     EndDrawing();
     m->fadein += m->deltaTime / 2.f;
@@ -711,7 +710,6 @@ ui_dungeon(void)
                             m->flags |= GlobalFlags_TheEnd;
                             m->encounter.ticks = 0;
                             ui_log(MINDAROGREEN, "You climb out of the Oubliette, to a new and uncertain future...");
-                            ui_dumpCredits();
                             PlaySound(m->victory);
                             main_changeSong(&m->music.victory - &m->music.ambient);
                             m->music.delay = 3.f;
@@ -1002,8 +1000,6 @@ ui_dungeon(void)
             }
             ext_CImguiRender(&m->ext.cimgui);
         }
-
-        util_drawLog();
     }
 
     if (m->fadein < 0.5f) {
@@ -1014,6 +1010,8 @@ ui_dungeon(void)
     if (m->screen == GuiScreen_Options) {
         ui_options();
     }
+
+    util_drawLog();
 
     EndDrawing();
     m->fadein += m->deltaTime / 2.f;
@@ -1299,4 +1297,82 @@ ui_options(void)
     if (m->flags & GlobalFlags_ShowTooltips) {
         ui_tooltipPane();
     }
+}
+
+static void
+ui_credits(void)
+{
+    BeginDrawing();
+    {
+        Vector2 position;
+        Rectangle button, canvas;
+        char* credits;
+
+        DrawTextureRec(m->textures.marble, (Rectangle){0, 0, GetRenderWidth(), GetRenderHeight()}, (Vector2){0, 0}, DARKBROWN);
+
+        canvas.x = m->area.left + UI_PADDING * 2;
+        canvas.y = m->area.top + UI_PADDING * 2;
+        canvas.width = m->area.width - UI_PADDING * 4;
+        canvas.height = m->area.height - UI_PADDING * 4;
+        DrawTexturePro(m->textures.vellum, canvas, canvas, (Vector2){0, 0}, 0.f, WHITE);
+        BeginScissorMode(canvas.x, canvas.y, canvas.width, canvas.height);
+
+        { /* Decorative Flourish */
+            Vector2 position;
+            float scale;
+
+            if (canvas.width / 2 - UI_PADDING * 2 < m->textures.stationery.width) {
+                scale = (float)(canvas.width / 2 - UI_PADDING * 2) / m->textures.stationery.width;
+            } else {
+                scale = 1.f;
+            }
+
+            position.x = canvas.x + canvas.width - UI_PADDING - m->textures.stationery.width * scale;
+            position.y = canvas.y + UI_PADDING;
+            DrawTextureEx(m->textures.stationery, position, 0.f, scale, ZINNWALDITEBROWN);
+        }
+
+        position.x = canvas.x + UI_PADDING * 2;
+        position.y = canvas.y + UI_PADDING * 2;
+        DrawTextEx(m->fonts.title, "CREDITS", position, m->fonts.title.baseSize, 0, ZINNWALDITEBROWN);
+        position.y += UI_PADDING + m->fonts.title.baseSize;
+        credits =
+        "Programming, Design, 3D Models: Stomy (stomygame.itch.io)\n"
+        " \n"
+        "Featuring public domain artwork by:\n"
+        " Gustave Dore, Sidney Sime, Harry Clarke, Alfred Kubin, Henry Justice Ford, and others\n"
+        " \n"
+        "Music:\n"
+        " \"Specters of the Enclave\" by Eliot Corley from ChaosIsHarmony (CC-BY 3.0, opengameart.org)\n"
+        " \"Welt Herrscherer Theme\" by yd (CC0, opengameart.org)\n"
+        " \"Apologies to JSB\" by Yubatake (CC-BY 3.0, opengameart.org)\n"
+        " \"Lament for a Warrior's Soul\" by RandomMind (CC0, opengameart.org)\n"
+        " \n"
+        "Ambient Track: \"Dark Ambient\" by Alexandr Zhelanov (CC-BY 3.0, opengameart.org)\n"
+        "   https://soundcloud.com/alexandr-zhelanov\n"
+        "Sound Effects from freesound.org. Artists:\n"
+        "   nomiqbomi, el_boss, tom_a73, kyles, Aerny\n"
+        " \n"
+        "Delven Textures by Bradley D. (https://strideh.itch.io)\n"
+        "Torment Textures by Bradley D. (https://strideh.itch.io)\n"
+        "Additional CC0 textures by sean10m, Kenney\n"
+        "Stone Coffin model by Yughues";
+        DrawTextEx(m->fonts.text, credits, position, m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+
+        button.width = 120;
+        button.height = 48;
+        button.x = canvas.x + canvas.width - UI_PADDING * 2 - button.width;
+        button.y = canvas.y + canvas.height - UI_PADDING * 2 - button.height;
+        if (ui_button(button, "BACK", "", KEY_NULL, true) > 0) {
+            m->screen = GuiScreen_None;
+            m->flags |= GlobalFlags_IgnoreInput;
+            main_changeSong(&m->music.intro - &m->music.ambient);
+            PlaySound(m->click);
+        }
+
+        EndScissorMode();
+        ui_border(m->textures.border, canvas, BONE);
+        util_drawLog();
+    }
+    EndDrawing();
 }

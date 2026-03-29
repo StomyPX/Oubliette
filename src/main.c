@@ -175,6 +175,7 @@ main(int argc, char* argv[])
     m->textures.options = LoadTexture("data/textures/options.png");
     m->textures.panel = LoadTexture("data/textures/panel.png");
     m->textures.descent = LoadTexture("data/textures/descent.jpg");
+    m->textures.stationery = LoadTexture("data/textures/stationery.png");
     for (int i = 0; i < arrlen(m->textures.scene); i++) {
         char buf[32];
         snprintf(buf, sizeof(buf), "data/textures/scene_%02i.jpg", i);
@@ -329,6 +330,8 @@ main(int argc, char* argv[])
 
         if (m->map.name[0]) {
             ui_dungeon();
+        } else if (m->screen == GuiScreen_Credits) {
+            ui_credits();
         } else {
             ui_mainMenu();
         }

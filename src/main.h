@@ -50,7 +50,7 @@ typedef struct Memory_ {
     Vector2 dragStart;
 
     union {
-        Texture all[13];
+        Texture all[14];
         struct {
             Texture border;
             Texture marble;
@@ -60,6 +60,7 @@ typedef struct Memory_ {
             Texture options;
             Texture panel;
             Texture descent;
+            Texture stationery;
             Texture scene[5];
         };
     } textures;

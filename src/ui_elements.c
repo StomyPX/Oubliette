@@ -178,34 +178,6 @@ draw:
     return result;
 }
 
-static void
-ui_dumpCredits(void)
-{
-    ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "CREDITS:");
-    ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "Programming, Design, 3D Models: Stomy (stomygame.itch.io)");
-    ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "Featuring public domain artwork by:");
-    ui_log(ZINNWALDITEBROWN, " Gustave Doré, Sidney Sime, Harry Clarke, Alfred Kubin, Henry Justice Ford, and others");
-    ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "Music:");
-    ui_log(ZINNWALDITEBROWN, " \"Specters of the Enclave\" by Eliot Corley from ChaosIsHarmony (CC-BY 3.0, opengameart.org)");
-    ui_log(ZINNWALDITEBROWN, " \"Welt Herrscherer Theme\" by yd (CC0, opengameart.org)");
-    ui_log(ZINNWALDITEBROWN, " \"Apologies to JSB\" by Yubatake (CC-BY 3.0, opengameart.org)");
-    ui_log(ZINNWALDITEBROWN, " \"Lament for a Warrior's Soul\" by RandomMind (CC0, opengameart.org)");
-    ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "Ambient Track: \"Dark Ambient\" by Alexandr Zhelanov (CC-BY 3.0, opengameart.org)");
-    ui_log(ZINNWALDITEBROWN, "   https://soundcloud.com/alexandr-zhelanov");
-    ui_log(ZINNWALDITEBROWN, "Sound Effects from freesound.org. Artists:");
-    ui_log(ZINNWALDITEBROWN, "   nomiqbomi, el_boss, tom_a73, kyles, Aerny");
-    ui_log(ZINNWALDITEBROWN, " ");
-    ui_log(ZINNWALDITEBROWN, "Delven Textures by Bradley D. (https://strideh.itch.io)");
-    ui_log(ZINNWALDITEBROWN, "Torment Textures by Bradley D. (https://strideh.itch.io)");
-    ui_log(ZINNWALDITEBROWN, "Additional CC0 textures by sean10m, Kenney");
-    ui_log(ZINNWALDITEBROWN, "Stone Coffin model by Yughues");
-}
-
 static int
 ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
 {
