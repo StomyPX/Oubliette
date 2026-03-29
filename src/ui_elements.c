@@ -153,23 +153,23 @@ draw:
     if (result && (IsMouseButtonDown(0) || IsKeyDown(hotkey))) { // Down
         Color fade = ColorLerp(MAROON, BLACK, 0.6f);
         position.y += 1;
-        DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, fade);
+        DrawTexturePro(m->textures.marble, rect, rect, (Vector2){0, 0}, 0.f, fade);
         BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
         ui_text(m->fonts.heading, text, position, m->fonts.heading.baseSize, 0, MOSSGREEN);
         EndScissorMode();
-        ui_border(m->border, rect, MINDAROGREEN);
+        ui_border(m->textures.border, rect, MINDAROGREEN);
     } else if (result < 0) { // Hover
-        DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, MAROON);
+        DrawTexturePro(m->textures.marble, rect, rect, (Vector2){0, 0}, 0.f, MAROON);
         BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
         ui_text(m->fonts.heading, text, position, m->fonts.heading.baseSize, 0, MINDAROGREEN);
         EndScissorMode();
-        ui_border(m->border, rect, MINDAROGREEN);
+        ui_border(m->textures.border, rect, MINDAROGREEN);
     } else { // Normal
-        DrawTexturePro(m->marble, rect, rect, (Vector2){0, 0}, 0.f, MAROON);
+        DrawTexturePro(m->textures.marble, rect, rect, (Vector2){0, 0}, 0.f, MAROON);
         BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
         ui_text(m->fonts.heading, text, position, m->fonts.heading.baseSize, 0, BONE);
         EndScissorMode();
-        ui_border(m->border, rect, BONE);
+        ui_border(m->textures.border, rect, BONE);
     }
 
     if (result != 0)
@@ -216,7 +216,7 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
     Color color;
     int result;
 
-    ptex = ch->health >= 0 ? ch->portrait : m->dead;
+    ptex = ch->health >= 0 ? ch->portrait : m->textures.dead;
     portrait.x = card.x + UI_PADDING;
     portrait.y = card.y + UI_PADDING;
     portrait.width = portraitSize;
@@ -227,7 +227,7 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
 
     card = RectangleFloor(card);
     portrait = RectangleFloor(portrait);
-    DrawTextureRec(m->vellum, card, (Vector2){card.x, card.y}, WHITE);
+    DrawTextureRec(m->textures.vellum, card, (Vector2){card.x, card.y}, WHITE);
 
     { /* Information */
         char buffer[64];
@@ -271,7 +271,7 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
         position.y += m->fonts.text.baseSize;
 
         EndScissorMode();
-        ui_border(m->border, card, BONE);
+        ui_border(m->textures.border, card, BONE);
     }
 
     { /* Action selection button */
@@ -530,12 +530,12 @@ ui_characterHudCard(Character* ch, Rectangle card, int portraitSize, int hotkey)
         }
         EndScissorMode();
 
-        ui_border(m->border, portrait, BONE);
+        ui_border(m->textures.border, portrait, BONE);
     }
 
     if (ch->effects.flash > 0.f) {
         Color fcolor = ColorAlpha(ch->effects.color, ch->effects.flash);
-        DrawTexturePro(m->flash, (Rectangle){0, 0, m->flash.width, m->flash.height},
+        DrawTexturePro(m->textures.flash, (Rectangle){0, 0, m->textures.flash.width, m->textures.flash.height},
                         card, zero, 0.f, fcolor);
     }
 
@@ -555,12 +555,12 @@ ui_tooltipPane(void)
     pane.height = m->fonts.text.baseSize + UI_PADDING * 2 + EXTRA_PADDING;
     pane.x = -EXTRA_PADDING;
     pane.y = GetRenderHeight() - (m->fonts.text.baseSize + UI_PADDING * 2);
-    DrawTexturePro(m->marble, pane, pane, (Vector2){0,0}, 0.f, DARKBROWN);
+    DrawTexturePro(m->textures.marble, pane, pane, (Vector2){0,0}, 0.f, DARKBROWN);
 
     position.x = UI_PADDING * 2;
     position.y = GetRenderHeight() - m->fonts.text.baseSize - UI_PADDING;
     if (m->tooltip[0])
         ui_text(m->fonts.text, m->tooltip, position, m->fonts.text.baseSize, 0, BONE);
 
-    ui_border(m->border, pane, BONE);
+    ui_border(m->textures.border, pane, BONE);
 }

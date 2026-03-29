@@ -207,7 +207,7 @@ ui_dungeon(void)
 
     BeginDrawing();
     {
-        DrawTextureRec(m->marble, (Rectangle){0, 0, GetRenderWidth(), GetRenderHeight()}, (Vector2){0, 0}, DARKBROWN);
+        DrawTextureRec(m->textures.marble, (Rectangle){0, 0, GetRenderWidth(), GetRenderHeight()}, (Vector2){0, 0}, DARKBROWN);
 
         if (m->flags & GlobalFlags_Encounter) {
             Texture* tex;
@@ -248,7 +248,8 @@ ui_dungeon(void)
 
             if (stack->effects.flash > 0.f) {
                 Color fcolor = ColorAlpha(stack->effects.color, stack->effects.flash);
-                DrawTexturePro(m->flash, (Rectangle){0, 0, m->flash.width, m->flash.height},
+                DrawTexturePro(m->textures.flash,
+                                (Rectangle){0, 0, m->textures.flash.width, m->textures.flash.height},
                                 viewport, (Vector2){0,0}, 0.f, fcolor);
             }
 
@@ -292,23 +293,25 @@ ui_dungeon(void)
                     }
                 }
 
-                if (stack->alive == 1) {
-                    snprintf(buffer, sizeof(buffer), stack->class.truename);
-                } else {
-                    snprintf(buffer, sizeof(buffer), "%u %s", stack->alive, stack->class.truenamePlural);
+                if (stack->alive > 0) {
+                    if (stack->alive == 1) {
+                        snprintf(buffer, sizeof(buffer), stack->class.truename);
+                    } else {
+                        snprintf(buffer, sizeof(buffer), "%u %s", stack->alive, stack->class.truenamePlural);
+                    }
+
+                    dims = MeasureTextEx(m->fonts.title, buffer, m->fonts.title.baseSize, 0);
+                    frame.x = viewport.x + UI_PADDING;
+                    frame.y = viewport.y + UI_PADDING;
+                    frame.width = dims.x + UI_PADDING * 4;
+                    frame.height = dims.y + UI_PADDING * 2;
+                    DrawRectangleRec(frame, ColorAlpha(BLACK, 0.5f));
+                    ui_border(m->textures.border, frame, BONE);
+
+                    position.x = frame.x + UI_PADDING * 2;
+                    position.y = frame.y + UI_PADDING;
+                    ui_text(m->fonts.title, buffer, position, m->fonts.title.baseSize, 0, MINDAROGREEN);
                 }
-
-                dims = MeasureTextEx(m->fonts.title, buffer, m->fonts.title.baseSize, 0);
-                frame.x = viewport.x + UI_PADDING;
-                frame.y = viewport.y + UI_PADDING;
-                frame.width = dims.x + UI_PADDING * 4;
-                frame.height = dims.y + UI_PADDING * 2;
-                DrawRectangleRec(frame, ColorAlpha(BLACK, 0.5f));
-                ui_border(m->border, frame, BONE);
-
-                position.x = frame.x + UI_PADDING * 2;
-                position.y = frame.y + UI_PADDING;
-                ui_text(m->fonts.title, buffer, position, m->fonts.title.baseSize, 0, MINDAROGREEN);
 
                 /* FIGHT! */
                 button.width = 120;
@@ -618,7 +621,7 @@ ui_dungeon(void)
             }
         }
 
-        ui_border(m->border, viewport, BONE);
+        ui_border(m->textures.border, viewport, BONE);
 
         { /* Header */
             Rectangle button;
@@ -698,22 +701,22 @@ ui_dungeon(void)
 
             if (util_mouseInRect(panel))
                 m->logScroll += (int)GetMouseWheelMoveV().y * 3;
-            DrawTextureRec(m->vellum, panel, (Vector2){panel.x, panel.y}, WHITE);
+            DrawTextureRec(m->textures.vellum, panel, (Vector2){panel.x, panel.y}, WHITE);
             BeginScissorMode(panel.x, panel.y, panel.width, panel.height);
 
             { /* Decorative Flourish */
                 Vector2 position;
                 float scale;
 
-                if (panel.width / 2 - UI_PADDING * 2 < m->panel.width) {
-                    scale = (float)(panel.width / 2 - UI_PADDING * 2) / m->panel.width;
+                if (panel.width / 2 - UI_PADDING * 2 < m->textures.panel.width) {
+                    scale = (float)(panel.width / 2 - UI_PADDING * 2) / m->textures.panel.width;
                 } else {
                     scale = 1.f;
                 }
 
-                position.x = panel.x + panel.width - UI_PADDING - m->panel.width * scale;
+                position.x = panel.x + panel.width - UI_PADDING - m->textures.panel.width * scale;
                 position.y = panel.y + UI_PADDING;
-                DrawTextureEx(m->panel, position, 0.f, scale, ZINNWALDITEBROWN);
+                DrawTextureEx(m->textures.panel, position, 0.f, scale, ZINNWALDITEBROWN);
             }
 
             /* Find scroll point first */
@@ -754,7 +757,7 @@ ui_dungeon(void)
             }
             EndScissorMode();
             // TODO scrollbar
-            ui_border(m->border, panel, BONE);
+            ui_border(m->textures.border, panel, BONE);
         }
 
         if (m->flags & GlobalFlags_GameOver) {
@@ -769,7 +772,7 @@ ui_dungeon(void)
             frame.height = measure.y + UI_PADDING * 2;
             frame = RectangleFloor(frame);
             DrawRectangleRec(frame, ColorAlpha(BLACK, 0.8f));
-            ui_border(m->border, frame, BONE);
+            ui_border(m->textures.border, frame, BONE);
             position.x = frame.x + UI_PADDING * 2;
             position.y = frame.y + UI_PADDING;
             ui_text(m->fonts.big, "GAME OVER", Vector2Floor(position), m->fonts.big.baseSize, 0, MAROON);
@@ -785,7 +788,7 @@ ui_dungeon(void)
             frame.height = measure.y + UI_PADDING * 2;
             frame = RectangleFloor(frame);
             DrawRectangleRec(frame, ColorAlpha(BLACK, 0.8f));
-            ui_border(m->border, frame, BONE);
+            ui_border(m->textures.border, frame, BONE);
             position.x = frame.x + UI_PADDING * 2;
             position.y = frame.y + UI_PADDING;
             ui_text(m->fonts.big, "THE END", position, m->fonts.big.baseSize, 0, MINDAROGREEN);
@@ -970,19 +973,19 @@ ui_options(void)
     window.height = button.height * 7 + UI_PADDING * 7 + dims.y;
     window.x = GetRenderWidth() / 2 - window.width / 2;
     window.y = GetRenderHeight() / 2 - window.height / 2;
-    DrawTexturePro(m->vellum, window, window, (Vector2){0,0}, 0.f, WHITE);
+    DrawTexturePro(m->textures.vellum, window, window, (Vector2){0,0}, 0.f, WHITE);
 
     { /* Decorative Image */
         Rectangle dest, source;
         float scale;
 
-        source = (Rectangle){0, 0, m->options.width, m->options.height};
+        source = (Rectangle){0, 0, m->textures.options.width, m->textures.options.height};
         dest.x = window.x + UI_PADDING;
         dest.y = window.y + UI_PADDING;
         dest.height = window.height - UI_PADDING * 2 - button.height;
         scale = (float)dest.height / (float)source.height;
         dest.width = source.width * scale;
-        DrawTexturePro(m->options, source, dest, (Vector2){0,0}, 0.f, ZINNWALDITEBROWN);
+        DrawTexturePro(m->textures.options, source, dest, (Vector2){0,0}, 0.f, ZINNWALDITEBROWN);
     }
 
     position.x = window.x + window.width / 2;
@@ -1141,7 +1144,7 @@ ui_options(void)
         }
     }
 
-    ui_border(m->border, window, BONE);
+    ui_border(m->textures.border, window, BONE);
 
     if (m->flags & GlobalFlags_ShowTooltips) {
         ui_tooltipPane();

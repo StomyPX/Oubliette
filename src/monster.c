@@ -135,6 +135,8 @@ MonsterClass_init(struct json_object_s* object)
         snprintf(path, sizeof(path), "data/monsters/%s", texture);
         mc.texture = LoadTexture(path);
         GenTextureMipmaps(&mc.texture);
+        SetTextureFilter(mc.texture, TEXTURE_FILTER_TRILINEAR);
+        SetTextureFilter(mc.texture, TEXTURE_FILTER_ANISOTROPIC_16X);
 
         /* Other initialization (plurals, derived defaults etc) */
         if (!mc.truenamePlural[0])

@@ -139,6 +139,8 @@ char_random(void)
 
                             c.portrait = LoadTexture(path);
                             GenTextureMipmaps(&c.portrait);
+                            SetTextureFilter(c.portrait, TEXTURE_FILTER_TRILINEAR);
+                            SetTextureFilter(c.portrait, TEXTURE_FILTER_ANISOTROPIC_16X);
                             strncpy(c.name, p, flags - p);
                             c.name[0] = toupper(c.name[0]);
                             for (int i = 1; i < sizeof(c.name) && c.name[i]; i++) {

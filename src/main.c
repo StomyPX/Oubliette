@@ -167,13 +167,19 @@ main(int argc, char* argv[])
     m->fonts.title = LoadFontEx("data/fonts/Coelacanth.otf", 64, 0, 0);
     m->fonts.big = LoadFontEx("data/fonts/Coelacanth.otf", 200, 0, 0);
 
-    m->border = LoadTexture("data/textures/panel-border.png");
-    m->marble = LoadTexture("data/textures/Marble023B.png");
-    m->vellum = LoadTexture("data/textures/parchment_2.png");
-    m->dead = LoadTexture("data/textures/dead.jpg");
-    m->flash = LoadTexture("data/textures/portrait_flash.png");
-    m->options = LoadTexture("data/textures/options.png");
-    m->panel = LoadTexture("data/textures/panel.png");
+    m->textures.border = LoadTexture("data/textures/panel-border.png");
+    m->textures.marble = LoadTexture("data/textures/Marble023B.png");
+    m->textures.vellum = LoadTexture("data/textures/parchment_2.png");
+    m->textures.dead = LoadTexture("data/textures/dead.jpg");
+    m->textures.flash = LoadTexture("data/textures/portrait_flash.png");
+    m->textures.options = LoadTexture("data/textures/options.png");
+    m->textures.panel = LoadTexture("data/textures/panel.png");
+
+    for (int i = 0; i < arrlen(m->textures.all); i++){
+        GenTextureMipmaps(m->textures.all + i);
+        SetTextureFilter(m->textures.all[i], TEXTURE_FILTER_TRILINEAR);
+        SetTextureFilter(m->textures.all[i], TEXTURE_FILTER_ANISOTROPIC_16X);
+    }
 
     m->music.ambient = LoadMusicStream("darkambient.mp3");
     m->music.intro   = LoadMusicStream("specters.mp3");
@@ -369,23 +375,18 @@ main(int argc, char* argv[])
             size = ini_save(ini, content, size);
             ini_destroy(ini);
 
-            util_writeFileData("settings.ini", content, size);
+            util_writeFileText("settings.ini", content);
             MemFree(content);
         } else {
             TraceLog(LOG_ERROR, "Could not create ini context, settings will not be saved");
         }
     }
 
-    UnloadFont(m->fonts.text);
-    UnloadFont(m->fonts.heading);
-    UnloadFont(m->fonts.title);
-    UnloadFont(m->fonts.big);
-    UnloadTexture(m->border);
-    UnloadTexture(m->marble);
-    UnloadTexture(m->vellum);
-    UnloadTexture(m->flash);
-    UnloadTexture(m->options);
-    UnloadTexture(m->panel);
+    for (int i = 0; i < arrlen(m->textures.all); i++)
+        UnloadTexture(m->textures.all[i]);
+
+    for (int i = 0; i < arrlen(m->fonts.all); i++)
+        UnloadFont(m->fonts.all[i]);
 
     for (int i = 0; i < arrlen(m->music.all); i++)
         UnloadMusicStream(m->music.all[i]);

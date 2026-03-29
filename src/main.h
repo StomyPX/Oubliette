@@ -13,11 +13,14 @@ typedef struct Memory_ {
         int width, height;
     } area;
 
-    struct {
-        Font text;
-        Font heading;
-        Font title;
-        Font big;
+    union {
+        Font all[4];
+        struct {
+            Font text;
+            Font heading;
+            Font title;
+            Font big;
+        };
     } fonts;
 
     float deltaTime;
@@ -40,17 +43,23 @@ typedef struct Memory_ {
     uint32_t logCursor; // index to write to next
     uint32_t logScroll;
     float logScrollSmooth;
-    Texture border;
-    Texture marble;
-    Texture vellum;
-    Texture dead;
-    Texture flash;
-    Texture options;
-    Texture panel;
     int elementCount;
     int elementHover;
     int elementHoverLast;
     Vector2 dragStart;
+
+    union {
+        Texture all[7];
+        struct {
+            Texture border;
+            Texture marble;
+            Texture vellum;
+            Texture dead;
+            Texture flash;
+            Texture options;
+            Texture panel;
+        };
+    } textures;
 
     union {
         Music all[5];
