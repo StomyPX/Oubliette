@@ -44,10 +44,9 @@ ui_mainMenu(void)
                 f = &m->fonts.title;
             }
 
-            if (f->baseSize + button.height * 5 + UI_PADDING * 10 + m->fonts.text.baseSize < m->area.bottom) {
-                position.y = m->area.top + m->area.height / 2 - UI_PADDING * 2;
-                position.y -= f->baseSize;
-            } else {
+            position.y = m->area.top + m->area.height / 2 - UI_PADDING * 2;
+            position.y -= f->baseSize;
+            if (position.y + button.height * 5 + UI_PADDING * 8 + m->fonts.text.baseSize + f->baseSize > m->area.bottom) {
                 position.y = m->area.top + UI_PADDING * 2;
             }
 
@@ -58,7 +57,13 @@ ui_mainMenu(void)
         button.x = position.x;
         button.y = position.y;
 
-        result = ui_button(button, "NEW GAME", "Start a new game", KEY_NULL, m->screen == GuiScreen_None);
+        result = ui_button(button, "INTRODUCTION", "TODO: Not implemented yet", KEY_NULL, m->screen == GuiScreen_None);
+        if (result > 0) {
+            PlaySound(m->click);
+        }
+
+        button.y += button.height + UI_PADDING;
+        result = ui_button(button, "START GAME", "Start a new game", KEY_NULL, m->screen == GuiScreen_None);
         if (result > 0) {
             PlaySound(m->click);
             m->flags |= GlobalFlags_IgnoreInput;
@@ -77,13 +82,15 @@ ui_mainMenu(void)
                 }
             }
 
-            /* TODO Delay actually generating the map until displaying the new game screen */
+            /* TODO Delay actually generating the map and changing music until displaying the new game screen */
             map_generate(&m->map, util_rdtsc());
 
             m->partyFacing = 2; // Party always enters facing South
             m->partyX = m->map.entryX;
             m->partyY = m->map.entryY + 1;
             m->camera = map_cameraForTile(&m->map, m->partyX, m->partyY, m->partyFacing);
+
+            main_changeSong(&m->music.general - &m->music.ambient);
         }
 
         button.y += button.height + UI_PADDING;
@@ -91,12 +98,6 @@ ui_mainMenu(void)
         if (result > 0) {
             m->screen = GuiScreen_Options;
             m->flags |= GlobalFlags_IgnoreInput;
-            PlaySound(m->click);
-        }
-
-        button.y += button.height + UI_PADDING;
-        result = ui_button(button, "INTRODUCTION", "TODO: Not implemented yet", KEY_NULL, m->screen == GuiScreen_None);
-        if (result > 0) {
             PlaySound(m->click);
         }
 
@@ -1125,12 +1126,14 @@ ui_options(void)
     if (IsMusicStreamPlaying(m->music.all[m->music.track])) {
         result = ui_button(button, "ON", "Disable background music", KEY_NULL, true);
         if (result > 0) {
+            m->flags |= GlobalFlags_MuteMusic;
             StopMusicStream(m->music.all[m->music.track]);
             PlaySound(m->click);
         }
     } else {
         result = ui_button(button, "(off)", "Enable background music", KEY_NULL, true);
         if (result > 0) {
+            m->flags &= ~(GlobalFlags_MuteMusic);
             PlayMusicStream(m->music.all[m->music.track]);
             PlaySound(m->click);
         }
@@ -1144,12 +1147,14 @@ ui_options(void)
     if (IsMusicStreamPlaying(m->music.ambient)) {
         result = ui_button(button, "ON", "Disable ambient sound loop", KEY_NULL, true);
         if (result > 0) {
+            m->flags |= GlobalFlags_MuteAmbience;
             StopMusicStream(m->music.ambient);
             PlaySound(m->click);
         }
     } else {
         result = ui_button(button, "(off)", "Enable ambient sound loop", KEY_NULL, true);
         if (result > 0) {
+            m->flags &= ~(GlobalFlags_MuteAmbience);
             PlayMusicStream(m->music.ambient);
             PlaySound(m->click);
         }
@@ -1252,6 +1257,7 @@ ui_options(void)
                 m->screen = GuiScreen_None;
                 map_unload(&m->map);
                 m->fadein = 0.f;
+                main_changeSong(&m->music.intro - &m->music.ambient);
             } else if (result == 0) {
                 m->flags &= ~(GlobalFlags_ConfirmExit);
             }

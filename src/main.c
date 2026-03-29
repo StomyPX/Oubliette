@@ -127,9 +127,9 @@ main(int argc, char* argv[])
                     char* val = (char*)ini_property_value(ini, section, i);
 
                     if (strcmp(key, "enable music") == 0 && util_stricmp(val, "false") == 0) {
-                        m->flags |= GlobalFlags_MusicStartMuted;
+                        m->flags |= GlobalFlags_MuteMusic;
                     } else if (strcmp(key, "enable ambience") == 0 && util_stricmp(val, "false") == 0) {
-                        m->flags |= GlobalFlags_AmbientStartMuted;
+                        m->flags |= GlobalFlags_MuteAmbience;
                     } else if (strcmp(key, "enable sfx") == 0 && util_stricmp(val, "false") == 0) {
                         m->flags |= GlobalFlags_MuteSFX;
                     } else if (strcmp(key, "enable fullscreen") == 0 && util_stricmp(val, "false") != 0) {
@@ -195,12 +195,12 @@ main(int argc, char* argv[])
 
     SetMusicVolume(m->music.ambient, 0.3f);
     /* The order of these matters for some unknown reason, otherwise the ambient track doesn't play */
-    main_changeSong(&m->music.general - &m->music.ambient);
+    main_changeSong(&m->music.intro - &m->music.ambient);
     PlayMusicStream(m->music.ambient);
 
-    if (m->flags & GlobalFlags_MusicStartMuted)
+    if (m->flags & GlobalFlags_MuteMusic)
         StopMusicStream(m->music.all[m->music.track]);
-    if (m->flags & GlobalFlags_AmbientStartMuted)
+    if (m->flags & GlobalFlags_MuteAmbience)
         StopMusicStream(m->music.ambient);
 
     for (unsigned i = 0; i < arrlen(m->footstep); i++) {
@@ -260,7 +260,7 @@ main(int argc, char* argv[])
         if (m->map.name[0])
             UpdateMusicStream(m->music.ambient);
 
-        if (m->music.delay <= 0.f) {
+        if (m->music.delay <= 0.f && !(m->flags & GlobalFlags_MuteMusic)) {
             UpdateMusicStream(m->music.all[m->music.track]);
         } else {
             m->music.delay -= m->deltaTime;
@@ -352,11 +352,11 @@ main(int argc, char* argv[])
             section = ini_section_add(ini, key, strlen(key));
 
             key = "enable music";
-            val = IsMusicStreamPlaying(m->music.all[m->music.track]) ? "true" : "false";
+            val = !(m->flags & GlobalFlags_MuteMusic) ? "true" : "false";
             ini_property_add(ini, section, key, strlen(key), val, strlen(val));
 
             key = "enable ambience";
-            val = IsMusicStreamPlaying(m->music.ambient) ? "true" : "false";
+            val = !(m->flags & GlobalFlags_MuteAmbience) ? "true" : "false";
             ini_property_add(ini, section, key, strlen(key), val, strlen(val));
 
             key = "enable sfx";
@@ -424,16 +424,12 @@ main(int argc, char* argv[])
 static void
 main_changeSong(int track)
 {
-    bool play = true;
-
     if (track == m->music.track)
         return;
 
     if (m->music.track > 0) {
         if (IsMusicStreamPlaying(m->music.all[m->music.track])) {
             StopMusicStream(m->music.all[m->music.track]);
-        } else {
-            play = false;
         }
     }
 
@@ -441,7 +437,7 @@ main_changeSong(int track)
         m->music.track = 0;
     } else {
         m->music.track = track;
-        if (play)
+        if (!(m->flags & GlobalFlags_MuteMusic))
             PlayMusicStream(m->music.all[track]);
     }
 }
