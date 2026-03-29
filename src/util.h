@@ -9,6 +9,7 @@
 #define LIMEPULPGREEN (Color){209,225,137,255}
 #define MINDAROGREEN (Color){227,249,136,255}
 #define ZINNWALDITEBROWN (Color){44,22,8,255}
+#define EERIEBLACK (Color){27,27,27,255}
 #ifdef MAROON
 #undef MAROON
 #endif

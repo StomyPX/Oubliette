@@ -174,8 +174,14 @@ main(int argc, char* argv[])
     m->textures.flash = LoadTexture("data/textures/portrait_flash.png");
     m->textures.options = LoadTexture("data/textures/options.png");
     m->textures.panel = LoadTexture("data/textures/panel.png");
+    m->textures.descent = LoadTexture("data/textures/descent.jpg");
+    for (int i = 0; i < arrlen(m->textures.scene); i++) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "data/textures/scene_%02i.jpg", i);
+        m->textures.scene[i] = LoadTexture(buf);
+    }
 
-    for (int i = 0; i < arrlen(m->textures.all); i++){
+    for (int i = 0; i < arrlen(m->textures.all); i++) {
         GenTextureMipmaps(m->textures.all + i);
         SetTextureFilter(m->textures.all[i], TEXTURE_FILTER_TRILINEAR);
         SetTextureFilter(m->textures.all[i], TEXTURE_FILTER_ANISOTROPIC_16X);
@@ -230,28 +236,7 @@ main(int argc, char* argv[])
             SetSoundVolume(m->sfx[i], 0.f);
     }
 
-    for (int i = 0; i < arrlen(m->party); i++) {
-        m->party[i] = char_random();
-
-        /* Reroll duplicates */
-        for (int j = 0; j < i; j++) {
-            for (int k = 0; k < 10 && util_stricmp(m->party[j].name, m->party[i].name) == 0; k++) {
-                TraceLog(LOG_DEBUG, "CHARACTER: Duplicate random character %s, rerolling", m->party[j].name);
-                char_free(&m->party[i]);
-                m->party[i] = char_random();
-            }
-        }
-    }
-
-    map_generate(&m->map, util_rdtsc());
-
-    m->partyFacing = 2; // Party always enters facing South
-    m->partyX = m->map.entryX;
-    m->partyY = m->map.entryY + 1;
     m->partyMoveFreq = 0.2f;
-
-    m->camera = map_cameraForTile(&m->map, m->partyX, m->partyY, m->partyFacing);
-
     SetTargetFPS(200); /* TODO Make configurable, prefer VSync */
 
     /* Clear out all of Raylib's noise */
@@ -321,7 +306,32 @@ main(int argc, char* argv[])
                 m->flags ^= GlobalFlags_ShowTileFlags;
         }
 
-        ui_dungeon();
+        /* Restrict usable rendering area for extreme aspect ratios */
+        m->aspect = (float)GetRenderWidth() / (float)GetRenderHeight() * 100;
+        if (m->aspect > 240) {
+            m->area.width = GetRenderHeight() * 2.4f;
+            m->area.height = GetRenderHeight();
+            m->area.top = 0;
+            m->area.left = (GetRenderWidth() - m->area.width) / 2;
+        } else if (m->aspect < 100) {
+            m->area.width = GetRenderWidth();
+            m->area.height = GetRenderHeight();
+            m->area.top = (GetRenderHeight() - m->area.height) / 2;
+            m->area.left = 0;
+        } else {
+            m->area.width = GetRenderWidth();
+            m->area.height = GetRenderHeight();
+            m->area.top = 0;
+            m->area.left = 0;
+        }
+        m->area.bottom = m->area.top + m->area.height;
+        m->area.right = m->area.left + m->area.width;
+
+        if (m->map.name[0]) {
+            ui_dungeon();
+        } else {
+            ui_mainMenu();
+        }
 
         if (m->elementHover && m->elementHoverLast != m->elementHover)
             PlaySound(m->hover);
@@ -397,6 +407,8 @@ main(int argc, char* argv[])
     for (int i = 0; i < arrlen(m->party); i++)
         char_free(m->party + i);
     UnloadRenderTexture(m->rtex);
+    if (m->map.name[0])
+        map_unload(&m->map);
     monster_cleanup(&m->monsters);
 
     ext_deinit(&m->ext);

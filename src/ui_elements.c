@@ -187,7 +187,7 @@ ui_dumpCredits(void)
     ui_log(ZINNWALDITEBROWN, "Programming, Design, 3D Models: Stomy (stomygame.itch.io)");
     ui_log(ZINNWALDITEBROWN, " ");
     ui_log(ZINNWALDITEBROWN, "Featuring public domain artwork by:");
-    ui_log(ZINNWALDITEBROWN, " Sidney Sime, Harry Clarke, Alfred Kubin, Henry Justice Ford, and others");
+    ui_log(ZINNWALDITEBROWN, " Gustave Doré, Sidney Sime, Harry Clarke, Alfred Kubin, Henry Justice Ford, and others");
     ui_log(ZINNWALDITEBROWN, " ");
     ui_log(ZINNWALDITEBROWN, "Music:");
     ui_log(ZINNWALDITEBROWN, " \"Specters of the Enclave\" by Eliot Corley from ChaosIsHarmony (CC-BY 3.0, opengameart.org)");

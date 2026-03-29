@@ -43,6 +43,7 @@ static void ui_border(Texture border, Rectangle rec, Color color);
 static void ui_log(Color color, char* fmt, ...);
 /* -1 on hover, 1 on LMB down */
 static int ui_button(Rectangle rect, char* text, char* tooltip, int hotkey, bool enabled);
+static Rectangle ui_area(int* out_aspect);
 
 static void ui_dumpCredits(void);
 static int ui_characterHudCard(Character* c, Rectangle r, int portraitSize, int keycode);
@@ -50,5 +51,6 @@ static void ui_tooltipPane(void);
 
 /* Screens */
 
+static void ui_mainMenu(void);
 static void ui_dungeon(void); /* Primary gameplay screen */
 static void ui_options(void);

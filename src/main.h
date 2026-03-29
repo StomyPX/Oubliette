@@ -12,6 +12,7 @@ typedef struct Memory_ {
         int top, left, bottom, right;
         int width, height;
     } area;
+    int aspect; /* Aspect ratio expressed as a percentage (100 is square) */
 
     union {
         Font all[4];
@@ -49,7 +50,7 @@ typedef struct Memory_ {
     Vector2 dragStart;
 
     union {
-        Texture all[7];
+        Texture all[13];
         struct {
             Texture border;
             Texture marble;
@@ -58,6 +59,8 @@ typedef struct Memory_ {
             Texture flash;
             Texture options;
             Texture panel;
+            Texture descent;
+            Texture scene[5];
         };
     } textures;
 

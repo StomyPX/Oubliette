@@ -1,4 +1,145 @@
 static void
+ui_mainMenu(void)
+{
+    BeginDrawing();
+    {
+        Vector2 position;
+        Rectangle button;
+        int result;
+
+        DrawTextureRec(m->textures.marble, (Rectangle){0, 0, GetRenderWidth(), GetRenderHeight()},
+                        (Vector2){0, 0}, EERIEBLACK);
+        button.width = 256;
+        button.height = 48;
+
+        { /* Roland's descent */
+            Rectangle source, dest;
+            float proportion;
+
+            source.x = 0;
+            source.y = 0;
+            source.width = m->textures.descent.width;
+            source.height = m->textures.descent.height;
+
+            dest.y = UI_PADDING * 2;
+            dest.height = GetRenderHeight() - UI_PADDING * 4;
+            proportion = dest.height / m->textures.descent.height;
+            dest.width = m->textures.descent.width * proportion;
+            dest.x = m->area.left + m->area.width / 2 - dest.width - UI_PADDING;
+
+            DrawTexturePro(m->textures.descent, source, dest, (Vector2){0, 0}, 0.f, WHITE);
+            ui_border(m->textures.border, dest, BONE);
+        }
+
+        { /* Title */
+            Vector2 dims;
+            Font* f;
+
+            dims = MeasureTextEx(m->fonts.big, "Oubliette", m->fonts.big.baseSize, 0);
+            position.x = m->area.left + m->area.width / 2 + 100;
+
+            if (position.x + dims.x + UI_PADDING < GetRenderWidth()) {
+                f = &m->fonts.big;
+            } else {
+                f = &m->fonts.title;
+            }
+
+            if (f->baseSize + button.height * 5 + UI_PADDING * 10 + m->fonts.text.baseSize < m->area.bottom) {
+                position.y = m->area.top + m->area.height / 2 - UI_PADDING * 2;
+                position.y -= f->baseSize;
+            } else {
+                position.y = m->area.top + UI_PADDING * 2;
+            }
+
+            ui_text(*f, "Oubliette", position, f->baseSize, 0, BONE);
+            position.y += f->baseSize + UI_PADDING * 2;
+        }
+
+        button.x = position.x;
+        button.y = position.y;
+
+        result = ui_button(button, "NEW GAME", "Start a new game", KEY_NULL, m->screen == GuiScreen_None);
+        if (result > 0) {
+            PlaySound(m->click);
+            m->flags |= GlobalFlags_IgnoreInput;
+            m->fadein = 0.f;
+
+            for (int i = 0; i < arrlen(m->party); i++) {
+                m->party[i] = char_random();
+
+                /* Reroll duplicates */
+                for (int j = 0; j < i; j++) {
+                    for (int k = 0; k < 10 && util_stricmp(m->party[j].name, m->party[i].name) == 0; k++) {
+                        TraceLog(LOG_DEBUG, "CHARACTER: Duplicate random character %s, rerolling", m->party[j].name);
+                        char_free(&m->party[i]);
+                        m->party[i] = char_random();
+                    }
+                }
+            }
+
+            /* TODO Delay actually generating the map until displaying the new game screen */
+            map_generate(&m->map, util_rdtsc());
+
+            m->partyFacing = 2; // Party always enters facing South
+            m->partyX = m->map.entryX;
+            m->partyY = m->map.entryY + 1;
+            m->camera = map_cameraForTile(&m->map, m->partyX, m->partyY, m->partyFacing);
+        }
+
+        button.y += button.height + UI_PADDING;
+        result = ui_button(button, "OPTIONS", "Adjust settings", KEY_NULL, m->screen == GuiScreen_None);
+        if (result > 0) {
+            m->screen = GuiScreen_Options;
+            m->flags |= GlobalFlags_IgnoreInput;
+            PlaySound(m->click);
+        }
+
+        button.y += button.height + UI_PADDING;
+        result = ui_button(button, "INTRODUCTION", "TODO: Not implemented yet", KEY_NULL, m->screen == GuiScreen_None);
+        if (result > 0) {
+            PlaySound(m->click);
+        }
+
+        button.y += button.height + UI_PADDING;
+        result = ui_button(button, "CREDITS", "TODO: Not implemented yet", KEY_NULL, m->screen == GuiScreen_None);
+        if (result > 0) {
+            PlaySound(m->click);
+        }
+
+        button.y += button.height + UI_PADDING;
+        if (m->flags & GlobalFlags_ConfirmQuit) {
+            result = ui_button(button, "CONFIRM?", "Are you sure you want to quit?", KEY_NULL, m->screen == GuiScreen_None);
+            if (result > 0) {
+                m->flags |= GlobalFlags_RequestQuit;
+            } else if (result == 0) {
+                m->flags &= ~(GlobalFlags_ConfirmQuit);
+            }
+        } else {
+            result = ui_button(button, "QUIT", "Quit the game and return to desktop [Alt+F4]", KEY_NULL, m->screen == GuiScreen_None);
+            if (result > 0) {
+                m->flags |= GlobalFlags_ConfirmQuit;
+                PlaySound(m->click2);
+            }
+        }
+
+        if (m->screen == GuiScreen_Options) {
+            ui_options();
+        } else if (m->flags & GlobalFlags_ShowTooltips && m->tooltip[0]) {
+            position.y = m->area.bottom - UI_PADDING * 3 - m->fonts.text.baseSize;
+            ui_text(m->fonts.text, m->tooltip, position, m->fonts.text.baseSize, 0, BONE);
+        }
+
+        if (m->fadein < 0.5f) {
+            Color color = ColorAlpha(BLACK, 1.f - m->fadein * 2.f);
+            DrawRectangle(0, 0, GetRenderWidth(), GetRenderHeight(), color);
+        }
+    }
+    EndDrawing();
+    m->fadein += m->deltaTime / 2.f;
+    m->fadein = Clamp(m->fadein, 0.f, 1.f);
+}
+
+static void
 ui_dungeon(void)
 {
     if (m->flags & GlobalFlags_EditorMode) {
@@ -32,27 +173,7 @@ ui_dungeon(void)
     Rectangle viewport, card, panel;
     GuiLayout layout;
     int portraitSize = 145;
-    int aspect = (float)GetRenderWidth() / (float)GetRenderHeight() * 100;
     {
-        if (aspect > 240) {
-            m->area.width = GetRenderHeight() * 2.4f;
-            m->area.height = GetRenderHeight();
-            m->area.top = 0;
-            m->area.left = (GetRenderWidth() - m->area.width) / 2;
-        } else if (aspect < 100) {
-            m->area.width = GetRenderWidth();
-            m->area.height = GetRenderHeight();
-            m->area.top = (GetRenderHeight() - m->area.height) / 2;
-            m->area.left = 0;
-        } else {
-            m->area.width = GetRenderWidth();
-            m->area.height = GetRenderHeight();
-            m->area.top = 0;
-            m->area.left = 0;
-        }
-        m->area.bottom = m->area.top + m->area.height;
-        m->area.right = m->area.left + m->area.width;
-
         /* We proceed by slicing out of the main viewport */
         viewport.x = m->area.left + UI_PADDING;
         viewport.y = m->area.top + UI_PADDING;
@@ -70,7 +191,7 @@ ui_dungeon(void)
             * Panel width maxes out at 700px */
 
         /* Ultrawide, cards on left side */
-        if (aspect > 180 && viewport.height >= card.height * 4 + UI_PADDING * 3) {
+        if (m->aspect > 180 && viewport.height >= card.height * 4 + UI_PADDING * 3) {
             layout = GuiLayout_Ultrawide;
 
             portraitSize = 145;
@@ -88,7 +209,7 @@ ui_dungeon(void)
 
         /* TODO Square, 2x2 cards along bottom, for aspects as small as 70-80 */
         #if 0
-        } else if (aspect < 120) {
+        } else if (m->aspect < 120) {
             layout = GuiLayout_Tall;
         #endif
 
@@ -340,8 +461,6 @@ ui_dungeon(void)
 
             /* Map viewport. Because OpenGL's origin is in the bottom left, this has to be inverted */
             color = ColorLerp(BLACK, WHITE, m->fadein);
-            m->fadein += m->deltaTime / 2.f;
-            m->fadein = Clamp(m->fadein, 0.f, 1.f);
             DrawTextureRec(m->rtex.texture,
                 (Rectangle){0, 0, m->rtex.texture.width, -m->rtex.texture.height},
                 (Vector2){viewport.x, viewport.y}, color);
@@ -640,13 +759,11 @@ ui_dungeon(void)
                 PlaySound(m->click);
             }
 
-            if (m->map.name[0]) {
-                Vector2 position;
-                Vector2 dimensions = MeasureTextEx(m->fonts.title, m->map.name, m->fonts.title.baseSize, 0);
-                position.x = panel.x + (panel.width - button.width - UI_PADDING) / 2 - dimensions.x / 2;
-                position.y = panel.y + UI_SIDE_PANEL_HEADER / 2.f - dimensions.y / 2.f;
-                ui_text(m->fonts.title, m->map.name, Vector2Floor(position), m->fonts.title.baseSize, 0, BONE);
-            }
+            Vector2 position;
+            Vector2 dimensions = MeasureTextEx(m->fonts.title, m->map.name, m->fonts.title.baseSize, 0);
+            position.x = panel.x + (panel.width - button.width - UI_PADDING) / 2 - dimensions.x / 2;
+            position.y = panel.y + UI_SIDE_PANEL_HEADER / 2.f - dimensions.y / 2.f;
+            ui_text(m->fonts.title, m->map.name, Vector2Floor(position), m->fonts.title.baseSize, 0, BONE);
 
             panel.height -= UI_SIDE_PANEL_HEADER;
             panel.y += UI_SIDE_PANEL_HEADER;
@@ -888,11 +1005,18 @@ ui_dungeon(void)
         util_drawLog();
     }
 
+    if (m->fadein < 0.5f) {
+        Color color = ColorAlpha(BLACK, 1.f - m->fadein * 2.f);
+        DrawRectangle(0, 0, GetRenderWidth(), GetRenderHeight(), color);
+    }
+
     if (m->screen == GuiScreen_Options) {
         ui_options();
     }
 
     EndDrawing();
+    m->fadein += m->deltaTime / 2.f;
+    m->fadein = Clamp(m->fadein, 0.f, 1.f);
 
     /* Encounter Checks */
     if (!(m->flags & GlobalFlags_Encounter)) {
@@ -1110,37 +1234,57 @@ ui_options(void)
         }
     }
 
-    button.x = window.x + UI_PADDING;
-    button.y = window.y + window.height - button.height - UI_PADDING;
-    result = ui_button(button, "RESUME", "Return to the game [Escape]", KEY_ESCAPE, true);
-    if (result > 0) {
-        m->screen = GuiScreen_None;
-        PlaySound(m->click);
-        m->flags |= GlobalFlags_IgnoreInput;
-    }
-
-    button.x += button.width + UI_PADDING;
     if (m->map.name[0]) {
-        result = ui_button(button, "EXIT", "TODO: Exit current game and return to main menu", KEY_NULL, true);
+        button.x = window.x + UI_PADDING;
+        button.y = window.y + window.height - button.height - UI_PADDING;
+        result = ui_button(button, "RESUME", "Return to the game [Escape]", KEY_ESCAPE, true);
         if (result > 0) {
+            m->screen = GuiScreen_None;
             PlaySound(m->click);
             m->flags |= GlobalFlags_IgnoreInput;
         }
-    }
 
-    button.x += button.width + UI_PADDING;
-    if (m->flags & GlobalFlags_ConfirmQuit) {
-        result = ui_button(button, "CONFIRM?", "Are you sure you want to quit?", KEY_NULL, true);
-        if (result > 0) {
-            m->flags |= GlobalFlags_RequestQuit;
-        } else if (result == 0) {
-            m->flags &= ~(GlobalFlags_ConfirmQuit);
+        button.x += button.width + UI_PADDING;
+        if (m->flags & GlobalFlags_ConfirmExit) {
+            result = ui_button(button, "CONFIRM?", "Are you sure you want to stop? Progress will not be saved.", KEY_NULL, true);
+            if (result > 0) {
+                m->flags |= GlobalFlags_IgnoreInput;
+                m->screen = GuiScreen_None;
+                map_unload(&m->map);
+                m->fadein = 0.f;
+            } else if (result == 0) {
+                m->flags &= ~(GlobalFlags_ConfirmExit);
+            }
+        } else {
+            result = ui_button(button, "EXIT", "Exit current game and return to main menu", KEY_NULL, true);
+            if (result > 0) {
+                PlaySound(m->click);
+                m->flags |= GlobalFlags_ConfirmExit;
+            }
+        }
+
+        button.x += button.width + UI_PADDING;
+        if (m->flags & GlobalFlags_ConfirmQuit) {
+            result = ui_button(button, "CONFIRM?", "Are you sure you want to quit? Progress will not be saved.", KEY_NULL, true);
+            if (result > 0) {
+                m->flags |= GlobalFlags_RequestQuit;
+            } else if (result == 0) {
+                m->flags &= ~(GlobalFlags_ConfirmQuit);
+            }
+        } else {
+            result = ui_button(button, "QUIT", "Quit the game and return to desktop [Alt+F4]", KEY_NULL, true);
+            if (result > 0) {
+                m->flags |= GlobalFlags_ConfirmQuit;
+                PlaySound(m->click2);
+            }
         }
     } else {
-        result = ui_button(button, "QUIT", "Quit the game and return to desktop [Alt+F4]", KEY_NULL, true);
+        button.y += button.height + UI_PADDING;
+        result = ui_button(button, "RESUME", "Return to the main menu", KEY_ESCAPE, true);
         if (result > 0) {
-            m->flags |= GlobalFlags_ConfirmQuit;
-            PlaySound(m->click2);
+            m->screen = GuiScreen_None;
+            PlaySound(m->click);
+            m->flags |= GlobalFlags_IgnoreInput;
         }
     }
 

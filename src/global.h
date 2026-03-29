@@ -23,5 +23,6 @@ typedef enum {
     GlobalFlags_IgnoreInput         = 1 << 17,
     GlobalFlags_MusicStartMuted     = 1 << 18,
     GlobalFlags_AmbientStartMuted   = 1 << 19,
+    GlobalFlags_ConfirmExit         = 1 << 20,
 } GlobalFlags_t; /* Need to append Type to avoid clash with symbols on windows */
 
