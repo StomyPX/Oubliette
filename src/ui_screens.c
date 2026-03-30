@@ -84,6 +84,7 @@ ui_mainMenu(void)
             m->partyX = m->map.entryX;
             m->partyY = m->map.entryY + 1;
             m->camera = map_cameraForTile(&m->map, m->partyX, m->partyY, m->partyFacing);
+            m->flags &= ~(GlobalFlags_GameOver | GlobalFlags_TheEnd);
 
             main_changeSong(&m->music.general - &m->music.ambient);
         }
@@ -329,6 +330,13 @@ ui_dungeon(void)
     BeginDrawing();
     {
         DrawTextureRec(m->textures.marble, (Rectangle){0, 0, GetRenderWidth(), GetRenderHeight()}, (Vector2){0, 0}, DARKBROWN);
+        bool active = true;
+
+        if (m->flags & (GlobalFlags_GameOver | GlobalFlags_TheEnd))
+            active = false;
+
+        if (m->screen != GuiScreen_None)
+            active = false;
 
         if (m->flags & GlobalFlags_Encounter) {
             Texture* tex;
@@ -380,13 +388,6 @@ ui_dungeon(void)
                 Vector2 position, dims;
                 Rectangle button, frame;
                 int result;
-                bool active = true;
-
-                if (m->flags & GlobalFlags_GameOver)
-                    active = false;
-
-                if (m->screen != GuiScreen_None)
-                    active = false;
 
                 if (m->encounter.state != CombatState_Menu) {
                     active = false;
@@ -480,8 +481,7 @@ ui_dungeon(void)
             button.x = viewport.x + viewport.width - UI_PADDING - button.width;
             button.y = viewport.y + viewport.height - UI_PADDING - button.height;
             result = ui_button(button, "WAIT", "Pass time and engage in wait activities. SP always "
-                                "restores over time [R]", KEY_R,
-                                m->screen == GuiScreen_None && !(m->flags & GlobalFlags_TheEnd));
+                                "restores over time [R]", KEY_R, active);
             if (result > 0) {
                 ui_log(ZINNWALDITEBROWN, "Resting...");
                 m->encounter.ticks += 300;
@@ -751,7 +751,7 @@ ui_dungeon(void)
             button.x = panel.x + panel.width - button.width;
 
             result = ui_button(button, "OPTIONS", "Adjust settings or return to main menu [Escape]",
-                                KEY_ESCAPE, m->screen == GuiScreen_None);
+                                KEY_ESCAPE, active);
             if (result > 0) {
                 m->screen = GuiScreen_Options;
                 m->flags |= GlobalFlags_IgnoreInput;
@@ -876,40 +876,6 @@ ui_dungeon(void)
             ui_border(m->textures.border, panel, BONE);
         }
 
-        if (m->flags & GlobalFlags_GameOver) {
-            Vector2 position;
-            Vector2 measure;
-            Rectangle frame;
-
-            measure = MeasureTextEx(m->fonts.big, "GAME OVER", m->fonts.big.baseSize, 0);
-            frame.x = GetRenderWidth() / 2 - measure.x / 2 - UI_PADDING * 2;
-            frame.y = GetRenderHeight() / 2 - measure.y / 2 - UI_PADDING;
-            frame.width = measure.x + UI_PADDING * 4;
-            frame.height = measure.y + UI_PADDING * 2;
-            frame = RectangleFloor(frame);
-            DrawRectangleRec(frame, ColorAlpha(BLACK, 0.8f));
-            ui_border(m->textures.border, frame, BONE);
-            position.x = frame.x + UI_PADDING * 2;
-            position.y = frame.y + UI_PADDING;
-            ui_text(m->fonts.big, "GAME OVER", Vector2Floor(position), m->fonts.big.baseSize, 0, MAROON);
-        } else if (m->flags & GlobalFlags_TheEnd) {
-            Vector2 position;
-            Vector2 measure;
-            Rectangle frame;
-
-            measure = MeasureTextEx(m->fonts.big, "THE END", m->fonts.big.baseSize, 0);
-            frame.x = GetRenderWidth() / 2 - measure.x / 2 - UI_PADDING * 2;
-            frame.y = GetRenderHeight() / 2 - measure.y / 2 - UI_PADDING;
-            frame.width = measure.x + UI_PADDING * 4;
-            frame.height = measure.y + UI_PADDING * 2;
-            frame = RectangleFloor(frame);
-            DrawRectangleRec(frame, ColorAlpha(BLACK, 0.8f));
-            ui_border(m->textures.border, frame, BONE);
-            position.x = frame.x + UI_PADDING * 2;
-            position.y = frame.y + UI_PADDING;
-            ui_text(m->fonts.big, "THE END", position, m->fonts.big.baseSize, 0, MINDAROGREEN);
-        }
-
         if (m->flags & GlobalFlags_PartyStats) {
             char buf[256] = {0};
             Vector2 position = (Vector2){GetRenderWidth() - 160, UI_SIDE_PANEL_HEADER + UI_PADDING * 2};
@@ -1007,7 +973,70 @@ ui_dungeon(void)
         DrawRectangle(0, 0, GetRenderWidth(), GetRenderHeight(), color);
     }
 
-    if (m->screen == GuiScreen_Options) {
+
+    if (m->flags & GlobalFlags_GameOver) {
+        Vector2 position;
+        Vector2 measure;
+        Rectangle frame;
+        Rectangle button;
+
+        button.height = 48;
+        button.width = 256;
+
+        DrawRectangle(0, 0, GetRenderWidth(), GetRenderHeight(), ColorAlpha(BLACK, 0.8f));
+        measure = MeasureTextEx(m->fonts.big, "GAME OVER", m->fonts.big.baseSize, 0);
+        frame.x = GetRenderWidth() / 2 - measure.x / 2 - UI_PADDING * 2;
+        frame.y = GetRenderHeight() / 2 - measure.y / 2 - UI_PADDING;
+        frame.width = measure.x + UI_PADDING * 4;
+        frame.height = measure.y + UI_PADDING * 3 + button.height;
+        frame = RectangleFloor(frame);
+        DrawRectangleRec(frame, ColorAlpha(BLACK, 0.8f));
+        ui_border(m->textures.border, frame, BONE);
+        position.x = frame.x + UI_PADDING * 2;
+        position.y = frame.y + UI_PADDING;
+        ui_text(m->fonts.big, "GAME OVER", Vector2Floor(position), m->fonts.big.baseSize, 0, MAROON);
+
+        button.x = frame.x + frame.width / 2 - button.width / 2;
+        button.y = frame.y + frame.height - UI_PADDING - button.height;
+        if (ui_button(button, "CONTINUE", "", KEY_ENTER, true) > 0) {
+            m->screen = GuiScreen_Credits;
+            m->flags |= GlobalFlags_IgnoreInput;
+            PlaySound(m->click);
+            map_unload(&m->map);
+        }
+
+    } else if (m->flags & GlobalFlags_TheEnd) {
+        Vector2 position;
+        Vector2 measure;
+        Rectangle frame;
+        Rectangle button;
+
+        button.height = 48;
+        button.width = 256;
+
+        DrawRectangle(0, 0, GetRenderWidth(), GetRenderHeight(), ColorAlpha(BLACK, 0.8f));
+        measure = MeasureTextEx(m->fonts.big, "THE END", m->fonts.big.baseSize, 0);
+        frame.x = GetRenderWidth() / 2 - measure.x / 2 - UI_PADDING * 2;
+        frame.y = GetRenderHeight() / 2 - measure.y / 2 - UI_PADDING;
+        frame.width = measure.x + UI_PADDING * 4;
+        frame.height = measure.y + UI_PADDING * 3 + button.height;
+        frame = RectangleFloor(frame);
+        DrawRectangleRec(frame, ColorAlpha(BLACK, 0.8f));
+        ui_border(m->textures.border, frame, BONE);
+        position.x = frame.x + UI_PADDING * 2;
+        position.y = frame.y + UI_PADDING;
+        ui_text(m->fonts.big, "THE END", position, m->fonts.big.baseSize, 0, MINDAROGREEN);
+
+        button.x = frame.x + frame.width / 2 - button.width / 2;
+        button.y = frame.y + frame.height - UI_PADDING - button.height;
+        if (ui_button(button, "CONTINUE", "", KEY_ENTER, true) > 0) {
+            m->screen = GuiScreen_Credits;
+            m->flags |= GlobalFlags_IgnoreInput;
+            PlaySound(m->click);
+            map_unload(&m->map);
+        }
+
+    } else if (m->screen == GuiScreen_Options) {
         ui_options();
     }
 
