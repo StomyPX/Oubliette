@@ -49,6 +49,9 @@ typedef struct Memory_ {
     int elementHoverLast;
     Vector2 dragStart;
 
+    int page;
+    StorySlide slides[6];
+
     union {
         Texture all[14];
         struct {

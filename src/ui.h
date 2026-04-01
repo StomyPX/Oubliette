@@ -34,6 +34,16 @@ typedef struct
     Color color;
 } LogLine;
 
+typedef struct
+{
+    unsigned image; /* Index into m->scene plus one, zero indicates no image */
+    float prefade;
+    float fadein;
+    float hold;
+    float fadeout;
+    char text[620];
+} StorySlide;
+
 /* Elements */
 
 static void ui_text(Font font, const char* text, Vector2 position, float fontSize, int spacing, Color tint);
@@ -51,6 +61,10 @@ static void ui_tooltipPane(void);
 /* Screens */
 
 static void ui_mainMenu(void);
+static void ui_newGame(void);
+static bool ui_slideshow(unsigned last); /* Returns true once completed */
+static void ui_intro(void);
+static void ui_outro(void);
 static void ui_dungeon(void); /* Primary gameplay screen */
 static void ui_options(void);
 static void ui_credits(void);

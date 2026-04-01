@@ -240,6 +240,62 @@ main(int argc, char* argv[])
     m->partyMoveFreq = 0.2f;
     SetTargetFPS(200); /* TODO Make configurable, prefer VSync */
 
+    /* Cutscene slides */
+    for (unsigned i = 0; i < arrlen(m->slides); i++) {
+        m->slides[i].image = i + 1;
+        m->slides[i].prefade = 0.3f;
+        m->slides[i].fadein = 2.f;
+        m->slides[i].hold = 20.f;
+        m->slides[i].fadeout = 2.f;
+    }
+
+    m->slides[5].image = 0;
+    snprintf(m->slides[0].text, sizeof(m->slides[0].text),
+        "The evil city stands tall above the \nephemeral waves of the Middle Sea.\n\n"
+        "A den of predatory usurers, seasoned \nslave-traders, desperate gamblers,\n"
+        "and fugitives from all the corners \nof the world gather at its base like\n"
+        "flies to a rich-man's corpse...");
+    snprintf(m->slides[1].text, sizeof(m->slides[1].text),
+        "High above, the rich and powerful of \nthe world throw lavish and depraved\n"
+        "balls. The city is a neutral ground, \nfar from eavesdropping families and\n"
+        "scrupulous court chaplains. Where \nhostages are exchanged and the fate of\n"
+        "empires decided, surrounded by \nunimaginable wealth and shameless sin.\n\n"
+        "Confident that their vast armies of \nwell paid and fed mercenaries remain\n"
+        "steadfast in separating them from \na world that they barely acknowledge...");
+    snprintf(m->slides[2].text, sizeof(m->slides[2].text),
+        "Far below, the destitute commonfolk \nlive a life of fear and suffering.\n\n"
+        "Ragpickers, beggars, and flagellants \nfill the crowded streets.\n"
+        "Food is scarce, and money is scarcer. \nThe fleet sells all stowaways into\n"
+        "slavery while the watch often rounds \nup all the able-bodied for lavish\n"
+        "new works to decorate the upper districts.\n\n"
+        "Worst of all, those few nobles that \ncome down to the slums often do so\n"
+        "merely to practice their fencing on \ndefenseless tramps or let loose\n"
+        "their exotic pets to feast on their flesh...");
+    snprintf(m->slides[3].text, sizeof(m->slides[3].text),
+        "Deeper still lies the Oubliette.\n\n"
+        "A vast, unmapped web of deep catacombs \nin which all of the city's\n"
+        "dark secrets are buried amid the refuse \nand the remains of the dead.\n\n"
+        "Terrifying monsters make their home \ndown here, where the passages are\n"
+        "said to shift with time and trap those \nunfortunate enough to venture\n"
+        "down out of desperation to find \nburied treasure with which they may buy\n"
+        "passage to holier lands...");
+    snprintf(m->slides[4].text, sizeof(m->slides[4].text),
+        "In times of peril such as these, \nrumors always emerge that the mythical\n"
+        "First King of ages long past still \nslumbers in his tomb at the bottom\n"
+        "of the Oubliette.\n\n"
+        "In hushed whispers it is said that \nif awoken, his wrath and vengeance\n"
+        "would raise an army of the dead to \n  raze the city's towers and keeps.\n\n"
+        "That he would rise to retake his \nthrone and impale anyone who rules\n"
+        "in his name...");
+    snprintf(m->slides[5].text, sizeof(m->slides[5].text),
+        "Such a fate would surely doom the city.\n\n"
+        "Yet every day there are more who \nbelieve that oblivion would be\n"
+        "preferable to the mindless toil, \ndisease, and poverty that rots all\n"
+        "those who are unable to leave.\n\n"
+        "And so, every now and then an intrepid \ngroup of penniless vagabonds grabs\n"
+        "torches and blades and descends into \nthe depths not only in search of loot,\n"
+        "but of salvation...");
+
     /* Clear out all of Raylib's noise */
     for (unsigned i = 0; i < UTIL_LOGLINE_COUNT; i++) {
         if (g_util_logLines[i].seconds > 0.f && g_util_logLines[i].channel >= 0)
@@ -258,7 +314,7 @@ main(int argc, char* argv[])
         m->tooltip[0] = 0;
         m->flags &= ~(GlobalFlags_IgnoreInput);
 
-        if (m->map.name[0])
+        if (m->map.name[0] && m->screen != GuiScreen_Intro)
             UpdateMusicStream(m->music.ambient);
 
         if (m->music.delay <= 0.f && !(m->flags & GlobalFlags_MuteMusic)) {
@@ -328,8 +384,12 @@ main(int argc, char* argv[])
         m->area.bottom = m->area.top + m->area.height;
         m->area.right = m->area.left + m->area.width;
 
-        if (m->map.name[0]) {
+        if (m->screen == GuiScreen_Intro) {
+            ui_intro();
+        } else if (m->map.name[0]) {
             ui_dungeon();
+        } else if (m->screen == GuiScreen_NewGame) {
+            ui_newGame();
         } else if (m->screen == GuiScreen_Credits) {
             ui_credits();
         } else {

@@ -62,7 +62,6 @@ ui_mainMenu(void)
         if (result > 0) {
             PlaySound(m->click);
             m->flags |= GlobalFlags_IgnoreInput;
-            m->fadein = 0.f;
 
             for (int i = 0; i < arrlen(m->party); i++) {
                 m->party[i] = char_random();
@@ -86,7 +85,9 @@ ui_mainMenu(void)
             m->camera = map_cameraForTile(&m->map, m->partyX, m->partyY, m->partyFacing);
             m->flags &= ~(GlobalFlags_GameOver | GlobalFlags_TheEnd);
 
-            main_changeSong(&m->music.general - &m->music.ambient);
+            m->page = 0;
+            m->fadein = 0.f;
+            m->screen = GuiScreen_Intro;
         }
 
         button.y += button.height + UI_PADDING;
@@ -138,6 +139,150 @@ ui_mainMenu(void)
     EndDrawing();
     m->fadein += m->deltaTime / 2.f;
     m->fadein = Clamp(m->fadein, 0.f, 1.f);
+}
+
+static void
+ui_newGame(void)
+{
+    BeginDrawing();
+    {
+        Vector2 position;
+        Rectangle button, canvas;
+
+        DrawTextureRec(m->textures.marble, (Rectangle){0, 0, GetRenderWidth(), GetRenderHeight()}, (Vector2){0, 0}, DARKBROWN);
+
+        canvas.x = m->area.left + UI_PADDING * 2;
+        canvas.y = m->area.top + UI_PADDING * 2;
+        canvas.width = m->area.width - UI_PADDING * 4;
+        canvas.height = m->area.height - UI_PADDING * 4;
+        DrawTexturePro(m->textures.vellum, canvas, canvas, (Vector2){0, 0}, 0.f, WHITE);
+        BeginScissorMode(canvas.x, canvas.y, canvas.width, canvas.height);
+
+        /* TODO Character rerolling */
+        /* TODO Class selection */
+        /* TODO Portrait selection popup */
+        /* TODO Difficulty options */
+        /* TODO Play button generates map, uses click2 sound */
+
+        button.width = 120;
+        button.height = 48;
+        button.x = canvas.x + canvas.width - UI_PADDING * 2 - button.width;
+        button.y = canvas.y + canvas.height - UI_PADDING * 2 - button.height;
+        if (ui_button(button, "BACK", "", KEY_NULL, true) > 0) {
+            m->screen = GuiScreen_None;
+            m->flags |= GlobalFlags_IgnoreInput;
+            PlaySound(m->click);
+        }
+
+        EndScissorMode();
+        ui_border(m->textures.border, canvas, BONE);
+        util_drawLog();
+    }
+    EndDrawing();
+}
+
+static bool
+ui_slideshow(unsigned end)
+{
+    float total = m->slides[m->page].prefade;
+    StorySlide* s = m->slides + m->page;
+    Color tint = WHITE;
+    Vector2 position;
+    Font* f = &m->fonts.text;
+    bool result = false;
+
+    BeginDrawing();
+
+    DrawRectangle(0, 0, GetRenderWidth(), GetRenderHeight(), BLACK);
+
+    /* Esc to skip everything, space to advance to next start frame */
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        m->page = end + 1;
+        goto page;
+    } else if (IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        if (m->fadein < s->prefade + s->fadein) {
+            m->fadein = s->prefade + s->fadein;
+        } else {
+            m->page += 1;
+            if (m->page > end) {
+                goto page;
+            } else {
+                s++;
+                m->fadein = s->prefade + s->fadein * 0.7f;
+            }
+        }
+    }
+
+    if (m->fadein < total)
+        goto skip;
+
+    total += s->fadein;
+    position.x = GetRenderWidth() * 6.f / 10.f + UI_PADDING;
+    position.y = GetRenderHeight() / 10.f;
+    if (m->fadein < total) {
+        float alpha = (m->fadein - s->prefade) / s->fadein;
+        tint = ColorAlpha(tint, util_floatclamp(alpha, 0.f, 1.f));
+        position.x -= (1.f - alpha) * UI_PADDING; // TODO Ease in
+        goto draw;
+    }
+
+    total += s->hold;
+    if (m->fadein < total) {
+        goto draw;
+    }
+
+    total += s->fadeout;
+    if (m->fadein < total) {
+        float alpha = (m->fadein - s->prefade - s->fadein - s->hold) / s->fadeout;
+        tint = ColorAlpha(tint, util_floatclamp(1.f - alpha, 0.f, 1.f));
+        position.x += alpha * UI_PADDING; // TODO Ease out
+        goto draw;
+    } else {
+        tint = BLACK;
+    }
+
+    m->page++;
+    m->fadein = 0.f;
+page:
+    if (m->page > end) {
+        m->screen = GuiScreen_None;
+        result = true;
+        goto skip;
+    }
+draw:
+    DrawTextPro(*f, s->text, position, (Vector2){0, 0}, 0.f, f->baseSize, 0.f, tint);
+    if (s->image > 0) {
+        Texture* t = m->textures.scene + s->image - 1;
+        float scale = (float)GetRenderHeight() / (float)t->height;
+        position.x -= t->width * scale + UI_PADDING;
+        position.y = 0.f;
+        DrawTextureEx(*t, position, 0.f, scale, tint);
+    }
+
+skip:
+    EndDrawing();
+    m->fadein += m->deltaTime;
+
+    return result;
+}
+
+static void
+ui_intro(void)
+{
+    if (ui_slideshow(5)) {
+        main_changeSong(&m->music.general - &m->music.ambient);
+        m->screen = GuiScreen_None;
+        m->fadein = 0.f;
+    }
+}
+
+static void
+ui_outro(void)
+{
+    if (ui_slideshow(9)) {
+        m->screen = GuiScreen_Credits;
+        m->fadein = 0.f;
+    }
 }
 
 static void
