@@ -208,7 +208,7 @@ ui_slideshow(unsigned end)
                 goto page;
             } else {
                 s++;
-                m->fadein = s->prefade + s->fadein * 0.7f;
+                m->fadein = s->prefade + s->fadein * 0.9f;
             }
         }
     }

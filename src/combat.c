@@ -655,8 +655,8 @@ combat_resolveFlee(void)
                 } break;
             }
 
-            if (damage < 0)
-                damage = 0;
+            if (damage <= 0)
+                continue;
 
             c->health -= damage;
             c->effects.color = MAROON;
