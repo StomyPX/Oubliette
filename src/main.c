@@ -318,7 +318,7 @@ main(int argc, char* argv[])
             g_util_logLines[i].seconds = 0.f;
     }
 
-    ui_log(ZINNWALDITEBROWN, "Oubliette, Version 1.2");
+    ui_log(ZINNWALDITEBROWN, "Oubliette, Version 1.3");
 
     while (!WindowShouldClose() && !(m->flags & GlobalFlags_RequestQuit)) {
         /* Update */
