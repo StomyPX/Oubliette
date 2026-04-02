@@ -115,8 +115,6 @@ ui_button(Rectangle rect, char* text, char* tooltip, int hotkey, bool enabled)
 
     m->elementCount++;
     { /* Input Checks */
-        Vector2 mouse;
-
         if (!enabled)
             goto draw;
 

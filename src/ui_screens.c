@@ -187,10 +187,29 @@ ui_newGame(void)
 
         for (unsigned i = 0; i < arrlen(m->party); i++) {
             Character* ch = m->party + i;
+            Rectangle p2 = portrait;
+            Color border = BONE;
+            Color inner = WHITE;
+
+            m->elementCount++;
+            if (util_mouseInRect(portrait)) {
+                m->elementHover = m->elementCount;
+                border = MINDAROGREEN;
+                if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                    inner = ColorLerp(WHITE, BLACK, 0.6f);
+                }
+
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    PlaySound(m->click);
+                    char_free(m->party + i);
+                    m->party[i] = char_random();
+                }
+                snprintf(m->tooltip, sizeof(m->tooltip), "Click to generate a different character");
+            }
 
             DrawTexturePro(ch->portrait, (Rectangle){0, 0, ch->portrait.width, ch->portrait.height},
-                            portrait, (Vector2){0, 0}, 0.f, WHITE);
-            ui_border(m->textures.border, portrait, BONE);
+                            p2, (Vector2){0, 0}, 0.f, inner);
+            ui_border(m->textures.border, portrait, border);
 
             position.x = portrait.x + portrait.width + UI_PADDING;
             position.y = portrait.y;
