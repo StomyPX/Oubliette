@@ -76,18 +76,7 @@ ui_mainMenu(void)
                 }
             }
 
-            /* TODO Delay actually generating the map and changing music until displaying the new game screen */
-            map_generate(&m->map, util_rdtsc());
-
-            m->partyFacing = 2; // Party always enters facing South
-            m->partyX = m->map.entryX;
-            m->partyY = m->map.entryY + 1;
-            m->camera = map_cameraForTile(&m->map, m->partyX, m->partyY, m->partyFacing);
-            m->flags &= ~(GlobalFlags_GameOver | GlobalFlags_TheEnd);
-
-            m->page = 0;
-            m->fadein = 0.f;
-            m->screen = GuiScreen_Intro;
+            m->screen = GuiScreen_NewGame;
         }
 
         button.y += button.height + UI_PADDING;
@@ -146,36 +135,166 @@ ui_newGame(void)
 {
     BeginDrawing();
     {
-        Vector2 position;
-        Rectangle button, canvas;
+        Vector2 position, dims;
+        Rectangle button, canvas, portrait;
+        int availableHeight;
+        int maxHeight;
+        int maxWidth;
+        char buffer[128];
 
-        DrawTextureRec(m->textures.marble, (Rectangle){0, 0, GetRenderWidth(), GetRenderHeight()}, (Vector2){0, 0}, DARKBROWN);
+        button.width = 256;
+        button.height = 48;
+        portrait.width = 145;
+        portrait.height = 145;
+
+        DrawTextureRec(m->textures.marble, (Rectangle){0, 0, GetRenderWidth(), GetRenderHeight()},
+                        (Vector2){0, 0}, EERIEBLACK);
 
         canvas.x = m->area.left + UI_PADDING * 2;
         canvas.y = m->area.top + UI_PADDING * 2;
         canvas.width = m->area.width - UI_PADDING * 4;
-        canvas.height = m->area.height - UI_PADDING * 4;
+        canvas.height = m->area.height - UI_PADDING * 6 - m->fonts.text.baseSize;
+
+        maxHeight = (portrait.height + UI_PADDING) * arrlen(m->party)
+                    + UI_PADDING * 2 + m->fonts.title.baseSize;
+        if (canvas.height > maxHeight) {
+            canvas.height = maxHeight;;
+            canvas.y = m->area.top + m->area.height / 2 - canvas.height / 2;
+        }
+
+        maxWidth = portrait.width + button.width * 3 + UI_PADDING * 5;
+        if (canvas.width > maxWidth) {
+            canvas.width = maxWidth;
+            canvas.x = m->area.left + m->area.width / 2 - canvas.width / 2;
+        }
+
         DrawTexturePro(m->textures.vellum, canvas, canvas, (Vector2){0, 0}, 0.f, WHITE);
         BeginScissorMode(canvas.x, canvas.y, canvas.width, canvas.height);
 
-        /* TODO Character rerolling */
-        /* TODO Class selection */
-        /* TODO Portrait selection popup */
-        /* TODO Difficulty options */
-        /* TODO Play button generates map, uses click2 sound */
+        portrait.x = canvas.x + UI_PADDING;
+        portrait.y = canvas.y + UI_PADDING;
+        availableHeight = canvas.height - UI_PADDING * 2;
 
-        button.width = 120;
-        button.height = 48;
-        button.x = canvas.x + canvas.width - UI_PADDING * 2 - button.width;
-        button.y = canvas.y + canvas.height - UI_PADDING * 2 - button.height;
-        if (ui_button(button, "BACK", "", KEY_NULL, true) > 0) {
+        if ((portrait.height + UI_PADDING) * arrlen(m->party) + m->fonts.title.baseSize <= availableHeight) {
+            position.x = canvas.x + UI_PADDING;
+            position.y = canvas.y + UI_PADDING;
+            ui_text(m->fonts.title, "Party Details", Vector2Floor(position), m->fonts.title.baseSize, 0, BONE);
+            portrait.y += m->fonts.title.baseSize + UI_PADDING;
+        } else if ((portrait.height + UI_PADDING) * arrlen(m->party) > availableHeight) {
+            portrait.height = (availableHeight - UI_PADDING * 4) / 4;
+            portrait.width = portrait.height;
+        }
+
+        for (unsigned i = 0; i < arrlen(m->party); i++) {
+            Character* ch = m->party + i;
+
+            DrawTexturePro(ch->portrait, (Rectangle){0, 0, ch->portrait.width, ch->portrait.height},
+                            portrait, (Vector2){0, 0}, 0.f, WHITE);
+            ui_border(m->textures.border, portrait, BONE);
+
+            position.x = portrait.x + portrait.width + UI_PADDING;
+            position.y = portrait.y;
+            ui_text(m->fonts.heading, ch->name, Vector2Floor(position), m->fonts.heading.baseSize, 0 , MINDAROGREEN);
+
+            position.y += m->fonts.heading.baseSize;
+            snprintf(buffer, sizeof(buffer), "Class: %s\t Hit Points: %i\t Stamina Points: %i",
+                    CharacterClass_toString(ch->class), char_maxHealth(*ch), char_maxStamina(*ch));
+            DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+
+            position.y += m->fonts.text.baseSize;
+            snprintf(buffer, sizeof(buffer), "Strength: %i\t Dexterity: %i\t Constitution: %i",
+                    ch->strength, ch->dexterity, ch->constitution);
+            DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+
+            position.y += m->fonts.text.baseSize;
+            snprintf(buffer, sizeof(buffer), "Intellect: %i\t Willpower: %i\t Charisma: %i",
+                    ch->intellect, ch->willpower, ch->charisma);
+            DrawTextEx(m->fonts.text, buffer, Vector2Floor(position), m->fonts.text.baseSize, 0, ZINNWALDITEBROWN);
+
+            portrait.y += portrait.height + UI_PADDING;
+        }
+
+        dims = MeasureTextEx(m->fonts.title, "Difficulty Options", m->fonts.title.baseSize, 0);
+        position.x = canvas.x + canvas.width - UI_PADDING - dims.x;
+        position.y = canvas.y + UI_PADDING;
+        ui_text(m->fonts.title, "Difficulty Options", Vector2Floor(position), m->fonts.title.baseSize, 0, BONE);
+
+        button.x = canvas.x + canvas.width - UI_PADDING - button.width;
+        button.y = position.y + m->fonts.title.baseSize + UI_PADDING;
+        if (m->flags & GlobalFlags_HugeMap) {
+            if (ui_button(button, "GIGANTIC", "(Hard) Giant map size that requires a longer play session. "
+                "Be sure to grab some graph paper.", KEY_NULL, true) > 0)
+            {
+                m->flags &= ~(GlobalFlags_HugeMap);
+                PlaySound(m->click);
+            }
+        } else {
+            if (ui_button(button, "NORMAL", "(Easy) Smaller map more manageable for a short playthrough",
+                KEY_NULL, true) > 0)
+            {
+                m->flags |= GlobalFlags_HugeMap;
+                PlaySound(m->click);
+            }
+        }
+        dims = MeasureTextEx(m->fonts.heading, "Map Size", m->fonts.heading.baseSize, 0);
+        position.x = button.x - UI_PADDING * 3 - dims.x;
+        position.y = button.y + button.height / 2 - dims.y / 2;
+        DrawTextEx(m->fonts.heading, "Map Size", position, m->fonts.heading.baseSize, 0, ZINNWALDITEBROWN);
+
+        button.y += button.height + UI_PADDING;
+        if (m->flags & GlobalFlags_SlowXP) {
+            if (ui_button(button, "SLOW", "(Hard) Characters require a lot of experience to level up",
+                KEY_NULL, true) > 0)
+            {
+                m->flags &= ~(GlobalFlags_SlowXP);
+                PlaySound(m->click);
+            }
+        } else {
+            if (ui_button(button, "FAST", "(Easy) Characters will advance in level relatively quickly",
+                KEY_NULL, true) > 0)
+            {
+                m->flags |= GlobalFlags_SlowXP;
+                PlaySound(m->click);
+            }
+        }
+        dims = MeasureTextEx(m->fonts.heading, "XP Gain", m->fonts.heading.baseSize, 0);
+        position.x = button.x - UI_PADDING * 3 - dims.x;
+        position.y = button.y + button.height / 2 - m->fonts.heading.baseSize / 2;
+        DrawTextEx(m->fonts.heading, "XP Gain", position, m->fonts.heading.baseSize, 0, ZINNWALDITEBROWN);
+
+        button.x = canvas.x + canvas.width - UI_PADDING - button.width;
+        button.y = canvas.y + canvas.height - UI_PADDING - button.height;
+        if (ui_button(button, "BACK", "Return to the main menu", KEY_NULL, true) > 0) {
             m->screen = GuiScreen_None;
             m->flags |= GlobalFlags_IgnoreInput;
+            for (unsigned i = 0; i < arrlen(m->party); i++)
+                char_free(&m->party[i]);
             PlaySound(m->click);
+        }
+
+        button.y -= button.height + UI_PADDING;
+        if (ui_button(button, "BEGIN", "Accept settings and begin the game", KEY_NULL, true) > 0) {
+            if (m->flags & GlobalFlags_HugeMap) {
+                map_generate(&m->map, util_rdtsc(), TILE_COUNT_MAX, TILE_COUNT_MAX);
+            } else {
+                map_generate(&m->map, util_rdtsc(), 48, 48);
+            }
+
+            m->partyFacing = 2; // Party always enters facing South
+            m->partyX = m->map.entryX;
+            m->partyY = m->map.entryY + 1;
+            m->camera = map_cameraForTile(&m->map, m->partyX, m->partyY, m->partyFacing);
+            m->flags &= ~(GlobalFlags_GameOver | GlobalFlags_TheEnd);
+
+            m->page = 0;
+            m->fadein = 0.f;
+            m->screen = GuiScreen_Intro;
+            PlaySound(m->click2);
         }
 
         EndScissorMode();
         ui_border(m->textures.border, canvas, BONE);
+        ui_tooltipPane();
         util_drawLog();
     }
     EndDrawing();

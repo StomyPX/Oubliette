@@ -254,7 +254,7 @@ main(int argc, char* argv[])
         "The evil city stands tall above the \nephemeral waves of the Middle Sea.\n\n"
         "A den of predatory usurers, seasoned \nslave-traders, desperate gamblers,\n"
         "and fugitives from all the corners \nof the world gather at its base like\n"
-        "flies to a rich-man's corpse...");
+        "flies to a rich man's corpse...");
     snprintf(m->slides[1].text, sizeof(m->slides[1].text),
         "High above, the rich and powerful of \nthe world throw lavish and depraved\n"
         "balls. The city is a neutral ground, \nfar from eavesdropping families and\n"
@@ -284,7 +284,7 @@ main(int argc, char* argv[])
         "First King of ages long past still \nslumbers in his tomb at the bottom\n"
         "of the Oubliette.\n\n"
         "In hushed whispers it is said that \nif awoken, his wrath and vengeance\n"
-        "would raise an army of the dead to \n  raze the city's towers and keeps.\n\n"
+        "would raise an army of the dead to \nraze the city's towers and keeps.\n\n"
         "That he would rise to retake his \nthrone and impale anyone who rules\n"
         "in his name...");
     snprintf(m->slides[5].text, sizeof(m->slides[5].text),

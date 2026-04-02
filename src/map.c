@@ -76,7 +76,7 @@ map_cameraForTile(Map* map, int x, int y, Facing facing)
 }
 
 static void
-map_generate(Map* map, uint64_t seed)
+map_generate(Map* map, uint64_t seed, unsigned width, unsigned height)
 {
     util_log(0, "MAP: Loading, seed: %llu", seed);
     PcgRandom_init(&map->rng, seed);
@@ -104,8 +104,8 @@ map_generate(Map* map, uint64_t seed)
     SetMaterialTexture(&map->entry.materials[2], MATERIAL_MAP_DIFFUSE, map->entryTex);
 
     /* TODO This can later be made configurable */
-    map->width = 48;
-    map->height = 48;
+    map->width = width;
+    map->height = height;
 
     memset(map->tiles, 0, sizeof(map->tiles));
     memset(map->chambers, 0, sizeof(map->chambers));

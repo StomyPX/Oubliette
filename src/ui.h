@@ -1,4 +1,5 @@
 #define UI_PADDING 10.f
+#define UI_EXTRA_PADDING 16.f
 #define UI_SIDE_PANEL_FRACTION (3.f / 8.f)
 #define UI_SIDE_PANEL_HEADER (48 + UI_PADDING)
 #define UI_PORTRAIT_FRACTION (1.f / 4.f)

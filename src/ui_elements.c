@@ -521,11 +521,10 @@ ui_tooltipPane(void)
 {
     Rectangle pane;
     Vector2 position;
-    const int EXTRA_PADDING = 16;
 
-    pane.width = GetRenderWidth() + EXTRA_PADDING * 2;
-    pane.height = m->fonts.text.baseSize + UI_PADDING * 2 + EXTRA_PADDING;
-    pane.x = -EXTRA_PADDING;
+    pane.width = GetRenderWidth() + UI_EXTRA_PADDING * 2;
+    pane.height = m->fonts.text.baseSize + UI_PADDING * 2 + UI_EXTRA_PADDING;
+    pane.x = -UI_EXTRA_PADDING;
     pane.y = GetRenderHeight() - (m->fonts.text.baseSize + UI_PADDING * 2);
     DrawTexturePro(m->textures.marble, pane, pane, (Vector2){0,0}, 0.f, DARKBROWN);
 

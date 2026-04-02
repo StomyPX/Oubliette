@@ -73,7 +73,7 @@ static int map_passagesMax(int w, int h);
 static Camera3D map_cameraForTile(Map* map, int x, int y, Facing facing);
 
 /* Returns non-zero on success */
-static void map_generate(Map* map, uint64_t seed);
+static void map_generate(Map* map, uint64_t seed, unsigned width, unsigned height);
 static void map_generateLoop(Map* map);
 static void map_generatePassage(Map* map, MapPassage u);
 static bool map_generateStepForward(Map* map, int* x, int* y, Facing facing);
