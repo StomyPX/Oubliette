@@ -250,6 +250,8 @@ main(int argc, char* argv[])
     }
 
     m->slides[5].image = 0;
+    m->slides[6].image = 6;
+    m->slides[7].image = 7;
     snprintf(m->slides[0].text, sizeof(m->slides[0].text),
         "The evil city stands tall above the \nephemeral waves of the Middle Sea.\n\n"
         "A den of predatory usurers, seasoned \nslave-traders, desperate gamblers,\n"
@@ -295,6 +297,20 @@ main(int argc, char* argv[])
         "And so, every now and then an intrepid \ngroup of penniless vagabonds grabs\n"
         "torches and blades and descends into \nthe depths not only in search of loot,\n"
         "but of salvation...");
+    snprintf(m->slides[6].text, sizeof(m->slides[6].text),
+        "Blinking in the light, the survivors \nemerge to find... nothing.\n\n"
+        "The streets are clean. Silent. Lifeless.\n\n"
+        "Doors have been thrown open and creak \nin the wind. Peering inside reveals\n"
+        "many discarded articles and no small \nnumber of vermin, carrion, and insects.\n"
+        "Was it right to open the ancient tomb?\n\n"
+        "The city is now free of sorrow, but only \nbecause there is nobody left to lament\n\n");
+    snprintf(m->slides[7].text, sizeof(m->slides[7].text),
+        "Some of the city's population can be found \nhanged in the many squares and \n"
+        "out on the docks, though this had already been\n a common sight even beforehand.\n\n"
+        "In time the many great buildings will crumble,\n looters will find the island and\n"
+        "partake greedily of the mountains of \ntreasures left unattended. The world will\n"
+        "turn ever onwards and eventually forget \nwhat came before...\n\n"
+        "THE END");
 
     /* Clear out all of Raylib's noise */
     for (unsigned i = 0; i < UTIL_LOGLINE_COUNT; i++) {
@@ -386,6 +402,8 @@ main(int argc, char* argv[])
 
         if (m->screen == GuiScreen_Intro) {
             ui_intro();
+        } else if (m->screen == GuiScreen_Outro) {
+            ui_outro();
         } else if (m->map.name[0]) {
             ui_dungeon();
         } else if (m->screen == GuiScreen_NewGame) {

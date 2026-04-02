@@ -417,7 +417,7 @@ ui_intro(void)
 static void
 ui_outro(void)
 {
-    if (ui_slideshow(9)) {
+    if (ui_slideshow(7)) {
         m->screen = GuiScreen_Credits;
         m->fadein = 0.f;
     }
@@ -1298,7 +1298,7 @@ ui_dungeon(void)
         button.width = 256;
 
         DrawRectangle(0, 0, GetRenderWidth(), GetRenderHeight(), ColorAlpha(BLACK, 0.8f));
-        measure = MeasureTextEx(m->fonts.big, "THE END", m->fonts.big.baseSize, 0);
+        measure = MeasureTextEx(m->fonts.big, "VICTORY", m->fonts.big.baseSize, 0);
         frame.x = GetRenderWidth() / 2 - measure.x / 2 - UI_PADDING * 2;
         frame.y = GetRenderHeight() / 2 - measure.y / 2 - UI_PADDING;
         frame.width = measure.x + UI_PADDING * 4;
@@ -1308,12 +1308,14 @@ ui_dungeon(void)
         ui_border(m->textures.border, frame, BONE);
         position.x = frame.x + UI_PADDING * 2;
         position.y = frame.y + UI_PADDING;
-        ui_text(m->fonts.big, "THE END", position, m->fonts.big.baseSize, 0, MINDAROGREEN);
+        ui_text(m->fonts.big, "VICTORY", position, m->fonts.big.baseSize, 0, MINDAROGREEN);
 
         button.x = frame.x + frame.width / 2 - button.width / 2;
         button.y = frame.y + frame.height - UI_PADDING - button.height;
         if (ui_button(button, "CONTINUE", "", KEY_ENTER, true) > 0) {
-            m->screen = GuiScreen_Credits;
+            m->screen = GuiScreen_Outro;
+            m->page = 6;
+            m->fadein = 0.f;
             m->flags |= GlobalFlags_IgnoreInput;
             PlaySound(m->click);
             map_unload(&m->map);
